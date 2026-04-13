@@ -1,0 +1,18 @@
+# Replace with your actual domain name
+transformstudio.yourdomain.com {
+
+    # Automatically obtains and renews a free SSL certificate via Let's Encrypt
+    # No configuration needed — Caddy handles it all
+
+    reverse_proxy transform-studio:8000
+
+    # Optional: enable gzip compression
+    encode gzip
+
+    # Optional: security headers
+    header {
+        X-Frame-Options DENY
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+}

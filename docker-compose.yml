@@ -1,0 +1,29 @@
+version: '3.9'
+
+# ── Dremio Transform Studio — Docker Compose ─────────────────────────────────
+# One command to run on any server or Docker Desktop:
+#   docker compose up -d
+#   Open http://localhost:8000
+
+services:
+  transform-studio:
+    build: .
+    image: mshainman/transform-studio:latest
+    container_name: transform-studio
+    ports:
+      - "8000:8000"
+    volumes:
+      - ts-data:/data          # SQLite database persists across restarts
+    environment:
+      - DB_PATH=/data/transforms.db
+      # Optional: pre-configure Dremio connection via env vars
+      # - DREMIO_HOST=your-dremio-host
+      # - DREMIO_USER=admin
+      # - DREMIO_PASS=password
+      # - DREMIO_AUTH_TYPE=pat
+      # - DREMIO_PAT=your-token
+      # - DREMIO_PROJECT_ID=your-cloud-project-id
+    restart: unless-stopped
+
+volumes:
+  ts-data:

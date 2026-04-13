@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+
+  # ── Transform Studio ────────────────────────────────────────────────────────
+  transform-studio:
+    image: mshainman/transform-studio:latest
+    container_name: transform-studio
+    restart: unless-stopped
+    expose:
+      - "8000"
+    volumes:
+      # Persist the SQLite database so pipeline data survives container restarts
+      - ts-data:/app/data
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+    networks:
+      - web
+
+  # ── Caddy (reverse proxy + automatic HTTPS) ─────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data       # stores SSL certificates
+      - caddy-config:/config
+    networks:
+      - web
+    depends_on:
+      - transform-studio
+
+volumes:
+  ts-data:       # Transform Studio SQLite + uploads
+  caddy-data:    # Caddy SSL certs (Let's Encrypt)
+  caddy-config:  # Caddy internal config cache
+
+networks:
+  web:
+    driver: bridge

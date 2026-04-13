@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Tab UI Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    display: flex;
+    gap: 40px;
+    padding: 40px;
+    align-items: flex-start;
+  }
+
+  .panel {
+    width: 280px;
+    background: #1a1d27;
+    border: 1px solid #2a2d3a;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .label {
+    text-align: center;
+    font-size: 11px;
+    color: #64748b;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+
+  /* ── CURRENT design ── */
+  .tab-row {
+    display: flex;
+    border-bottom: 1px solid #2a2d3a;
+  }
+  .tab-row button {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 8px 4px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s;
+  }
+  .tab-row button.active {
+    color: #60a5fa;
+    border-bottom-color: #60a5fa;
+  }
+  .tab-row button:hover:not(.active) { color: #94a3b8; }
+
+  /* ── NEW design ── */
+  .primary-row {
+    display: flex;
+    border-bottom: 1px solid #2a2d3a;
+  }
+  .primary-row button {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 9px 4px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s;
+  }
+  .primary-row button.active {
+    color: #60a5fa;
+    border-bottom-color: #60a5fa;
+  }
+  .primary-row button:hover:not(.active) { color: #94a3b8; }
+
+  .icon-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 6px 8px;
+    border-bottom: 1px solid #2a2d3a;
+    background: #161820;
+  }
+  .icon-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
+    border: none;
+    background: none;
+    color: #64748b;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .icon-btn:hover { background: #2a2d3a; color: #cbd5e1; }
+  .icon-btn.active {
+    background: #1e3a5f;
+    color: #60a5fa;
+  }
+  .icon-btn svg { width: 15px; height: 15px; stroke-width: 1.8; }
+
+  /* Tooltip */
+  .icon-btn::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #374151;
+    color: #f1f5f9;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    padding: 3px 7px;
+    border-radius: 5px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 10;
+  }
+  .icon-btn:hover::after { opacity: 1; }
+
+  .panel-body {
+    padding: 28px 16px 16px;
+    font-size: 12px;
+    color: #475569;
+    text-align: center;
+    min-height: 80px;
+  }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="label">Current</div>
+  <div class="panel">
+    <!-- Row 1 -->
+    <div class="tab-row">
+      <button>ADD</button>
+      <button class="active">CONFIG</button>
+      <button>HISTORY</button>
+      <button>RUNS</button>
+    </div>
+    <!-- Row 2 -->
+    <div class="tab-row">
+      <button class="active">PARAMS</button>
+      <button>TESTS</button>
+      <button>DEPS</button>
+      <button>WEBHOOK</button>
+    </div>
+    <!-- Row 3 -->
+    <div class="tab-row">
+      <button>HOOKS</button>
+      <button>EXPOSE</button>
+    </div>
+    <div class="panel-body">Select a step to configure it</div>
+  </div>
+</div>
+
+<div>
+  <div class="label">Proposed</div>
+  <div class="panel">
+    <!-- Primary tabs unchanged -->
+    <div class="primary-row">
+      <button>ADD</button>
+      <button class="active">CONFIG</button>
+      <button>HISTORY</button>
+      <button>RUNS</button>
+    </div>
+    <!-- Icon strip -->
+    <div class="icon-strip">
+      <!-- PARAMS: Sliders -->
+      <button class="icon-btn active" data-tip="PARAMS">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <!-- TESTS: Flask -->
+      <button class="icon-btn" data-tip="TESTS">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 3h6M9 3v7L5 20h14L15 10V3"/><path d="M6 17h12"/></svg>
+      </button>
+      <!-- DEPS: Git Branch -->
+      <button class="icon-btn" data-tip="DEPS">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 8v8M6 8c0 3 3 5 6 5h1a3 3 0 0 0 0-6H9"/></svg>
+      </button>
+      <!-- WEBHOOK: Link -->
+      <button class="icon-btn" data-tip="WEBHOOK">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </button>
+      <!-- HOOKS: Zap -->
+      <button class="icon-btn" data-tip="HOOKS">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </button>
+      <!-- EXPOSE: Radio signal -->
+      <button class="icon-btn" data-tip="EXPOSE">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/></svg>
+      </button>
+    </div>
+    <div class="panel-body">Select a step to configure it</div>
+  </div>
+</div>
+
+</body>
+</html>

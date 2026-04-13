@@ -1,0 +1,143 @@
+name: Build Desktop Apps
+
+# Triggers on version tags like v1.0.0, v1.2.3, etc.
+# Also runnable manually from GitHub Actions UI.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version label (e.g. v1.0.0)'
+        required: false
+        default: 'dev'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            artifact_name: TransformStudio-mac.dmg
+            artifact_path: dist/TransformStudio-mac.dmg
+
+          - os: windows-latest
+            platform: windows
+            artifact_name: TransformStudio-windows.exe
+            artifact_path: dist/TransformStudio.exe
+
+          - os: ubuntu-latest
+            platform: linux
+            artifact_name: TransformStudio-linux.tar.gz
+            artifact_path: dist/TransformStudio-linux.tar.gz
+
+    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.platform }})
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Node / frontend ───────────────────────────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build React frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      # ── Python / backend ──────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: pip install -r backend/requirements.txt pyinstaller
+
+      # ── PyInstaller ───────────────────────────────────────────────────────────
+      - name: Build with PyInstaller
+        run: pyinstaller --clean --noconfirm transform_studio.spec
+
+      # ── Mac: create DMG ───────────────────────────────────────────────────────
+      - name: Create DMG (Mac only)
+        if: matrix.platform == 'mac'
+        run: |
+          hdiutil create \
+            -volname "Transform Studio" \
+            -srcfolder "dist/TransformStudio.app" \
+            -ov -format UDZO \
+            "dist/TransformStudio-mac.dmg"
+
+      # ── Linux: create tar.gz ──────────────────────────────────────────────────
+      - name: Create tar.gz (Linux only)
+        if: matrix.platform == 'linux'
+        run: tar -czf dist/TransformStudio-linux.tar.gz -C dist TransformStudio
+
+      # ── Upload artifact ───────────────────────────────────────────────────────
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
+          if-no-files-found: error
+
+  # ── Create GitHub Release with all three files ─────────────────────────────
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Transform Studio ${{ github.ref_name }}"
+          body: |
+            ## Dremio Transform Studio ${{ github.ref_name }}
+
+            ### Download for your platform:
+            | Platform | File |
+            |----------|------|
+            | 🍎 Mac   | `TransformStudio-mac.dmg` |
+            | 🪟 Windows | `TransformStudio-windows.exe` |
+            | 🐧 Linux | `TransformStudio-linux.tar.gz` |
+
+            ### Mac install
+            1. Download `TransformStudio-mac.dmg`
+            2. Open it → drag **TransformStudio** to Applications
+            3. Click the app — browser opens automatically
+
+            ### Windows install
+            1. Download `TransformStudio-windows.exe`
+            2. Double-click it — app opens in your browser
+
+            ### Linux install
+            ```bash
+            tar -xzf TransformStudio-linux.tar.gz
+            ./TransformStudio/TransformStudio
+            ```
+
+            > **Note:** Configure your Dremio connection via the ⚙️ Settings icon after first launch.
+          files: |
+            release-assets/**/*
+          draft: false
+          prerelease: false

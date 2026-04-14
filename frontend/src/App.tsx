@@ -797,6 +797,15 @@ export default function App() {
 
         {isLoading && <Loader2 size={14} className="animate-spin text-dblue-400" />}
 
+        <Tooltip text="Data Quality Hub">
+          <button
+            onClick={() => setShowDqHub(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dblue-500/20 hover:bg-dblue-500/40 text-dblue-400 hover:text-white border border-dblue-500/40 hover:border-dblue-500/70 transition-all font-semibold text-xs"
+          >
+            <ShieldCheck size={17} />
+            DQ Hub
+          </button>
+        </Tooltip>
         <Tooltip text="Health Dashboard">
           <button
             onClick={() => setShowDashboard(true)}
@@ -811,14 +820,6 @@ export default function App() {
             className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors relative"
           >
             <GitPullRequest size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip text="Data Quality Hub">
-          <button
-            onClick={() => setShowDqHub(true)}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
-          >
-            <ShieldCheck size={15} />
           </button>
         </Tooltip>
         <Tooltip text="Alerts">

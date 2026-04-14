@@ -121,6 +121,27 @@ class PipelineScheduler:
             except Exception as e:
                 logger.warning(f"Bad alert cron {cron!r}: {e}")
 
+        # ── Check DQ monitor schedules ─────────────────────────────────────
+        monitors = await store.list_dq_monitors()
+        for monitor in monitors:
+            if not monitor.get("enabled"):
+                continue
+            cron = monitor.get("schedule_cron", "")
+            if not cron:
+                continue
+            last_scan = monitor.get("last_scan_at")
+            try:
+                base = last_scan if last_scan else now
+                if isinstance(base, str):
+                    from datetime import datetime as _dt
+                    base = _dt.fromisoformat(base)
+                ct = croniter(cron, base)
+                next_run = ct.get_next(datetime)
+                if next_run <= now:
+                    asyncio.create_task(self._run_dq_scan(monitor))
+            except Exception as e:
+                logger.warning(f"Bad DQ monitor cron {cron!r}: {e}")
+
         # ── Check pipeline schedules (parallel execution) ──────────────────
         schedules = await store.list_schedules()
         due_scheds: list[dict] = []
@@ -169,6 +190,44 @@ class PipelineScheduler:
         except Exception as e:
             logger.error(f"Alert '{alert_name}' evaluation error: {e}")
             await store.record_alert_check(alert_id, alert_name, "error", str(e))
+
+    async def _run_dq_scan(self, monitor: dict):
+        monitor_id = monitor["id"]
+        display_name = monitor.get("display_name", monitor_id)
+        logger.info(f"Running scheduled DQ scan for '{display_name}'")
+        import time as _time
+        import json as _json
+        from dq_engine import run_scan as _run_scan
+        try:
+            rules = _json.loads(monitor.get("rules_json", "[]") or "[]")
+            start = _time.time()
+            result = await _run_scan(monitor["table_name"], rules, dremio_client, catalog_client)
+            duration_ms = int((_time.time() - start) * 1000)
+            result["duration_ms"] = duration_ms
+            scan_record = await store.save_dq_scan_result(monitor_id, result)
+            await store.update_dq_monitor(monitor_id, {
+                "last_scan_at": scan_record["scanned_at"],
+                "last_score": result.get("overall_score"),
+            })
+            score = result.get("overall_score", 0)
+            # Fire notification if score drops below threshold
+            threshold = monitor.get("alert_threshold")
+            alert_enabled = monitor.get("alert_enabled", 0)
+            if alert_enabled and threshold is not None and score < threshold:
+                try:
+                    notif_settings = await store.get_notification_settings()
+                    from alert_runner import send_alert_notification
+                    msg = f"DQ score for '{display_name}' dropped to {score:.1f}% (threshold: {threshold}%)"
+                    await send_alert_notification(f"DQ Alert: {display_name}", msg, notif_settings)
+                except Exception as e:
+                    logger.error(f"DQ alert notification failed: {e}")
+            logger.info(f"DQ scan '{display_name}' complete: {score:.1f}%")
+        except Exception as e:
+            logger.error(f"DQ scan '{display_name}' failed: {e}")
+            await store.save_dq_scan_result(monitor_id, {
+                "overall_score": 0.0, "status": "error",
+                "error_message": str(e), "rule_results": [], "duration_ms": 0,
+            })
 
     async def _run_due_pipelines_parallel(self, due_scheds: list[dict]):
         """

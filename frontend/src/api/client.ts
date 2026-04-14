@@ -719,7 +719,7 @@ export interface DQRuleResult {
   rule_name: string
   pass_rate: number
   status: 'passed' | 'warned' | 'failed' | 'error'
-  detail: string
+  detail: Record<string, unknown>
   message: string
   weight: number
 }
@@ -743,6 +743,8 @@ export interface DQMonitor {
   rules_json: string
   schedule_cron?: string
   enabled: boolean
+  alert_threshold?: number
+  alert_enabled?: boolean
   created_at: string
   updated_at: string
   last_scan_at?: string
@@ -782,6 +784,8 @@ export async function createDQMonitor(data: {
   rules_json?: string
   schedule_cron?: string
   enabled?: boolean
+  alert_threshold?: number | null
+  alert_enabled?: boolean
 }): Promise<DQMonitor> {
   const res = await api.post('/api/dq/monitors', data)
   return res.data
@@ -808,6 +812,11 @@ export async function fetchDQScanResults(monitorId: string, limit = 20): Promise
 
 export async function fetchDQDashboard(): Promise<DQMonitor[]> {
   const res = await api.get('/api/dq/dashboard')
+  return res.data
+}
+
+export async function fetchDQScanHistory(limit = 100): Promise<(DQScanResult & { display_name: string; table_name: string })[]> {
+  const res = await api.get('/api/dq/scan-history', { params: { limit } })
   return res.data
 }
 

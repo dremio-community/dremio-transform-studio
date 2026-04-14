@@ -69,6 +69,7 @@ On first launch, go to **Settings (gear icon) → Connection** and enter your Dr
 - **Cross-pipeline DAG** with dependency ordering and cycle detection
 - **MCP Server** built-in at `/mcp/sse` (22 tools for AI agent integration)
 - **Alerts** — custom SQL, pipeline health, data quality, and source freshness
+- **Data Quality Hub** — dedicated DQ workspace with monitors, scoring, scheduling, and 14 built-in rules across 6 categories
 - **Export documentation** — self-contained HTML doc for all pipelines
 
 ---

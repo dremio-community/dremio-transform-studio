@@ -2234,6 +2234,14 @@ async def regenerate_webhook(pipeline_id: str, current_user: dict = Depends(get_
 
 # ── Data Quality Hub ─────────────────────────────────────────────────────────
 
+@app.get("/api/dq/scan-history", tags=["dq"], summary="All recent DQ scans across all monitors")
+async def dq_scan_history(
+    limit: int = 100,
+    current_user: dict = Depends(get_current_user),
+) -> list:
+    return await store.get_all_dq_scan_results(limit=limit)
+
+
 @app.get("/api/dq/rules", tags=["dq"], summary="List all available DQ rule types")
 async def list_dq_rules() -> list:
     """Returns the catalog of 14 configurable data quality rules with their IDs, names, descriptions, and config schemas."""

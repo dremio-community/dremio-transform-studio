@@ -1,6 +1,6 @@
 # Dremio Transform Studio — User Guide
 
-**Version 1.5 | April 2026**
+**Version 1.6 | April 2026**
 
 ---
 
@@ -944,6 +944,155 @@ For sensitive or production pipelines, admins can require that all changes go th
 The Reviews panel has filter tabs — **Pending**, **Approved**, **Rejected**, and **All** — so you can see the full audit trail of all change requests for every pipeline.
 
 > **Note:** Full per-user enforcement requires authentication to be enabled (`AUTH_ENABLED=true`). When auth is disabled, all users are treated as admin.
+
+---
+
+## Data Quality Hub
+
+The Data Quality Hub is a dedicated, full-screen workspace for monitoring the quality of your Dremio data. While pipeline tests validate the output of a specific pipeline after it runs, the DQ Hub lets you set up independent monitors that scan any table in your Dremio catalog on their own schedule — no pipeline required.
+
+### Opening the DQ Hub
+
+Click the blue **DQ Hub** pill button in the top toolbar. It sits to the left of the Health Dashboard icon. The hub opens as a full-screen overlay with four sections accessible from the top navigation tabs.
+
+---
+
+### Overview
+
+The Overview tab is your DQ at-a-glance dashboard. It shows:
+
+- **Stat cards** — total number of monitors, average DQ score across all monitors, and a count of passing vs. failing monitors
+- **Monitor health grid** — one card per monitor showing its name, current score, and status colour. Click any card to jump directly to that monitor's detail view.
+
+---
+
+### Monitors
+
+The Monitors tab lists all your DQ monitors. Each row shows the monitor name, the table it scans, and an animated **score ring** — a circular chart that fills based on the monitor's current DQ score. The ring colour reflects the score band:
+
+- **Green** — score ≥ 90% (healthy)
+- **Amber** — score 70–89% (needs attention)
+- **Red** — score < 70% (failing)
+
+Click any monitor row to open its full detail view, which shows each rule's individual pass rate, the timestamp of the last scan, and a scan history log.
+
+---
+
+### History
+
+The History tab is a cross-monitor scan log — a single table showing every scan that has ever run, across all monitors, newest first. Each row shows the monitor name, scan time, and overall score. Click the **▶** expand button on any row to see a rule-by-rule drill-down: which rules passed, which failed, and their individual pass rates for that scan.
+
+---
+
+### Rule Catalog
+
+The Rule Catalog tab lists all 14 built-in DQ rules, grouped by category. Each rule card shows a description of what the rule checks and its configurable parameters. An **Add to monitor…** shortcut lets you immediately attach a rule to an existing monitor — useful for browsing available rules and adding them without going back through the full creation wizard.
+
+---
+
+### Creating a DQ Monitor
+
+Click **+ New Monitor** from the Overview or Monitors section. A three-step wizard opens:
+
+#### Step 1 — Pick Table
+
+A catalog tree browser shows your Dremio namespaces and tables, identical to the sidebar catalog. Expand namespaces to find the table you want to monitor, then click it to select it. The selected table is shown in a confirmation banner before you proceed.
+
+#### Step 2 — Configure Rules
+
+Add one or more rules from the 14-rule catalog. Each rule you add appears as an expanded card showing its configurable parameters:
+
+- **Column rules** — a dropdown pre-populated with the selected table's column names (fetched automatically from Dremio)
+- **Threshold rules** — numeric sliders or input fields (e.g. maximum null rate %)
+- **Pattern rules** — text fields for regex patterns, accepted value lists, etc.
+
+You can add as many rules as you like. Each rule contributes to the monitor's overall score.
+
+#### Step 3 — Schedule & Alerts
+
+- **Schedule** — choose a preset (Never, Hourly, Daily, Weekly) or enter a custom cron expression. Monitors with a schedule are scanned automatically by the background scheduler.
+- **Alert threshold** — a slider from 0–100%. If the monitor's DQ score drops below this value after a scan, an alert is fired.
+- **Alert toggle** — enable email and/or Slack notifications when the score drops below the threshold. Notifications use the same email/Slack settings configured in **Settings → Notifications**.
+
+Click **Create Monitor** to save. The monitor immediately appears in the Monitors list and Overview grid.
+
+---
+
+### The 14 DQ Rules
+
+Rules are grouped into six categories:
+
+**Completeness**
+| Rule | What it checks |
+|------|---------------|
+| **Null Rate** | The percentage of null values in a column is below a configured threshold |
+| **Not Null (Strict)** | A column contains zero null values |
+| **Row Count** | The table has at least a minimum number of rows |
+| **Completeness Score** | The overall ratio of non-null values across selected columns |
+
+**Validity**
+| Rule | What it checks |
+|------|---------------|
+| **Regex Validity** | Column values match a specified regex pattern |
+| **Accepted Values** | Column values are drawn from a configured allowed list |
+| **Numeric Range** | Numeric column values fall within a configured min/max range |
+
+**Uniqueness**
+| Rule | What it checks |
+|------|---------------|
+| **Column Uniqueness** | All values in a column are distinct |
+| **Duplicate Key Check** | No duplicate combinations exist across a set of key columns |
+
+**Accuracy**
+| Rule | What it checks |
+|------|---------------|
+| **Referential Integrity** | Every value in a column exists in a reference table's column |
+| **Min/Max Bound** | Column min and max values stay within expected bounds |
+
+**Timeliness**
+| Rule | What it checks |
+|------|---------------|
+| **Data Freshness** | The maximum value of a timestamp column is no older than a configured threshold |
+
+**Consistency**
+| Rule | What it checks |
+|------|---------------|
+| **Cross-Column Consistency** | A SQL expression relating two or more columns evaluates to true for all rows |
+
+**Custom**
+| Rule | What it checks |
+|------|---------------|
+| **Custom SQL Check** | A user-written SQL query returns zero rows (any rows returned = rule failure) |
+
+---
+
+### Scoring
+
+Each rule produces a **pass rate** — the percentage of rows (or the overall result) that satisfies the rule's condition. The monitor's overall **DQ score** is the weighted average of all rule pass rates. By default all rules are weighted equally, but you can adjust weights per rule when configuring a monitor.
+
+Score thresholds:
+- **≥ 90%** — green (healthy)
+- **70–89%** — amber (needs attention)
+- **< 70%** — red (failing)
+
+Scores are displayed as animated SVG ring charts throughout the hub.
+
+---
+
+### Scheduling
+
+Monitors with a cron schedule are scanned automatically by the same background scheduler that powers pipeline scheduling (runs every 60 seconds, checks for due monitors). You can also trigger any monitor on-demand from the Monitors list using the **Scan Now** button.
+
+---
+
+### Alerts
+
+If a monitor has alerts enabled and the DQ score after a scan falls below the configured alert threshold, Transform Studio sends a notification via the channels you've enabled:
+
+- **Email** — sent to the address(es) configured in **Settings → Notifications**
+- **Slack** — posted to the incoming webhook URL configured in **Settings → Notifications**
+
+The notification includes the monitor name, the table scanned, the current DQ score, and a summary of which rules failed. This is the same notification system used for pipeline failure alerts — no additional configuration is needed if you've already set up email or Slack for pipelines.
 
 ---
 

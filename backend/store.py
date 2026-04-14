@@ -202,6 +202,9 @@ class PipelineStore:
                 # Approval workflow (v1.6)
                 "ALTER TABLE pipelines ADD COLUMN approval_required INTEGER DEFAULT 0",
                 "ALTER TABLE pipelines ADD COLUMN pending_approval_id TEXT",
+                # DQ monitor alert thresholds (v1.7)
+                "ALTER TABLE dq_monitors ADD COLUMN alert_threshold REAL",
+                "ALTER TABLE dq_monitors ADD COLUMN alert_enabled INTEGER DEFAULT 0",
             ]:
                 try:
                     await db.execute(col_sql)
@@ -1694,6 +1697,19 @@ class PipelineStore:
             async with db.execute(
                 "SELECT * FROM dq_scan_results WHERE monitor_id = ? ORDER BY scanned_at DESC LIMIT ?",
                 (monitor_id, limit),
+            ) as cur:
+                rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_all_dq_scan_results(self, limit: int = 100) -> list:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """SELECT r.*, m.display_name, m.table_name
+                   FROM dq_scan_results r
+                   JOIN dq_monitors m ON r.monitor_id = m.id
+                   ORDER BY r.scanned_at DESC LIMIT ?""",
+                (limit,),
             ) as cur:
                 rows = await cur.fetchall()
         return [dict(r) for r in rows]

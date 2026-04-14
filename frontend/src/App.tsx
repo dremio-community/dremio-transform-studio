@@ -41,6 +41,7 @@ import {
   SlidersHorizontal,
   Link,
   Radio,
+  ShieldCheck,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -82,6 +83,7 @@ import type { PipelineRun, AuthUser } from './api/client'
 import CatalogBrowser from './components/CatalogBrowser'
 import CustomSqlEditor from './components/CustomSqlEditor'
 import AlertsPage from './components/AlertsPage'
+import DataQualityHub from './components/DataQualityHub'
 import DataProfilePanel from './components/DataProfilePanel'
 import IcebergCatalogBrowser from './components/IcebergCatalogBrowser'
 import PipelineBuilder from './components/PipelineBuilder'
@@ -192,6 +194,7 @@ export default function App() {
   const [customSqlEditorStepId, setCustomSqlEditorStepId] = useState<string | null>(null)
   const [showAlerts, setShowAlerts] = useState(false)
   const [showDashboard, setShowDashboard] = useState(false)
+  const [showDqHub, setShowDqHub] = useState(false)
   const [showDupeNameWarning, setShowDupeNameWarning] = useState(false)
 
   // ── Auth initialization ───────────────────────────────────────────────────
@@ -808,6 +811,14 @@ export default function App() {
             className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors relative"
           >
             <GitPullRequest size={15} />
+          </button>
+        </Tooltip>
+        <Tooltip text="Data Quality Hub">
+          <button
+            onClick={() => setShowDqHub(true)}
+            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+          >
+            <ShieldCheck size={15} />
           </button>
         </Tooltip>
         <Tooltip text="Alerts">
@@ -1668,6 +1679,7 @@ export default function App() {
 
       {/* Alerts page — full-page overlay */}
       {showAlerts && <AlertsPage onClose={() => setShowAlerts(false)} />}
+      {showDqHub && <DataQualityHub onClose={() => setShowDqHub(false)} />}
 
       {/* Duplicate pipeline name warning */}
       {showDupeNameWarning && (

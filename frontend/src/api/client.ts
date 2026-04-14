@@ -706,6 +706,111 @@ export async function setApprovalRequired(pipelineId: string, required: boolean)
   await api.put(`/api/pipelines/${pipelineId}/approval-required`, { required })
 }
 
+// ── Data Quality Hub ─────────────────────────────────────────────────────────
+
+export interface DQRuleConfig {
+  rule_id: string
+  config: Record<string, unknown>
+  weight?: number
+}
+
+export interface DQRuleResult {
+  rule_id: string
+  rule_name: string
+  pass_rate: number
+  status: 'passed' | 'warned' | 'failed' | 'error'
+  detail: string
+  message: string
+  weight: number
+}
+
+export interface DQScanResult {
+  id: string
+  monitor_id: string
+  scanned_at: string
+  overall_score: number
+  rule_results_json?: string
+  rule_results?: DQRuleResult[]
+  status: string
+  error_message?: string
+  duration_ms?: number
+}
+
+export interface DQMonitor {
+  id: string
+  table_name: string
+  display_name: string
+  rules_json: string
+  schedule_cron?: string
+  enabled: boolean
+  created_at: string
+  updated_at: string
+  last_scan_at?: string
+  last_score?: number
+  latest_scan?: DQScanResult
+}
+
+export interface DQRuleSchemaField {
+  key: string
+  label: string
+  type: 'column' | 'number' | 'string' | 'sql' | 'readonly'
+  required?: boolean
+  default?: unknown
+}
+
+export interface DQRule {
+  id: string
+  name: string
+  description: string
+  category: string
+  config_schema: DQRuleSchemaField[]
+}
+
+export async function fetchDQRules(): Promise<DQRule[]> {
+  const res = await api.get('/api/dq/rules')
+  return res.data
+}
+
+export async function fetchDQMonitors(): Promise<DQMonitor[]> {
+  const res = await api.get('/api/dq/monitors')
+  return res.data
+}
+
+export async function createDQMonitor(data: {
+  table_name: string
+  display_name?: string
+  rules_json?: string
+  schedule_cron?: string
+  enabled?: boolean
+}): Promise<DQMonitor> {
+  const res = await api.post('/api/dq/monitors', data)
+  return res.data
+}
+
+export async function updateDQMonitor(id: string, data: Partial<DQMonitor>): Promise<DQMonitor> {
+  const res = await api.put(`/api/dq/monitors/${id}`, data)
+  return res.data
+}
+
+export async function deleteDQMonitor(id: string): Promise<void> {
+  await api.delete(`/api/dq/monitors/${id}`)
+}
+
+export async function runDQScan(monitorId: string): Promise<DQScanResult> {
+  const res = await api.post(`/api/dq/monitors/${monitorId}/scan`)
+  return res.data
+}
+
+export async function fetchDQScanResults(monitorId: string, limit = 20): Promise<DQScanResult[]> {
+  const res = await api.get(`/api/dq/monitors/${monitorId}/results`, { params: { limit } })
+  return res.data
+}
+
+export async function fetchDQDashboard(): Promise<DQMonitor[]> {
+  const res = await api.get('/api/dq/dashboard')
+  return res.data
+}
+
 // ── Documentation Export ──────────────────────────────────────────────────────
 
 export async function exportDocs(): Promise<void> {

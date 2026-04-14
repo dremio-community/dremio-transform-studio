@@ -224,6 +224,34 @@ class PipelineStore:
                     FOREIGN KEY (pipeline_id) REFERENCES pipelines(id)
                 )
             """)
+            # ── Data Quality Hub tables ────────────────────────────────────────
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS dq_monitors (
+                    id TEXT PRIMARY KEY,
+                    table_name TEXT NOT NULL,
+                    display_name TEXT,
+                    rules_json TEXT NOT NULL DEFAULT '[]',
+                    schedule_cron TEXT,
+                    enabled INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    last_scan_at TEXT,
+                    last_score REAL
+                )
+            """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS dq_scan_results (
+                    id TEXT PRIMARY KEY,
+                    monitor_id TEXT NOT NULL,
+                    scanned_at TEXT NOT NULL,
+                    overall_score REAL,
+                    rule_results_json TEXT,
+                    status TEXT,
+                    error_message TEXT,
+                    duration_ms INTEGER,
+                    FOREIGN KEY (monitor_id) REFERENCES dq_monitors(id)
+                )
+            """)
             # Generate webhook_token for existing rows that don't have one
             await db.execute(
                 "UPDATE pipelines SET webhook_token = lower(hex(randomblob(16))) WHERE webhook_token IS NULL"
@@ -1551,6 +1579,142 @@ class PipelineStore:
             )
             await db.commit()
         return True
+
+    # ── Data Quality Monitors ─────────────────────────────────────────────────
+
+    async def list_dq_monitors(self) -> list:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM dq_monitors ORDER BY updated_at DESC"
+            ) as cur:
+                rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_dq_monitor(self, monitor_id: str) -> Optional[dict]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM dq_monitors WHERE id = ?", (monitor_id,)
+            ) as cur:
+                row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def create_dq_monitor(self, data: dict) -> dict:
+        monitor_id = str(uuid.uuid4())
+        now = _now_iso()
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                """INSERT INTO dq_monitors
+                   (id, table_name, display_name, rules_json, schedule_cron, enabled, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    monitor_id,
+                    data["table_name"],
+                    data.get("display_name") or data["table_name"],
+                    data.get("rules_json", "[]"),
+                    data.get("schedule_cron"),
+                    1 if data.get("enabled", True) else 0,
+                    now, now,
+                ),
+            )
+            await db.commit()
+        return await self.get_dq_monitor(monitor_id)
+
+    async def update_dq_monitor(self, monitor_id: str, data: dict) -> Optional[dict]:
+        existing = await self.get_dq_monitor(monitor_id)
+        if not existing:
+            return None
+        now = _now_iso()
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                """UPDATE dq_monitors
+                   SET table_name = ?, display_name = ?, rules_json = ?, schedule_cron = ?,
+                       enabled = ?, updated_at = ?,
+                       last_scan_at = COALESCE(?, last_scan_at),
+                       last_score = COALESCE(?, last_score)
+                   WHERE id = ?""",
+                (
+                    data.get("table_name", existing["table_name"]),
+                    data.get("display_name", existing["display_name"]),
+                    data.get("rules_json", existing["rules_json"]),
+                    data.get("schedule_cron", existing["schedule_cron"]),
+                    1 if data.get("enabled", bool(existing["enabled"])) else 0,
+                    now,
+                    data.get("last_scan_at"),
+                    data.get("last_score"),
+                    monitor_id,
+                ),
+            )
+            await db.commit()
+        return await self.get_dq_monitor(monitor_id)
+
+    async def delete_dq_monitor(self, monitor_id: str) -> bool:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                "SELECT id FROM dq_monitors WHERE id = ?", (monitor_id,)
+            ) as cur:
+                if not await cur.fetchone():
+                    return False
+            await db.execute(
+                "DELETE FROM dq_scan_results WHERE monitor_id = ?", (monitor_id,)
+            )
+            await db.execute("DELETE FROM dq_monitors WHERE id = ?", (monitor_id,))
+            await db.commit()
+        return True
+
+    async def save_dq_scan_result(self, monitor_id: str, result: dict) -> dict:
+        scan_id = str(uuid.uuid4())
+        now = _now_iso()
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                """INSERT INTO dq_scan_results
+                   (id, monitor_id, scanned_at, overall_score, rule_results_json, status, error_message, duration_ms)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    scan_id, monitor_id, now,
+                    result.get("overall_score"),
+                    json.dumps(result.get("rule_results", [])),
+                    result.get("status", "unknown"),
+                    result.get("error_message"),
+                    result.get("duration_ms"),
+                ),
+            )
+            await db.commit()
+        return {
+            "id": scan_id,
+            "monitor_id": monitor_id,
+            "scanned_at": now,
+            **result,
+        }
+
+    async def get_dq_scan_results(self, monitor_id: str, limit: int = 20) -> list:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM dq_scan_results WHERE monitor_id = ? ORDER BY scanned_at DESC LIMIT ?",
+                (monitor_id, limit),
+            ) as cur:
+                rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_dq_dashboard(self) -> list:
+        """Return all monitors with their latest scan result."""
+        monitors = await self.list_dq_monitors()
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            results = []
+            for m in monitors:
+                async with db.execute(
+                    "SELECT * FROM dq_scan_results WHERE monitor_id = ? ORDER BY scanned_at DESC LIMIT 1",
+                    (m["id"],),
+                ) as cur:
+                    last_scan = await cur.fetchone()
+                results.append({
+                    **m,
+                    "latest_scan": dict(last_scan) if last_scan else None,
+                })
+        return results
 
 
 store = PipelineStore()

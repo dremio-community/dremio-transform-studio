@@ -2232,6 +2232,118 @@ async def regenerate_webhook(pipeline_id: str, current_user: dict = Depends(get_
     return {"webhook_token": new_token, "pipeline_id": pipeline_id}
 
 
+# ── Data Quality Hub ─────────────────────────────────────────────────────────
+
+@app.get("/api/dq/rules", tags=["dq"], summary="List all available DQ rule types")
+async def list_dq_rules() -> list:
+    """Returns the catalog of 14 configurable data quality rules with their IDs, names, descriptions, and config schemas."""
+    from dq_engine import RULE_CATALOG
+    return RULE_CATALOG
+
+
+@app.get("/api/dq/monitors", tags=["dq"], summary="List all DQ monitors")
+async def list_dq_monitors(current_user: dict = Depends(get_current_user)) -> list:
+    """Returns all configured DQ monitors with latest score and scan timestamp."""
+    return await store.list_dq_monitors()
+
+
+@app.post("/api/dq/monitors", status_code=201, tags=["dq"], summary="Create a DQ monitor")
+async def create_dq_monitor(
+    body: dict,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Create a new DQ monitor for a Dremio table. Required: table_name, rules_json. Optional: display_name, schedule_cron."""
+    if not body.get("table_name"):
+        raise HTTPException(status_code=400, detail="table_name is required")
+    if "rules_json" not in body:
+        body["rules_json"] = "[]"
+    return await store.create_dq_monitor(body)
+
+
+@app.get("/api/dq/monitors/{monitor_id}", tags=["dq"], summary="Get a DQ monitor")
+async def get_dq_monitor(
+    monitor_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    m = await store.get_dq_monitor(monitor_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    return m
+
+
+@app.put("/api/dq/monitors/{monitor_id}", tags=["dq"], summary="Update a DQ monitor")
+async def update_dq_monitor(
+    monitor_id: str,
+    body: dict,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    m = await store.update_dq_monitor(monitor_id, body)
+    if not m:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    return m
+
+
+@app.delete("/api/dq/monitors/{monitor_id}", status_code=204, response_model=None, tags=["dq"], summary="Delete a DQ monitor")
+async def delete_dq_monitor(
+    monitor_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    ok = await store.delete_dq_monitor(monitor_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+
+
+@app.post("/api/dq/monitors/{monitor_id}/scan", tags=["dq"], summary="Run a DQ scan now")
+async def run_dq_scan(
+    monitor_id: str,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Execute all rules for this monitor against the configured Dremio table. Returns the scan result with per-rule scores."""
+    m = await store.get_dq_monitor(monitor_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+
+    import time as _time
+    from dq_engine import run_scan as _run_scan
+    rules = _json_mod.loads(m["rules_json"] or "[]")
+    start = _time.time()
+    try:
+        result = await _run_scan(m["table_name"], rules, dremio_client, catalog_client)
+    except Exception as scan_err:
+        result = {
+            "overall_score": 0.0,
+            "status": "error",
+            "error_message": str(scan_err),
+            "rule_results": [],
+        }
+    duration_ms = int((_time.time() - start) * 1000)
+    result["duration_ms"] = duration_ms
+
+    scan_record = await store.save_dq_scan_result(monitor_id, result)
+    # Update monitor with latest scan timestamp and score
+    await store.update_dq_monitor(monitor_id, {
+        "last_scan_at": scan_record["scanned_at"],
+        "last_score": result.get("overall_score"),
+    })
+    return scan_record
+
+
+@app.get("/api/dq/monitors/{monitor_id}/results", tags=["dq"], summary="Get scan history for a DQ monitor")
+async def get_dq_scan_results(
+    monitor_id: str,
+    limit: int = 20,
+    current_user: dict = Depends(get_current_user),
+) -> list:
+    """Returns the last N scan results for this monitor, most recent first."""
+    return await store.get_dq_scan_results(monitor_id, limit=limit)
+
+
+@app.get("/api/dq/dashboard", tags=["dq"], summary="DQ dashboard — all monitors with latest scores")
+async def dq_dashboard(current_user: dict = Depends(get_current_user)) -> list:
+    """Returns all monitors with their latest scan result for the DQ dashboard view."""
+    return await store.get_dq_dashboard()
+
+
 # ── Static frontend (desktop / Docker production build) ───────────────────────
 # ── MCP Server (HTTP/SSE transport) ──────────────────────────────────────────
 #

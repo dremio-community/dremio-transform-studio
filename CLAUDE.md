@@ -19,15 +19,16 @@ dremio-transform-studio/
 ├── backend/                    # Python / FastAPI
 │   ├── main.py                 # All API routes + static file serving
 │   ├── config.py               # Settings class (reads env vars, persists to DB)
-│   ├── store.py                # SQLite persistence (pipelines, versions, schedules, settings, users, runs, profile cache)
+│   ├── store.py                # SQLite persistence (pipelines, versions, schedules, settings, users, runs, profile cache, dq_monitors, dq_scan_results)
 │   ├── models.py               # Pydantic models (Pipeline, TransformStep, PipelineParameter, PipelineTest, TestResult, etc.)
 │   ├── auth.py                 # JWT auth — hash_password, verify_password, create_token, get_current_user
 │   ├── dremio_client.py        # Dremio REST API client (auth, SQL, job polling)
 │   ├── catalog_client.py       # Dremio catalog browsing (namespaces, tables, schemas)
-│   ├── iceberg_rest_client.py  # Iceberg REST catalog client
-│   ├── scheduler.py            # Cron-based pipeline scheduler (runs every 60s)
+│   ├── iceberg_rest_client.py  # Iceberg REST catalog client (SigV4 auth for AWS Glue)
+│   ├── scheduler.py            # Cron-based scheduler (pipelines + DQ monitor scans every 60s)
 │   ├── test_runner.py          # Pipeline test execution (not_null, unique, row_count, accepted_values, custom_sql)
 │   ├── dag_utils.py            # Cross-pipeline DAG: topological_sort, find_cycles, build_dag_response
+│   ├── dq_engine.py            # Data Quality engine: 14 SQL-based rules, evaluate_rule(), run_scan(), _quote_table()
 │   ├── desktop_launcher.py     # Entry point for PyInstaller desktop builds
 │   ├── requirements.txt        # Python dependencies
 │   └── transforms/
@@ -70,7 +71,8 @@ dremio-transform-studio/
 │   │       ├── TestsPanel.tsx           # Right panel tab — define/edit pipeline tests, Run Now button
 │   │       ├── CustomSqlEditor.tsx      # Full-screen SQL editor for custom_sql transform + template library
 │   │       ├── AlertsPage.tsx           # Full-page alerts management (list, history, run-now)
-│   │       └── CreateAlertModal.tsx     # Modal — create/edit alert (custom SQL, pipeline health, data quality)
+│   │       ├── CreateAlertModal.tsx     # Modal — create/edit alert (custom SQL, pipeline health, data quality)
+│   │       └── DataQualityHub.tsx       # Full-screen DQ workspace (1,582 lines) — Overview, Monitors, History, Rule Catalog
 │   ├── tailwind.config.js      # Custom colors: navy-*, dblue-*, surface-*
 │   └── vite.config.ts          # Dev proxy: /api → http://host.docker.internal:8000
 │
@@ -285,6 +287,30 @@ alert_history
   message TEXT
   triggered INTEGER DEFAULT 0
   run_at TEXT
+
+dq_monitors
+  id TEXT PRIMARY KEY
+  name TEXT NOT NULL
+  table_name TEXT NOT NULL            -- fully-qualified Dremio table (e.g. "ns"."table")
+  rules_json TEXT NOT NULL            -- JSON array of DQRule configs
+  cron_expression TEXT                -- NULL = manual only
+  enabled INTEGER DEFAULT 1
+  alert_threshold REAL DEFAULT 80.0   -- score below this triggers alert
+  alert_enabled INTEGER DEFAULT 0
+  notify_email TEXT
+  notify_slack TEXT
+  last_run_at TEXT
+  last_score REAL
+  created_at TEXT
+  updated_at TEXT
+
+dq_scan_results
+  id TEXT PRIMARY KEY
+  monitor_id TEXT NOT NULL
+  score REAL NOT NULL                 -- weighted average pass_rate 0-100
+  status TEXT NOT NULL                -- 'pass' | 'fail' | 'error'
+  rule_results_json TEXT NOT NULL     -- JSON array of DQRuleResult
+  scanned_at TEXT NOT NULL
 ```
 
 ---
@@ -463,6 +489,19 @@ GET    /api/alerts/{id}/history             → [AlertHistoryEntry]
 POST   /api/alerts/{id}/run                 → { result, triggered, message }
 ```
 
+### Data Quality
+```
+GET    /api/dq/rules                        → [DQRuleDefinition]  (14 built-in rule types)
+GET    /api/dq/monitors                     → [DQMonitor]
+POST   /api/dq/monitors                     body: DQMonitorCreate → DQMonitor
+GET    /api/dq/monitors/{id}                → DQMonitor
+PUT    /api/dq/monitors/{id}                body: DQMonitorUpdate
+DELETE /api/dq/monitors/{id}
+POST   /api/dq/monitors/{id}/scan           → { scan_id, score, status, rule_results }
+GET    /api/dq/monitors/{id}/results        → [DQScanResult]
+GET    /api/dq/scan-history                 → [DQScanResult] (all monitors, most recent first)
+```
+
 ---
 
 ## Environment Variables
@@ -556,10 +595,13 @@ build\build_windows.bat
 - **Docker builds**: Use `npm install` (not `npm ci`) in Dockerfile so packages added after initial lockfile generation are picked up.
 - **Docker stale cache**: Always use `./build/rebuild_docker.sh` for rebuilds. `docker restart` does NOT switch images. Must do `docker build --no-cache` + `docker stop/rm` + `docker compose up`.
 - **CORS on shared servers**: Default `ALLOWED_ORIGINS=*` is fine for local/desktop. For server deployments with `AUTH_ENABLED=true`, always set `ALLOWED_ORIGINS` to your actual domain — `allow_credentials=True` + `*` is both a security hole and invalid per the CORS spec. The app sets `allow_credentials=False` automatically when origins is `*`.
+- **DQRuleResult.detail is a dict, not a string**: `dq_engine.py` returns `detail` as a Python `dict` (e.g. `{"actual": 5, "threshold": 10}`). The TypeScript type is `Record<string, unknown>`. NEVER render `{r.detail}` directly as a React child — it crashes with "Objects are not valid as a React child". Always use `{r.message}` instead.
+- **DQ table quoting**: Dremio table names with dots/spaces must be quoted per-segment. Use `_quote_table(table_name)` in `dq_engine.py` — it splits on `.` and wraps each segment in double-quotes. Never pass raw table strings to SQL.
+- **`@mark` spaces**: Home spaces like `@mark` only support VDS (virtual datasets). Use `CREATE OR REPLACE VDS`, NOT `CREATE OR REPLACE TABLE`. In SQL, quote as `"@mark"."tablename"`.
 
 ---
 
-## Current State (as of 2026-04-12)
+## Current State (as of 2026-04-13) — v1.6
 
 All features working and tested against Dremio Cloud:
 
@@ -616,6 +658,22 @@ All features working and tested against Dremio Cloud:
 - ✅ Pre/Post hook SQL — `pre_hook_sql` / `post_hook_sql` on Pipeline; pre-hook failure aborts execute; post-hook failure surfaces as warning but doesn't mark run as failed
 - ✅ Source Freshness alerts — 4th alert type; checks MAX(timestamp_column) age against threshold; `evaluate_source_freshness_alert()` in alert_runner.py
 - ✅ Step bisection on failure — `_bisect_pipeline_failure()` in main.py; binary-searches steps to identify which step caused execute failure; reports "Failed at step N: [label]" in error message
+
+### Features Added in v1.5
+- ✅ Passlib hidden imports — fixed DMG crash-on-launch (PyInstaller spec includes passlib.handlers.sha2_crypt)
+- ✅ Auto-refresh after connect — CatalogBrowser remounts on connection save
+- ✅ AWS Glue SigV4 auth — `_SigV4Auth` in iceberg_rest_client.py; boto3 added to requirements
+- ✅ Visual User Guide — `docs/VISUAL_GUIDE.html` with real screenshots
+
+### Features Added in v1.6 — Data Quality Hub
+- ✅ **Data Quality Hub** — full-screen DQ workspace via prominent blue "DQ Hub" pill button in toolbar (ShieldCheck icon, left of Health Dashboard)
+- ✅ 4 nav sections: Overview (stat cards + monitor health grid), Monitors (list with score rings), History (cross-monitor scan log), Rule Catalog (14 rules with "Add to monitor" shortcut)
+- ✅ 14 DQ rules across 6 categories (Completeness, Validity, Uniqueness, Accuracy, Timeliness, Consistency) + Custom SQL; implemented in `dq_engine.py`
+- ✅ DQ scoring: `pass_rate` per rule (0–100%), weighted average = DQ score; ≥90% green, 70–89% amber, <70% red; animated SVG rings
+- ✅ 3-step monitor creation wizard: table picker (catalog tree, auto-schema fetch) → rule config (column dropdowns from schema) → schedule & alerts (cron presets + threshold slider)
+- ✅ Automated DQ scanning via `scheduler.py` background loop (same 60s tick as pipelines; uses `croniter`)
+- ✅ DQ alerting: score < threshold → email/Slack via existing notification system
+- ✅ Bug fix: DQRuleResult.detail is `Record<string, unknown>` not string — fixed blank page crash in RuleResultsTable
 
 ### Bug Fixes & SQL Compatibility (2026-04-11)
 - ✅ Execute auto-saves pipeline first (backend reads from DB, not local state)

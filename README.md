@@ -41,11 +41,17 @@ Use backups to migrate between machines or recover from a bad state.
 
 ---
 
-## Desktop App (Mac)
+## Desktop Apps
 
-Download the latest **[TransformStudio-mac.dmg](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-mac.dmg)** — open it and drag the app to your Applications folder. Data is stored at `~/.transform_studio/transforms.db` on your Mac and persists across launches — no volume mount needed.
+| Platform | Download |
+|----------|----------|
+| **Mac** | [TransformStudio-mac.dmg](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-mac.dmg) — open and drag to Applications |
+| **Linux (Mint / Ubuntu / Debian)** | [TransformStudio-linux.deb](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-linux.deb) — double-click to install, or `sudo dpkg -i TransformStudio-linux.deb` |
+| **Linux (any distro)** | [TransformStudio-linux.tar.gz](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-linux.tar.gz) — extract and run `./TransformStudio/TransformStudio` |
 
-> All releases: [github.com/dremio-community/dremio-transform-studio/releases](https://github.com/dremio-community/dremio-transform-studio/releases)
+Data is stored at `~/.transform_studio/transforms.db` and persists across launches — no volume mount needed.
+
+> All releases and previous versions: [github.com/dremio-community/dremio-transform-studio/releases](https://github.com/dremio-community/dremio-transform-studio/releases)
 
 ---
 

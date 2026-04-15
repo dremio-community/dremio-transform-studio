@@ -90,7 +90,7 @@ Simply delete the `.exe` file. To also remove your data, delete the `.transform_
 
 ### Option A — .deb package (recommended for Linux Mint / Ubuntu)
 
-1. Download **`TransformStudio-linux.deb`**
+1. Download **[TransformStudio-linux.deb](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-linux.deb)** from the [latest GitHub release](https://github.com/dremio-community/dremio-transform-studio/releases/latest)
 2. Double-click the file — your package manager will open
 3. Click **Install**
 4. Launch from your application menu: search for **Transform Studio**
@@ -107,7 +107,7 @@ transform-studio
 
 ### Option B — tar.gz (any Linux distribution)
 
-1. Download **`TransformStudio-linux.tar.gz`**
+1. Download **[TransformStudio-linux.tar.gz](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-linux.tar.gz)**
 2. Extract it:
 ```bash
 tar -xzf TransformStudio-linux.tar.gz

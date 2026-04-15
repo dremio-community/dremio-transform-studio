@@ -43,7 +43,9 @@ Use backups to migrate between machines or recover from a bad state.
 
 ## Desktop App (Mac)
 
-Download `TransformStudio-mac.dmg`, open it, and drag the app to your Applications folder. Data is stored at `~/.transform_studio/transforms.db` on your Mac and persists across launches — no volume mount needed.
+Download the latest **[TransformStudio-mac.dmg](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-mac.dmg)** — open it and drag the app to your Applications folder. Data is stored at `~/.transform_studio/transforms.db` on your Mac and persists across launches — no volume mount needed.
+
+> All releases: [github.com/dremio-community/dremio-transform-studio/releases](https://github.com/dremio-community/dremio-transform-studio/releases)
 
 ---
 

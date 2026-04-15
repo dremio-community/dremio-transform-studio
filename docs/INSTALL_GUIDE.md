@@ -26,7 +26,7 @@ All options connect to the same Dremio instance. Your pipelines and settings are
 
 ### Installation
 
-1. Download **`TransformStudio-mac.dmg`**
+1. Download **[TransformStudio-mac.dmg](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-mac.dmg)** from the [latest GitHub release](https://github.com/dremio-community/dremio-transform-studio/releases/latest)
 2. Double-click the `.dmg` file to open it
 3. Drag **TransformStudio** into the **Applications** folder
 4. Close the installer window

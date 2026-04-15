@@ -65,6 +65,7 @@ from dag_utils import build_dag_response, get_run_order_for_pipeline, find_cycle
 from dbt_compat import export_project_to_zip, parse_dbt_project
 import sso as _sso
 from templates import list_templates, get_template, instantiate_template
+import audit as _audit
 
 
 @asynccontextmanager
@@ -161,13 +162,18 @@ async def get_auth_settings() -> dict:
 
 
 @app.put("/api/settings/auth", tags=["auth"], summary="Enable or disable login requirement")
-async def update_auth_settings(body: AuthSettingsBody, current_user: dict = Depends(get_current_user)) -> dict:
+async def update_auth_settings(body: AuthSettingsBody, request: Request, current_user: dict = Depends(get_current_user)) -> dict:
     """Toggle login requirement on or off. Only admins can disable auth when it is currently enabled."""
     # When auth is currently ON, require admin to change it
     if auth_enabled() and not current_user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Admin access required to change auth settings")
     set_auth_enabled_override(body.enabled)
     await store.save_setting("auth_enabled_override", "true" if body.enabled else "false")
+    await _audit.log_event(
+        action="auth_settings_changed", user=current_user,
+        resource_type="settings",
+        ip_address=request.client.host if request and request.client else None,
+    )
     return {"auth_enabled": body.enabled}
 
 
@@ -206,7 +212,7 @@ async def list_users(current_user: dict = Depends(require_admin)) -> list:
 
 
 @app.post("/api/auth/users", status_code=201, tags=["auth"], summary="Create a new user (admin only)")
-async def create_user(body: CreateUserBody, current_user: dict = Depends(require_admin)) -> dict:
+async def create_user(body: CreateUserBody, request: Request, current_user: dict = Depends(require_admin)) -> dict:
     """Create a new user account. role must be 'admin', 'editor', or 'viewer'."""
     existing = await store.get_user_by_username(body.username)
     if existing:
@@ -215,11 +221,16 @@ async def create_user(body: CreateUserBody, current_user: dict = Depends(require
         raise HTTPException(status_code=400, detail="role must be 'admin', 'editor', or 'viewer'")
     pw_hash = hash_password(body.password)
     user = await store.create_user(body.username, pw_hash, body.is_admin, role=body.role)
+    await _audit.log_event(
+        action="user_created", user=current_user,
+        resource_type="user", resource_name=body.username,
+        ip_address=request.client.host if request and request.client else None,
+    )
     return {"id": user["id"], "username": user["username"], "is_admin": user["is_admin"], "role": user["role"], "created_at": user["created_at"]}
 
 
 @app.put("/api/auth/users/{user_id}", tags=["auth"], summary="Update user role (admin only)")
-async def update_user(user_id: str, body: UpdateUserBody, current_user: dict = Depends(require_admin)) -> dict:
+async def update_user(user_id: str, body: UpdateUserBody, request: Request, current_user: dict = Depends(require_admin)) -> dict:
     """Update a user's role. Cannot change your own role."""
     if user_id == current_user["user_id"]:
         raise HTTPException(status_code=400, detail="Cannot change your own role")
@@ -231,15 +242,25 @@ async def update_user(user_id: str, body: UpdateUserBody, current_user: dict = D
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     role = user.get("role") or ("admin" if user.get("is_admin") else "editor")
+    await _audit.log_event(
+        action="user_role_changed", user=current_user,
+        resource_type="user", resource_id=user_id,
+        ip_address=request.client.host if request and request.client else None,
+    )
     return {"id": user["id"], "username": user["username"], "is_admin": bool(user["is_admin"]), "role": role, "created_at": user["created_at"]}
 
 
 @app.delete("/api/auth/users/{user_id}", tags=["auth"], summary="Delete a user (admin only)")
-async def delete_user(user_id: str, current_user: dict = Depends(require_admin)) -> dict:
+async def delete_user(user_id: str, request: Request, current_user: dict = Depends(require_admin)) -> dict:
     """Permanently delete a user account. Cannot delete your own account."""
     if user_id == current_user["user_id"]:
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
     await store.delete_user(user_id)
+    await _audit.log_event(
+        action="user_deleted", user=current_user,
+        resource_type="user", resource_id=user_id,
+        ip_address=request.client.host if request and request.client else None,
+    )
     return {"deleted": True}
 
 
@@ -297,14 +318,24 @@ async def list_sso_configs_admin(current_user: dict = Depends(require_admin)):
 
 
 @app.post("/api/settings/sso", tags=["sso"], summary="Create or update SSO provider config (admin)")
-async def upsert_sso_config(data: SsoConfigCreate, current_user: dict = Depends(require_admin)):
+async def upsert_sso_config(data: SsoConfigCreate, request: Request, current_user: dict = Depends(require_admin)):
     result = await store.upsert_sso_config(data.model_dump())
+    await _audit.log_event(
+        action="sso_configured", user=current_user,
+        resource_type="sso",
+        ip_address=request.client.host if request and request.client else None,
+    )
     return {**result, "client_secret": "*" * 8}
 
 
 @app.delete("/api/settings/sso/{provider_name}", tags=["sso"], summary="Remove SSO provider (admin)")
-async def delete_sso_config(provider_name: str, current_user: dict = Depends(require_admin)):
+async def delete_sso_config(provider_name: str, request: Request, current_user: dict = Depends(require_admin)):
     await store.delete_sso_config(provider_name)
+    await _audit.log_event(
+        action="sso_deleted", user=current_user,
+        resource_type="sso", resource_name=provider_name,
+        ip_address=request.client.host if request and request.client else None,
+    )
     return {"ok": True}
 
 
@@ -883,10 +914,16 @@ async def profile_table(
 # ── Pipelines ─────────────────────────────────────────────────────────────────
 
 @app.post("/api/pipelines", response_model=Pipeline, status_code=201, tags=["pipelines"], summary="Create a new pipeline")
-async def create_pipeline(data: PipelineCreate, current_user: dict = Depends(get_current_user)):
+async def create_pipeline(data: PipelineCreate, request: Request, current_user: dict = Depends(get_current_user)):
     """Create a new pipeline with a name and source table. Steps, output settings, and dependencies can be added via PUT. Returns the full Pipeline object including its generated `id`."""
     uid = current_user["user_id"] if current_user else "default"
-    return await store.create_pipeline(data, user_id=uid)
+    pipeline = await store.create_pipeline(data, user_id=uid)
+    await _audit.log_event(
+        action="pipeline_created", user=current_user,
+        resource_type="pipeline", resource_id=pipeline.id, resource_name=pipeline.name,
+        ip_address=request.client.host if request and request.client else None,
+    )
+    return pipeline
 
 
 @app.get("/api/search", tags=["pipelines"], summary="Global search across pipeline names, steps, tables")
@@ -963,6 +1000,13 @@ async def list_pipelines(current_user: dict = Depends(get_current_user)):
     return await store.list_pipelines(user_id=uid, role=role)
 
 
+@app.get("/api/pipelines/folders", tags=["pipelines"])
+async def get_pipeline_folders(current_user: dict = Depends(get_current_user)):
+    uid = current_user["user_id"] if current_user else "default"
+    role = current_user.get("role", "editor") if current_user else "editor"
+    return await store.get_all_folders(uid, role)
+
+
 @app.get("/api/pipelines/{pipeline_id}", response_model=Pipeline, tags=["pipelines"], summary="Get a single pipeline")
 async def get_pipeline(pipeline_id: str, current_user: dict = Depends(get_current_user)):
     uid = current_user["user_id"] if current_user else "default"
@@ -974,7 +1018,7 @@ async def get_pipeline(pipeline_id: str, current_user: dict = Depends(get_curren
 
 
 @app.put("/api/pipelines/{pipeline_id}", response_model=Pipeline, tags=["pipelines"], summary="Save pipeline (steps, output, parameters, tests, dependencies)")
-async def save_pipeline(pipeline_id: str, data: PipelineSave, current_user: dict = Depends(get_current_user)):
+async def save_pipeline(pipeline_id: str, data: PipelineSave, request: Request, current_user: dict = Depends(get_current_user)):
     """Full pipeline save. Only the pipeline owner, users with editor grant, or admins can save."""
     uid = current_user["user_id"] if current_user else "default"
     role = current_user.get("role", "editor") if current_user else "editor"
@@ -982,13 +1026,19 @@ async def save_pipeline(pipeline_id: str, data: PipelineSave, current_user: dict
     if not can_edit:
         raise HTTPException(status_code=403, detail="You don't have permission to edit this pipeline")
     try:
-        return await store.save_pipeline(pipeline_id, data, user_id=uid)
+        result = await store.save_pipeline(pipeline_id, data, user_id=uid)
+        await _audit.log_event(
+            action="pipeline_saved", user=current_user,
+            resource_type="pipeline", resource_id=pipeline_id,
+            ip_address=request.client.host if request and request.client else None,
+        )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.delete("/api/pipelines/{pipeline_id}", tags=["pipelines"], summary="Delete a pipeline and all its history")
-async def delete_pipeline(pipeline_id: str, current_user: dict = Depends(get_current_user)):
+async def delete_pipeline(pipeline_id: str, request: Request, current_user: dict = Depends(get_current_user)):
     """Permanently deletes the pipeline. Only the owner or admins can delete."""
     uid = current_user["user_id"] if current_user else "default"
     role = current_user.get("role", "editor") if current_user else "editor"
@@ -1000,6 +1050,11 @@ async def delete_pipeline(pipeline_id: str, current_user: dict = Depends(get_cur
     deleted = await store.delete_pipeline(pipeline_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Pipeline not found")
+    await _audit.log_event(
+        action="pipeline_deleted", user=current_user,
+        resource_type="pipeline", resource_id=pipeline_id,
+        ip_address=request.client.host if request and request.client else None,
+    )
     return {"deleted": True}
 
 
@@ -1036,7 +1091,7 @@ async def get_pipeline_permissions(pipeline_id: str, current_user: dict = Depend
 
 
 @app.post("/api/pipelines/{pipeline_id}/permissions", status_code=201, tags=["pipelines"], summary="Share a pipeline with another user")
-async def add_pipeline_permission(pipeline_id: str, body: PermissionBody, current_user: dict = Depends(require_user)):
+async def add_pipeline_permission(pipeline_id: str, body: PermissionBody, request: Request, current_user: dict = Depends(require_user)):
     uid = current_user["user_id"]
     role = current_user.get("role", "editor")
     pipeline = await store.get_pipeline(pipeline_id, user_id=uid, role=role)
@@ -1053,6 +1108,11 @@ async def add_pipeline_permission(pipeline_id: str, body: PermissionBody, curren
     if target is None:
         raise HTTPException(status_code=404, detail="Target user not found")
     perm = await store.upsert_pipeline_permission(pipeline_id, body.user_id, body.access_level, granted_by=uid)
+    await _audit.log_event(
+        action="pipeline_shared", user=current_user,
+        resource_type="pipeline", resource_id=pipeline_id,
+        ip_address=request.client.host if request and request.client else None,
+    )
     return perm
 
 
@@ -1275,6 +1335,7 @@ async def _bisect_pipeline_failure(
 @app.post("/api/pipelines/{pipeline_id}/execute", response_model=ExecuteResult, tags=["pipelines"], summary="Execute pipeline — write output to Dremio")
 async def execute_pipeline(
     pipeline_id: str,
+    request: Request,
     body: Optional[ParamValuesBody] = None,
     current_user: dict = Depends(get_current_user),
 ):
@@ -1673,6 +1734,12 @@ async def execute_pipeline(
             except Exception as hook_err:
                 post_hook_error = f"Post-hook failed (pipeline succeeded): {hook_err}"
 
+        await _audit.log_event(
+            action="pipeline_executed", user=current_user,
+            resource_type="pipeline", resource_id=pipeline_id,
+            details={"row_count": rows_written},
+            ip_address=request.client.host if request and request.client else None,
+        )
         return ExecuteResult(
             success=True,
             rows_written=rows_written,
@@ -1868,6 +1935,7 @@ async def _push_table_metadata(table: str, props: dict) -> str:
 @app.post("/api/pipelines/{pipeline_id}/execute-with-deps", response_model=DagExecuteResult, tags=["dag"], summary="Execute pipeline and all upstream dependencies in order")
 async def execute_with_deps(
     pipeline_id: str,
+    request: Request,
     body: Optional[ParamValuesBody] = None,
     current_user: dict = Depends(get_current_user),
 ) -> DagExecuteResult:
@@ -1899,7 +1967,7 @@ async def execute_with_deps(
             continue
 
         exec_body = body if pid == pipeline_id else None
-        result = await execute_pipeline(pid, exec_body, current_user)
+        result = await execute_pipeline(pid, request, exec_body, current_user)
         results.append(DagPipelineResult(
             pipeline_id=pid,
             pipeline_name=name_map.get(pid, pid),
@@ -2477,7 +2545,7 @@ async def get_connection_settings() -> dict:
 
 
 @app.put("/api/settings/connection")
-async def update_connection_settings(body: ConnectionSettings) -> dict:
+async def update_connection_settings(body: ConnectionSettings, request: Request, current_user: dict = Depends(get_current_user)) -> dict:
     from config import settings as cfg
     from dremio_client import dremio_client as dc
 
@@ -2508,6 +2576,11 @@ async def update_connection_settings(body: ConnectionSettings) -> dict:
         if v is not None:
             await store.set_setting(k, v)
 
+    await _audit.log_event(
+        action="settings_changed", user=current_user,
+        resource_type="settings", resource_name="connection",
+        ip_address=request.client.host if request and request.client else None,
+    )
     return cfg.as_dict(redact=True)
 
 
@@ -2597,7 +2670,7 @@ async def list_pipeline_schedules(pipeline_id: str, current_user: dict = Depends
 
 
 @app.post("/api/pipelines/{pipeline_id}/schedules", status_code=201, tags=["schedules"], summary="Create a cron schedule for a pipeline")
-async def create_pipeline_schedule(pipeline_id: str, body: ScheduleCreate, current_user: dict = Depends(get_current_user)) -> dict:
+async def create_pipeline_schedule(pipeline_id: str, body: ScheduleCreate, request: Request, current_user: dict = Depends(get_current_user)) -> dict:
     """Schedule a pipeline to run automatically. `cron_expression` uses standard 5-field cron syntax (e.g. `0 6 * * *` for daily at 6am UTC). Set `enabled: false` to create a disabled schedule."""
     uid = current_user["user_id"] if current_user else "default"
     pipeline = await store.get_pipeline(pipeline_id, user_id=uid)
@@ -2607,15 +2680,21 @@ async def create_pipeline_schedule(pipeline_id: str, body: ScheduleCreate, curre
     from croniter import croniter
     if not croniter.is_valid(body.cron_expression):
         raise HTTPException(status_code=400, detail=f"Invalid cron expression: {body.cron_expression!r}")
-    return await store.create_schedule({
+    result = await store.create_schedule({
         "pipeline_id": pipeline_id,
         "cron_expression": body.cron_expression,
         "enabled": body.enabled,
     })
+    await _audit.log_event(
+        action="schedule_created", user=current_user,
+        resource_type="schedule",
+        ip_address=request.client.host if request and request.client else None,
+    )
+    return result
 
 
 @app.put("/api/schedules/{schedule_id}")
-async def update_schedule(schedule_id: str, body: ScheduleUpdate) -> dict:
+async def update_schedule(schedule_id: str, body: ScheduleUpdate, request: Request, current_user: dict = Depends(get_current_user)) -> dict:
     data = {k: v for k, v in body.model_dump().items() if v is not None}
     if "cron_expression" in data:
         from croniter import croniter
@@ -2624,14 +2703,24 @@ async def update_schedule(schedule_id: str, body: ScheduleUpdate) -> dict:
     result = await store.update_schedule(schedule_id, data)
     if result is None:
         raise HTTPException(status_code=404, detail="Schedule not found")
+    await _audit.log_event(
+        action="schedule_updated", user=current_user,
+        resource_type="schedule",
+        ip_address=request.client.host if request and request.client else None,
+    )
     return result
 
 
 @app.delete("/api/schedules/{schedule_id}")
-async def delete_schedule(schedule_id: str) -> dict:
+async def delete_schedule(schedule_id: str, request: Request, current_user: dict = Depends(get_current_user)) -> dict:
     deleted = await store.delete_schedule(schedule_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Schedule not found")
+    await _audit.log_event(
+        action="schedule_deleted", user=current_user,
+        resource_type="schedule",
+        ip_address=request.client.host if request and request.client else None,
+    )
     return {"deleted": True}
 
 
@@ -3193,6 +3282,44 @@ async def mcp_messages(
     if response is not None:
         await _mcp_sessions[sessionId].put(response)
     return {"ok": True}
+
+
+# ── Audit Log ─────────────────────────────────────────────────────────────────
+
+@app.get("/api/audit-log", tags=["audit"])
+async def get_audit_log(
+    start: Optional[str] = None, end: Optional[str] = None,
+    user_id: Optional[str] = None, action: Optional[str] = None,
+    resource_name: Optional[str] = None,
+    limit: int = 100, offset: int = 0,
+    current_user: dict = Depends(require_admin),
+):
+    entries = await store.list_audit_log(start, end, user_id, action, resource_name, limit, offset)
+    total = await store.count_audit_log(start, end, user_id, action, resource_name)
+    return {"entries": entries, "total": total, "limit": limit, "offset": offset}
+
+
+@app.get("/api/audit-log/export", tags=["audit"])
+async def export_audit_log_csv(
+    start: Optional[str] = None, end: Optional[str] = None,
+    user_id: Optional[str] = None, action: Optional[str] = None,
+    resource_name: Optional[str] = None,
+    current_user: dict = Depends(require_admin),
+):
+    from fastapi.responses import StreamingResponse
+    import csv, io
+    entries = await store.list_audit_log(start, end, user_id, action, resource_name, limit=10000)
+    buf = io.StringIO()
+    fields = ["event_time", "username", "action", "resource_type", "resource_name", "resource_id", "details", "ip_address"]
+    w = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")
+    w.writeheader()
+    w.writerows(entries)
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.read()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=audit_log.csv"},
+    )
 
 
 # ── Static frontend ───────────────────────────────────────────────────────────

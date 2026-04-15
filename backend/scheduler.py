@@ -102,6 +102,16 @@ class PipelineScheduler:
     async def _check_and_run(self):
         now = datetime.now(timezone.utc)
 
+        # ── Daily audit log prune ──────────────────────────────────────────
+        try:
+            last_prune = await store.get_setting("last_audit_prune") or ""
+            today = now.isoformat()[:10]
+            if not last_prune or last_prune[:10] < today:
+                await store.prune_audit_log(90)
+                await store.set_setting("last_audit_prune", now.isoformat())
+        except Exception as e:
+            logger.debug(f"Audit log prune error: {e}")
+
         # ── Check alerts ───────────────────────────────────────────────────
         alerts = await store.list_alerts()
         for alert in alerts:
@@ -352,6 +362,16 @@ class PipelineScheduler:
                 row_count=None, error_message=None,
                 started_at=started_at, completed_at=completed_at,
             )
+            await store.write_audit_log(
+                action="schedule_run",
+                user_id=None,
+                username="scheduler",
+                resource_type="pipeline",
+                resource_id=sched.get("pipeline_id"),
+                resource_name=pipeline_name,
+                details={"status": "success", "error": None},
+                ip_address=None,
+            )
             logger.info(f"Scheduled pipeline {pipeline_id} ({pipeline_name}) completed OK")
 
         except Exception as e:
@@ -378,6 +398,16 @@ class PipelineScheduler:
                     run_type="scheduled", status="failed",
                     row_count=None, error_message=error_msg,
                     started_at=started_at, completed_at=completed_at,
+                )
+                await store.write_audit_log(
+                    action="schedule_run",
+                    user_id=None,
+                    username="scheduler",
+                    resource_type="pipeline",
+                    resource_id=sched.get("pipeline_id"),
+                    resource_name=pipeline_name,
+                    details={"status": "failed", "error": error_msg},
+                    ip_address=None,
                 )
                 if max_retries > 0:
                     logger.error(

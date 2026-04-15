@@ -23,6 +23,7 @@ import type {
   SeedResult,
   PipelineApproval,
   DashboardPipeline,
+  AuditLogEntry,
 } from '../types'
 
 // In dev: VITE_API_URL is set (or Vite proxy handles /api → backend).
@@ -1000,4 +1001,40 @@ export async function upsertSsoConfig(data: Omit<SsoConfig, 'client_secret'> & {
 
 export async function deleteSsoConfig(providerName: string): Promise<void> {
   await api.delete(`/api/settings/sso/${providerName}`)
+}
+
+// ── Pipeline Folders ──────────────────────────────────────────────────────────
+
+export async function fetchPipelineFolders(): Promise<string[]> {
+  const res = await api.get('/api/pipelines/folders')
+  return res.data
+}
+
+// ── Audit Log ─────────────────────────────────────────────────────────────────
+
+export interface AuditLogResponse {
+  entries: AuditLogEntry[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export async function fetchAuditLog(params: {
+  start?: string; end?: string; user_id?: string; action?: string;
+  resource_name?: string; limit?: number; offset?: number
+}): Promise<AuditLogResponse> {
+  const res = await api.get('/api/audit-log', { params })
+  return res.data
+}
+
+export async function exportAuditLogCsv(params: {
+  start?: string; end?: string; user_id?: string; action?: string; resource_name?: string
+}): Promise<void> {
+  const res = await api.get('/api/audit-log/export', { params, responseType: 'blob' })
+  const url = URL.createObjectURL(new Blob([res.data]))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `audit_log_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }

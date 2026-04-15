@@ -117,6 +117,9 @@ class Pipeline(BaseModel):
     user_id: str = "default"
     shared_access: Optional[str] = None   # 'viewer' | 'editor' — set if this pipeline is shared with you
     owner_username: Optional[str] = None  # display name of the pipeline owner
+    # Organisation
+    folder: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
 class PipelineCreate(BaseModel):
@@ -140,6 +143,8 @@ class PipelineCreate(BaseModel):
     pre_hook_sql: Optional[str] = None
     post_hook_sql: Optional[str] = None
     exposures: List[Exposure] = []
+    folder: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
 class PipelineSave(BaseModel):
@@ -163,6 +168,21 @@ class PipelineSave(BaseModel):
     pre_hook_sql: Optional[str] = None
     post_hook_sql: Optional[str] = None
     exposures: Optional[List[Exposure]] = None
+    folder: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+
+class AuditLogEntry(BaseModel):
+    id: str
+    event_time: str
+    user_id: Optional[str] = None
+    username: Optional[str] = None
+    action: str
+    resource_type: Optional[str] = None
+    resource_id: Optional[str] = None
+    resource_name: Optional[str] = None
+    details: Optional[str] = None
+    ip_address: Optional[str] = None
 
 
 class PreviewResult(BaseModel):

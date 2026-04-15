@@ -218,6 +218,9 @@ class PipelineStore:
                 # SSO (v1.9)
                 "ALTER TABLE users ADD COLUMN sso_provider TEXT",
                 "ALTER TABLE users ADD COLUMN sso_sub TEXT",
+                # Pipeline tags/folders
+                "ALTER TABLE pipelines ADD COLUMN folder TEXT DEFAULT ''",
+                "ALTER TABLE pipelines ADD COLUMN tags_json TEXT DEFAULT '[]'",
             ]:
                 try:
                     await db.execute(col_sql)
@@ -297,6 +300,23 @@ class PipelineStore:
                     FOREIGN KEY (monitor_id) REFERENCES dq_monitors(id)
                 )
             """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS audit_log (
+                    id TEXT PRIMARY KEY,
+                    event_time TEXT NOT NULL,
+                    user_id TEXT,
+                    username TEXT,
+                    action TEXT NOT NULL,
+                    resource_type TEXT,
+                    resource_id TEXT,
+                    resource_name TEXT,
+                    details TEXT,
+                    ip_address TEXT
+                )
+            """)
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_audit_log_time ON audit_log(event_time)"
+            )
             # Generate webhook_token for existing rows that don't have one
             await db.execute(
                 "UPDATE pipelines SET webhook_token = lower(hex(randomblob(16))) WHERE webhook_token IS NULL"
@@ -526,6 +546,10 @@ class PipelineStore:
             exposures = [Exposure(**e) for e in exposures_data]
         except Exception:
             exposures = []
+        try:
+            tags = json.loads(row["tags_json"] if "tags_json" in keys else "[]") or []
+        except Exception:
+            tags = []
         return Pipeline(
             id=row["id"],
             name=row["name"],
@@ -557,6 +581,8 @@ class PipelineStore:
             user_id=row["user_id"] if "user_id" in keys else "default",
             shared_access=row["shared_access"] if "shared_access" in keys else None,
             owner_username=row["owner_username"] if "owner_username" in keys else None,
+            folder=row["folder"] if "folder" in keys else "",
+            tags=tags,
         )
 
     async def create_pipeline(self, data: PipelineCreate, user_id: str = "default") -> Pipeline:
@@ -571,18 +597,22 @@ class PipelineStore:
         scd2_tracked_json = json.dumps(data.scd2_tracked_columns or [])
         exposures_json = json.dumps([e.model_dump() for e in (data.exposures or [])])
 
+        folder = data.folder or ""
+        tags_json = json.dumps(data.tags or [])
+
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             await db.execute(
                 """
-                INSERT INTO pipelines (id, name, description, source_table, output_table, output_mode, current_version, created_at, updated_at, parameters, webhook_token, user_id, dependencies, incremental_strategy, incremental_key, tests_json, scd2_key, scd2_tracked_columns, scd2_effective_from, scd2_effective_to, scd2_is_current, pre_hook_sql, post_hook_sql, exposures_json, microbatch_window)
-                VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO pipelines (id, name, description, source_table, output_table, output_mode, current_version, created_at, updated_at, parameters, webhook_token, user_id, dependencies, incremental_strategy, incremental_key, tests_json, scd2_key, scd2_tracked_columns, scd2_effective_from, scd2_effective_to, scd2_is_current, pre_hook_sql, post_hook_sql, exposures_json, microbatch_window, folder, tags_json)
+                VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (pipeline_id, data.name, data.description, data.source_table,
                  data.output_table, data.output_mode, now, now, params_json, webhook_token, user_id,
                  deps_json, data.incremental_strategy, data.incremental_key, tests_json,
                  data.scd2_key, scd2_tracked_json, data.scd2_effective_from, data.scd2_effective_to, data.scd2_is_current,
-                 data.pre_hook_sql, data.post_hook_sql, exposures_json, data.microbatch_window),
+                 data.pre_hook_sql, data.post_hook_sql, exposures_json, data.microbatch_window,
+                 folder, tags_json),
             )
             await db.execute(
                 """
@@ -619,6 +649,8 @@ class PipelineStore:
             post_hook_sql=data.post_hook_sql,
             exposures=data.exposures or [],
             microbatch_window=data.microbatch_window,
+            folder=folder,
+            tags=data.tags or [],
         )
 
     async def get_pipeline(self, id: str, user_id: Optional[str] = None, role: Optional[str] = None) -> Optional[Pipeline]:
@@ -783,6 +815,11 @@ class PipelineStore:
             else:
                 new_exposures_json = row["exposures_json"] if "exposures_json" in keys else "[]"
             new_microbatch_window = data.microbatch_window if data.microbatch_window is not None else (row["microbatch_window"] if "microbatch_window" in keys else None)
+            new_folder = data.folder if data.folder is not None else (row["folder"] if "folder" in keys else "")
+            if data.tags is not None:
+                new_tags_json = json.dumps(data.tags)
+            else:
+                new_tags_json = row["tags_json"] if "tags_json" in keys else "[]"
 
             await db.execute(
                 """
@@ -791,7 +828,8 @@ class PipelineStore:
                     current_version = ?, updated_at = ?, parameters = ?,
                     dependencies = ?, incremental_strategy = ?, incremental_key = ?, tests_json = ?,
                     scd2_key = ?, scd2_tracked_columns = ?, scd2_effective_from = ?, scd2_effective_to = ?, scd2_is_current = ?,
-                    pre_hook_sql = ?, post_hook_sql = ?, exposures_json = ?, microbatch_window = ?
+                    pre_hook_sql = ?, post_hook_sql = ?, exposures_json = ?, microbatch_window = ?,
+                    folder = ?, tags_json = ?
                 WHERE id = ?
                 """,
                 (new_name, new_desc, new_output_table, new_output_mode,
@@ -799,6 +837,7 @@ class PipelineStore:
                  new_deps_json, new_incr_strategy, new_incr_key, new_tests_json,
                  new_scd2_key, new_scd2_tracked, new_scd2_eff_from, new_scd2_eff_to, new_scd2_is_curr,
                  new_pre_hook, new_post_hook, new_exposures_json, new_microbatch_window,
+                 new_folder, new_tags_json,
                  id),
             )
             await db.execute(
@@ -1021,6 +1060,124 @@ class PipelineStore:
         if overrides:
             cfg.update(**overrides)
 
+
+    # ── Pipeline folders ──────────────────────────────────────────────────────
+
+    async def get_all_folders(self, user_id: str, role: str) -> List[str]:
+        """Return sorted list of distinct non-empty folder strings visible to this user."""
+        from auth import auth_enabled
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            if auth_enabled() and user_id is not None:
+                if role == "admin":
+                    async with db.execute(
+                        "SELECT DISTINCT folder FROM pipelines WHERE folder IS NOT NULL AND folder != ''"
+                    ) as cur:
+                        rows = await cur.fetchall()
+                else:
+                    async with db.execute(
+                        """SELECT DISTINCT p.folder FROM pipelines p
+                           LEFT JOIN pipeline_permissions pp ON p.id = pp.pipeline_id AND pp.user_id = ?
+                           WHERE (p.user_id = ? OR pp.user_id = ?)
+                             AND p.folder IS NOT NULL AND p.folder != ''""",
+                        (user_id, user_id, user_id),
+                    ) as cur:
+                        rows = await cur.fetchall()
+            else:
+                async with db.execute(
+                    "SELECT DISTINCT folder FROM pipelines WHERE folder IS NOT NULL AND folder != ''"
+                ) as cur:
+                    rows = await cur.fetchall()
+        return sorted(row["folder"] for row in rows if row["folder"])
+
+    # ── Audit log ─────────────────────────────────────────────────────────────
+
+    async def write_audit_log(self, action: str, user_id=None, username=None,
+                               resource_type=None, resource_id=None, resource_name=None,
+                               details=None, ip_address=None):
+        try:
+            entry_id = str(uuid.uuid4())
+            event_time = datetime.now(timezone.utc).isoformat()
+            details_str = json.dumps(details) if details else None
+            async with aiosqlite.connect(self._db_path) as db:
+                await db.execute(
+                    """INSERT INTO audit_log
+                       (id, event_time, user_id, username, action, resource_type,
+                        resource_id, resource_name, details, ip_address)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (entry_id, event_time, user_id, username, action, resource_type,
+                     resource_id, resource_name, details_str, ip_address),
+                )
+                await db.commit()
+        except Exception:
+            pass
+
+    async def list_audit_log(self, start_date=None, end_date=None, filter_user_id=None,
+                              filter_action=None, resource_name=None, limit=100, offset=0):
+        conditions = []
+        params = []
+        if start_date:
+            conditions.append("event_time >= ?")
+            params.append(start_date)
+        if end_date:
+            conditions.append("event_time <= ?")
+            params.append(end_date)
+        if filter_user_id:
+            conditions.append("user_id = ?")
+            params.append(filter_user_id)
+        if filter_action:
+            conditions.append("action = ?")
+            params.append(filter_action)
+        if resource_name:
+            conditions.append("resource_name LIKE ?")
+            params.append(f"%{resource_name}%")
+        where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+        params.extend([limit, offset])
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                f"SELECT * FROM audit_log {where} ORDER BY event_time DESC LIMIT ? OFFSET ?",
+                params,
+            ) as cur:
+                rows = await cur.fetchall()
+        return [dict(row) for row in rows]
+
+    async def count_audit_log(self, start_date=None, end_date=None, filter_user_id=None,
+                               filter_action=None, resource_name=None):
+        conditions = []
+        params = []
+        if start_date:
+            conditions.append("event_time >= ?")
+            params.append(start_date)
+        if end_date:
+            conditions.append("event_time <= ?")
+            params.append(end_date)
+        if filter_user_id:
+            conditions.append("user_id = ?")
+            params.append(filter_user_id)
+        if filter_action:
+            conditions.append("action = ?")
+            params.append(filter_action)
+        if resource_name:
+            conditions.append("resource_name LIKE ?")
+            params.append(f"%{resource_name}%")
+        where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute(
+                f"SELECT COUNT(*) FROM audit_log {where}", params
+            ) as cur:
+                row = await cur.fetchone()
+        return row[0] if row else 0
+
+    async def prune_audit_log(self, days=90):
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                f"DELETE FROM audit_log WHERE event_time < datetime('now', '-{int(days)} days')"
+            )
+            await db.commit()
+            async with db.execute("SELECT changes()") as cur:
+                row = await cur.fetchone()
+        return row[0] if row else 0
 
     # ── Pipeline schedules ────────────────────────────────────────────────────
 

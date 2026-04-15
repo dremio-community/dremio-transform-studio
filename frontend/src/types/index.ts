@@ -233,6 +233,9 @@ export interface Pipeline {
   user_id?: string
   shared_access?: 'viewer' | 'editor' | null
   owner_username?: string | null
+  // Folders & tags
+  folder?: string
+  tags?: string[]
 }
 
 export interface PipelineCreate {
@@ -256,6 +259,8 @@ export interface PipelineCreate {
   post_hook_sql?: string
   exposures?: Exposure[]
   microbatch_window?: string
+  folder?: string
+  tags?: string[]
 }
 
 export interface PipelineSave {
@@ -279,6 +284,21 @@ export interface PipelineSave {
   post_hook_sql?: string
   exposures?: Exposure[]
   microbatch_window?: string
+  folder?: string
+  tags?: string[]
+}
+
+export interface AuditLogEntry {
+  id: string
+  event_time: string
+  user_id?: string
+  username?: string
+  action: string
+  resource_type?: string
+  resource_id?: string
+  resource_name?: string
+  details?: string
+  ip_address?: string
 }
 
 export interface PreviewResult {

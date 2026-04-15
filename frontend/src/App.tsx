@@ -46,6 +46,7 @@ import {
   KeyRound,
   Package,
   LayoutTemplate,
+  ScrollText,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -83,6 +84,7 @@ import {
   submitPipelineReview,
   fetchNamespaces,
   globalSearch,
+  fetchPipelineFolders,
 } from './api/client'
 import type { PipelineRun, AuthUser, SearchResult } from './api/client'
 
@@ -90,6 +92,7 @@ import type { PipelineRun, AuthUser, SearchResult } from './api/client'
 import CatalogBrowser from './components/CatalogBrowser'
 import CustomSqlEditor from './components/CustomSqlEditor'
 import AlertsPage from './components/AlertsPage'
+import AuditLogPage from './components/AuditLogPage'
 import DataQualityHub from './components/DataQualityHub'
 import DataProfilePanel from './components/DataProfilePanel'
 import IcebergCatalogBrowser from './components/IcebergCatalogBrowser'
@@ -215,6 +218,15 @@ export default function App() {
   const [showDashboard, setShowDashboard] = useState(false)
   const [showDqHub, setShowDqHub] = useState(false)
   const [showDupeNameWarning, setShowDupeNameWarning] = useState(false)
+
+  // ── Folders & tags state ──────────────────────────────────────────────────
+  const [pipelineFolder, setPipelineFolder] = useState<string>('')
+  const [pipelineTags, setPipelineTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState<string>('')
+  const [allFolders, setAllFolders] = useState<string[]>([])
+  const [activeFolder, setActiveFolder] = useState<string | null>(null)
+  const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null)
+  const [showAuditLog, setShowAuditLog] = useState(false)
 
   // ── Auth initialization ───────────────────────────────────────────────────
   useEffect(() => {
@@ -360,7 +372,11 @@ export default function App() {
 
   const { data: pipelines = [] } = useQuery({
     queryKey: ['pipelines'],
-    queryFn: fetchPipelines,
+    queryFn: async () => {
+      const results = await fetchPipelines()
+      fetchPipelineFolders().then(setAllFolders).catch(() => {})
+      return results
+    },
   })
 
   const { data: sourceSchema = [] } = useQuery({
@@ -532,6 +548,9 @@ export default function App() {
     setLocalExposures(p.exposures ?? [])
     setLocalApprovalRequired(p.approval_required ?? false)
     setLocalPendingApprovalId(p.pending_approval_id ?? null)
+    setPipelineFolder(p.folder ?? '')
+    setPipelineTags(p.tags ?? [])
+    setTagInput('')
     setSelectedStepId(null)
     setRightPanel('library')
     setPreviewResult(null)
@@ -578,6 +597,9 @@ export default function App() {
     setLocalExposures([])
     setLocalApprovalRequired(false)
     setLocalPendingApprovalId(null)
+    setPipelineFolder('')
+    setPipelineTags([])
+    setTagInput('')
     setOutputNamespace('')
     setOutputTableName('')
     setSelectedStepId(null)
@@ -653,6 +675,8 @@ export default function App() {
         pre_hook_sql: localPreHook || undefined,
         post_hook_sql: localPostHook || undefined,
         exposures: localExposures,
+        folder: pipelineFolder || undefined,
+        tags: pipelineTags.length > 0 ? pipelineTags : undefined,
       })
       return
     }
@@ -674,6 +698,8 @@ export default function App() {
         pre_hook_sql: localPreHook || undefined,
         post_hook_sql: localPostHook || undefined,
         exposures: localExposures,
+        folder: pipelineFolder || undefined,
+        tags: pipelineTags.length > 0 ? pipelineTags : undefined,
       }
     })
   }
@@ -1039,6 +1065,14 @@ export default function App() {
                     <Users size={12} /> Manage Users
                   </button>
                 )}
+                {currentUser.is_admin && (
+                  <button
+                    onClick={() => { setShowAuditLog(true); setShowUserMenu(false) }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-surface-300 hover:bg-navy-700 hover:text-white transition-colors"
+                  >
+                    <ScrollText size={12} /> Audit Log
+                  </button>
+                )}
                 <button
                   onClick={() => { setShowMyCredentials(true); setShowUserMenu(false) }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-surface-300 hover:bg-navy-800 hover:text-white transition-colors"
@@ -1217,65 +1251,139 @@ export default function App() {
                 </div>
               </div>
             )}
+            {/* Folder filter */}
+            {allFolders.length > 0 && (
+              <div className="px-2 pb-1.5 border-b border-navy-800 mb-1">
+                <p className="text-[9px] font-semibold text-surface-600 uppercase tracking-wider px-1 py-1">Folders</p>
+                <button
+                  onClick={() => { setActiveFolder(null); setActiveTagFilter(null) }}
+                  className={clsx('w-full text-left px-2 py-0.5 rounded text-xs transition-colors',
+                    activeFolder === null && !activeTagFilter ? 'text-white' : 'text-surface-500 hover:text-surface-300')}
+                >
+                  All pipelines
+                </button>
+                {allFolders.map(folder => (
+                  <button key={folder} onClick={() => setActiveFolder(activeFolder === folder ? null : folder)}
+                    className={clsx('w-full text-left px-2 py-0.5 rounded text-xs transition-colors flex items-center gap-1.5',
+                      activeFolder === folder ? 'text-dblue-400' : 'text-surface-500 hover:text-surface-300')}>
+                    <span className="text-[10px]">📁</span>
+                    <span className="truncate">{folder}</span>
+                  </button>
+                ))}
+                {pipelines.some((p: any) => !p.folder) && (
+                  <button onClick={() => setActiveFolder('__uncategorized__')}
+                    className={clsx('w-full text-left px-2 py-0.5 rounded text-xs transition-colors italic',
+                      activeFolder === '__uncategorized__' ? 'text-dblue-400' : 'text-surface-500 hover:text-surface-300')}>
+                    Uncategorized
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Tag filter chips */}
+            {(() => {
+              const allTags = [...new Set((pipelines as any[]).flatMap((p: any) => p.tags ?? []))] as string[]
+              if (!allTags.length) return null
+              return (
+                <div className="px-2 pb-1.5 border-b border-navy-800 mb-1 flex flex-wrap gap-1">
+                  {allTags.slice(0, 10).map(tag => (
+                    <button key={tag} onClick={() => setActiveTagFilter(activeTagFilter === tag ? null : tag)}
+                      className={clsx('text-[9px] px-1.5 py-0.5 rounded-full transition-colors',
+                        activeTagFilter === tag ? 'bg-dblue-500 text-white' : 'bg-navy-800 text-surface-400 hover:text-surface-200')}>
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )
+            })()}
+
             <ul className="max-h-36 overflow-y-auto">
-              {pipelines.length === 0 && (
-                <li className="px-3 py-2 text-xs text-surface-400">No pipelines yet</li>
-              )}
-              {pipelines.length >= 5 && pipelineSearch && pipelines.filter(p => p.name.toLowerCase().includes(pipelineSearch.toLowerCase())).length === 0 && (
-                <li className="px-3 py-2 text-xs text-surface-500 italic">No pipelines match</li>
-              )}
-              {pipelines.filter(p => !pipelineSearch || p.name.toLowerCase().includes(pipelineSearch.toLowerCase())).map((p) => (
-                <li key={p.id} className="group flex items-center">
-                  <button
-                    onClick={() => loadPipeline(p)}
-                    className={clsx(
-                      'flex-1 text-left px-3 py-1.5 text-xs truncate transition-colors',
-                      activePipelineId === p.id
-                        ? 'bg-dblue-500/20 text-dblue-400 font-medium border-l-2 border-dblue-500'
-                        : 'text-surface-400 hover:bg-navy-800 hover:text-white'
+              {(() => {
+                const displayedPipelines = (pipelines as any[])
+                  .filter((p: any) => {
+                    if (activeFolder === '__uncategorized__') return !p.folder
+                    if (activeFolder) return p.folder === activeFolder || p.folder?.startsWith(activeFolder + '/')
+                    return true
+                  })
+                  .filter((p: any) => !activeTagFilter || (p.tags ?? []).includes(activeTagFilter))
+                  .filter((p: any) => {
+                    if (!pipelineSearch || (pipelines as any[]).length < 5) return true
+                    const q = pipelineSearch.toLowerCase()
+                    return p.name.toLowerCase().includes(q) || (p.description ?? '').toLowerCase().includes(q)
+                  })
+                return (
+                  <>
+                    {pipelines.length === 0 && (
+                      <li className="px-3 py-2 text-xs text-surface-400">No pipelines yet</li>
                     )}
-                  >
-                    <span className="truncate">{p.name}</span>
-                    {p.shared_access && (
-                      <span className="ml-1 text-[9px] text-dblue-500/70 font-normal">(shared)</span>
+                    {pipelines.length >= 5 && pipelineSearch && displayedPipelines.length === 0 && (
+                      <li className="px-3 py-2 text-xs text-surface-500 italic">No pipelines match</li>
                     )}
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); duplicateMut.mutate(p.id) }}
-                    title="Duplicate"
-                    className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-dblue-400 transition-all"
-                  >
-                    <Copy size={11} />
-                  </button>
-                  {canSharePipeline(p) && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShareModalPipelineId(p.id) }}
-                      title="Share"
-                      className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-dblue-400 transition-all"
-                    >
-                      <Share2 size={11} />
-                    </button>
-                  )}
-                  {canEditPipeline(p) && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setRenamingId(p.id); setRenameValue(p.name) }}
-                      title="Rename"
-                      className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-white transition-all"
-                    >
-                      <Pencil size={11} />
-                    </button>
-                  )}
-                  {canDeletePipeline(p) && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(p.id) }}
-                      title="Delete"
-                      className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded text-surface-500 hover:text-red-400 transition-all"
-                    >
-                      <Trash2 size={11} />
-                    </button>
-                  )}
-                </li>
-              ))}
+                    {displayedPipelines.map((p: any) => (
+                      <li key={p.id} className="group flex flex-col">
+                        <div className="flex items-center">
+                          <button
+                            onClick={() => loadPipeline(p)}
+                            className={clsx(
+                              'flex-1 text-left px-3 py-1.5 text-xs truncate transition-colors',
+                              activePipelineId === p.id
+                                ? 'bg-dblue-500/20 text-dblue-400 font-medium border-l-2 border-dblue-500'
+                                : 'text-surface-400 hover:bg-navy-800 hover:text-white'
+                            )}
+                          >
+                            <span className="truncate">{p.name}</span>
+                            {p.shared_access && (
+                              <span className="ml-1 text-[9px] text-dblue-500/70 font-normal">(shared)</span>
+                            )}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); duplicateMut.mutate(p.id) }}
+                            title="Duplicate"
+                            className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-dblue-400 transition-all"
+                          >
+                            <Copy size={11} />
+                          </button>
+                          {canSharePipeline(p) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setShareModalPipelineId(p.id) }}
+                              title="Share"
+                              className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-dblue-400 transition-all"
+                            >
+                              <Share2 size={11} />
+                            </button>
+                          )}
+                          {canEditPipeline(p) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setRenamingId(p.id); setRenameValue(p.name) }}
+                              title="Rename"
+                              className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-white transition-all"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                          )}
+                          {canDeletePipeline(p) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(p.id) }}
+                              title="Delete"
+                              className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded text-surface-500 hover:text-red-400 transition-all"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          )}
+                        </div>
+                        {p.tags && p.tags.length > 0 && (
+                          <div className="flex gap-1 flex-wrap mt-0.5 px-3 pb-0.5">
+                            {(p.tags as string[]).slice(0, 3).map((tag: string) => (
+                              <span key={tag} className="text-[9px] px-1 py-0 rounded-full bg-dblue-500/20 text-dblue-400">{tag}</span>
+                            ))}
+                            {p.tags.length > 3 && <span className="text-[9px] text-surface-500">+{p.tags.length - 3}</span>}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </>
+                )
+              })()}
             </ul>
           </div>
 
@@ -1390,6 +1498,61 @@ export default function App() {
                   el.style.height = Math.min(el.scrollHeight, 96) + 'px'
                 }}
               />
+            </div>
+          )}
+
+          {/* Folder & Tags */}
+          {activePipelineId && (
+            <div className="flex items-center gap-4 px-4 py-1.5 border-b border-gray-100 bg-gray-50/80 text-xs shrink-0">
+              {/* Folder */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-gray-400 text-sm">📁</span>
+                <input
+                  value={pipelineFolder}
+                  onChange={e => { setPipelineFolder(e.target.value); setIsDirty(true) }}
+                  onBlur={() => fetchPipelineFolders().then(setAllFolders).catch(() => {})}
+                  placeholder="Add to folder…"
+                  list="folder-suggestions"
+                  className="text-xs bg-transparent border-none outline-none text-gray-600 placeholder-gray-300 w-36 focus:placeholder-gray-200"
+                />
+                <datalist id="folder-suggestions">
+                  {allFolders.map(f => <option key={f} value={f} />)}
+                </datalist>
+              </div>
+              {/* Tags */}
+              <div className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
+                <span className="text-gray-400 shrink-0">🏷</span>
+                {pipelineTags.map(tag => (
+                  <span key={tag} className="flex items-center gap-0.5 bg-dblue-50 text-dblue-600 border border-dblue-200 px-1.5 py-0.5 rounded-full text-[10px] font-medium">
+                    {tag}
+                    <button
+                      onClick={() => { setPipelineTags(t => t.filter(x => x !== tag)); setIsDirty(true) }}
+                      className="ml-0.5 hover:text-red-500 leading-none"
+                    >×</button>
+                  </span>
+                ))}
+                <input
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={e => {
+                    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                      e.preventDefault()
+                      const newTag = tagInput.trim().replace(/,$/, '')
+                      if (newTag && !pipelineTags.includes(newTag)) {
+                        setPipelineTags(t => [...t, newTag])
+                        setIsDirty(true)
+                      }
+                      setTagInput('')
+                    }
+                    if (e.key === 'Backspace' && !tagInput && pipelineTags.length) {
+                      setPipelineTags(t => t.slice(0, -1))
+                      setIsDirty(true)
+                    }
+                  }}
+                  placeholder={pipelineTags.length ? '' : 'Add tag…'}
+                  className="text-[10px] bg-transparent border-none outline-none text-gray-600 placeholder-gray-300 w-16 min-w-0"
+                />
+              </div>
             </div>
           )}
 
@@ -1846,6 +2009,7 @@ export default function App() {
       {/* Alerts page — full-page overlay */}
       {showAlerts && <AlertsPage onClose={() => setShowAlerts(false)} />}
       {showDqHub && <DataQualityHub onClose={() => setShowDqHub(false)} />}
+      {showAuditLog && <AuditLogPage onClose={() => setShowAuditLog(false)} />}
 
       {/* Share modal */}
       {shareModalPipelineId && (() => {

@@ -1,6 +1,6 @@
 # Dremio Transform Studio — Installation Guide
 
-**Version 1.4 | April 2026**
+**Version 1.7 | April 2026**
 
 ---
 
@@ -379,6 +379,34 @@ docker run --rm \
   alpine tar -xzf /backup/transform-studio-20260410.tar.gz -C /
 ```
 
+### Enabling User Authentication
+
+For team deployments, you should enable the built-in authentication system:
+
+**Option A — Enable via the UI (no restart needed):**
+1. Start the server and open the app
+2. Click the **⚙️ gear icon → Security** tab
+3. Toggle authentication on
+4. The first-time admin account is **username: admin / password: admin** — change it immediately
+5. Create user accounts in **Settings → Users**
+
+**Option B — Enable via environment variable (before first start):**
+Add to your docker-compose or docker run command:
+```
+-e AUTH_ENABLED=true
+-e JWT_SECRET=your-strong-random-secret-here
+```
+
+**Roles:**
+- **Admin** — full access; manages users, settings, and all pipelines
+- **Editor** — default role; creates and owns pipelines; can share with others
+- **Viewer** — read-only access; can preview but not execute; must submit changes for review
+
+**Important for production:**
+- Always set `JWT_SECRET` to a long random string (32+ chars) — the default secret is public
+- Set `ALLOWED_ORIGINS` to your domain (e.g. `https://transforms.mycompany.com`) when auth is enabled
+- These can be set as environment variables or toggled from the Security tab
+
 ---
 
 ## Environment Variables Reference
@@ -460,6 +488,60 @@ A new fourth alert type monitors when source data goes stale. Checks the maximum
 
 ### Step Bisection on Failure
 When a pipeline execute fails, Transform Studio automatically runs a bisection search to identify which specific step caused the failure. The execute result message now includes "Failed at step N: [step name]", pinpointing the problem without manual trial and error.
+
+---
+
+## v1.6 Features — What's New
+
+Version 1.6 introduces the **Data Quality Hub** — a full-screen workspace dedicated to monitoring the health and quality of your Dremio data, independent of the pipeline builder.
+
+### Data Quality Hub
+
+The DQ Hub is accessed via the blue **DQ Hub** pill button in the top toolbar (to the left of the Health Dashboard icon). It opens as a full-screen overlay with four sections:
+
+**Overview**
+A dashboard of stat cards showing total monitors, average DQ score across all monitors, and a count of passing vs. failing monitors. Below the cards is a monitor health grid — click any card to jump directly to that monitor's detail view.
+
+**Monitors**
+A list of all DQ monitors with an animated score ring for each. The ring is green (≥90%), amber (70–89%), or red (<70%) depending on the monitor's current score. Click any monitor to open its full detail view, showing per-rule results, the last scan time, and scan history.
+
+**History**
+A cross-monitor scan log showing all past scans across all monitors in a single table. Each row can be expanded to show a rule-by-rule drill-down: which rules passed, which failed, and their individual pass rates.
+
+**Rule Catalog**
+Browse all 14 built-in DQ rules grouped by category. Each rule card has an **Add to monitor…** shortcut so you can quickly attach it to an existing monitor without going through the full wizard.
+
+### Creating a DQ Monitor
+
+Click **+ New Monitor** from the Overview or Monitors section to launch a three-step wizard:
+
+1. **Pick Table** — Browse your Dremio catalog using the namespace tree (identical to the sidebar catalog browser) and select the table you want to monitor.
+
+2. **Configure Rules** — Add rules from the 14-rule catalog. Each rule has configurable parameters: column names, threshold values, regex patterns, and so on. Column dropdowns auto-populate from the selected table's schema so you don't have to type column names manually.
+
+3. **Schedule & Alerts** — Set how often the monitor runs using a preset (never / hourly / daily / weekly) or a custom cron expression. Use the alert threshold slider (0–100%) to set the minimum acceptable DQ score, and toggle email and Slack alerts on if you want notifications when the score drops below that threshold.
+
+### The 14 DQ Rules
+
+Rules are grouped into six categories:
+
+| Category | Rules |
+|----------|-------|
+| **Completeness** | Null Rate, Not Null (Strict), Row Count, Completeness Score |
+| **Validity** | Regex Validity, Accepted Values, Numeric Range |
+| **Uniqueness** | Column Uniqueness, Duplicate Key Check |
+| **Accuracy** | Referential Integrity, Min/Max Bound |
+| **Timeliness** | Data Freshness |
+| **Consistency** | Cross-Column Consistency |
+| **Custom** | Custom SQL Check |
+
+### Scoring
+
+Each rule produces a pass rate (0–100%). The overall DQ score for a monitor is the weighted average across all its rules. Scores are displayed as animated SVG ring charts and colour-coded: green (≥90%), amber (70–89%), or red (<70%).
+
+### Scheduling and Alerts
+
+Monitors with a cron schedule are scanned automatically by the background scheduler (which already powers pipeline scheduling). If a monitor has alerts enabled and the score drops below the configured threshold, Transform Studio sends an email and/or Slack notification using the same notification settings as pipeline alerts.
 
 ---
 

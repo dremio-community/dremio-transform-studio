@@ -83,6 +83,24 @@ export interface AuthUser {
   user_id: string
   username: string
   is_admin: boolean
+  role: 'admin' | 'editor' | 'viewer'
+}
+
+export interface PipelinePermission {
+  id: string
+  pipeline_id: string
+  user_id: string
+  username: string
+  access_level: 'viewer' | 'editor'
+  granted_by: string | null
+  granted_at: string
+}
+
+export interface PipelinePermissionsResponse {
+  pipeline_id: string
+  owner_id: string
+  owner_username: string | null
+  permissions: PipelinePermission[]
 }
 
 export interface AuthStatus {
@@ -95,7 +113,17 @@ export async function fetchAuthStatus(): Promise<AuthStatus> {
   return res.data
 }
 
-export async function login(username: string, password: string): Promise<{ token: string; user: { id: string; username: string; is_admin: boolean } }> {
+export async function fetchAuthSettings(): Promise<{ auth_enabled: boolean }> {
+  const res = await api.get('/api/settings/auth')
+  return res.data
+}
+
+export async function updateAuthSettings(enabled: boolean): Promise<{ auth_enabled: boolean }> {
+  const res = await api.put('/api/settings/auth', { enabled })
+  return res.data
+}
+
+export async function login(username: string, password: string): Promise<{ token: string; user: { id: string; username: string; is_admin: boolean; role: string } }> {
   const res = await api.post('/api/auth/login', { username, password })
   return res.data
 }
@@ -110,18 +138,46 @@ export async function fetchCurrentUser(): Promise<AuthUser> {
   return res.data
 }
 
-export async function fetchUsers(): Promise<{ id: string; username: string; is_admin: boolean; created_at: string }[]> {
+export async function fetchUsers(): Promise<{ id: string; username: string; is_admin: boolean; role: string; created_at: string }[]> {
   const res = await api.get('/api/auth/users')
   return res.data
 }
 
-export async function createUser(data: { username: string; password: string; is_admin: boolean }): Promise<{ id: string; username: string; is_admin: boolean }> {
+export async function createUser(data: { username: string; password: string; is_admin: boolean; role?: string }): Promise<{ id: string; username: string; is_admin: boolean; role: string }> {
   const res = await api.post('/api/auth/users', data)
+  return res.data
+}
+
+export async function updateUserRole(userId: string, role: string): Promise<{ id: string; username: string; role: string }> {
+  const res = await api.put(`/api/auth/users/${userId}`, { role })
   return res.data
 }
 
 export async function deleteUser(id: string): Promise<void> {
   await api.delete(`/api/auth/users/${id}`)
+}
+
+export async function fetchMyCredentials(): Promise<{ has_pat: boolean; pat_preview: string | null }> {
+  const res = await api.get('/api/auth/me/credentials')
+  return res.data
+}
+
+export async function updateMyCredentials(pat: string): Promise<void> {
+  await api.put('/api/auth/me/credentials', { dremio_pat: pat })
+}
+
+export async function fetchPipelinePermissions(pipelineId: string): Promise<PipelinePermissionsResponse> {
+  const res = await api.get(`/api/pipelines/${pipelineId}/permissions`)
+  return res.data
+}
+
+export async function addPipelinePermission(pipelineId: string, userId: string, accessLevel: 'viewer' | 'editor'): Promise<PipelinePermission> {
+  const res = await api.post(`/api/pipelines/${pipelineId}/permissions`, { user_id: userId, access_level: accessLevel })
+  return res.data
+}
+
+export async function removePipelinePermission(pipelineId: string, userId: string): Promise<void> {
+  await api.delete(`/api/pipelines/${pipelineId}/permissions/${userId}`)
 }
 
 // ── Health & Desktop ──────────────────────────────────────────────────────────

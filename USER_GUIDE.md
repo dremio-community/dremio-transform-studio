@@ -1,6 +1,6 @@
 # Dremio Transform Studio — User Guide
 
-**Version 1.6 | April 2026**
+**Version 1.7 | April 2026**
 
 ---
 
@@ -65,7 +65,41 @@ If your administrator has enabled user authentication, you will see a login scre
 - Change the admin password after your first login
 - Administrators can create additional user accounts in **Settings → Users**
 
-> **Note:** Authentication is optional and disabled by default. If your instance doesn't show a login screen, no login is required.
+**User roles:** Every account has one of three roles:
+
+| Role | What they can do |
+|------|-----------------|
+| **Admin** | Full access — create and edit any pipeline, manage users, change settings, approve reviews |
+| **Editor** | Default role — create and edit their own pipelines, share pipelines with others |
+| **Viewer** | Read-only access — can view and preview pipelines but cannot save changes; must submit changes for review |
+
+Your role is shown under your username in the top-right user menu. Admins can change any user's role in **Settings → Users**.
+
+> **Note:** Authentication is optional and disabled by default. If your instance doesn't show a login screen, no login is required and all users have full access.
+
+---
+
+### User Menu
+
+Click your **username** in the top-right corner of the toolbar to open the user menu dropdown.
+
+The menu shows your **username** and current **role** — colour-coded for quick recognition:
+- **Admin** — displayed in blue
+- **Editor** — displayed in green
+- **Viewer** — displayed in amber
+
+The dropdown contains:
+
+**My Dremio Credentials** — Click to open a dialog where you can enter your personal Dremio Personal Access Token (PAT). When set, all pipeline previews and executes run under your own Dremio identity instead of the shared service account. This is especially useful when:
+- Your Dremio instance has per-user access control (row/column security policies)
+- You need per-user audit logging in Dremio
+- You are connecting to Dremio Cloud (which always uses PAT authentication) or Dremio Software 25.x and later
+
+Your PAT is stored only on your browser session and is never shared with other users.
+
+**Manage Users** (admins only) — Opens the user management panel where you can create, delete, and change roles for all user accounts.
+
+**Sign Out** — Logs you out and returns to the login screen.
 
 ---
 
@@ -449,7 +483,16 @@ Set up email or Slack alerts for scheduled pipeline failures.
 Choose where the SQLite database is stored. By default it's at `~/.transform_studio/transforms.db`. Click **Change** to pick a different path and click **Save** — the app needs to restart to apply the change.
 
 ### Users (Admin only, when auth is enabled)
-Manage user accounts — create new users or delete existing ones.
+Manage user accounts — create new users or delete existing ones. You can also set each user's role (Admin, Editor, or Viewer) from this panel.
+
+### Security (Admin only, when auth is enabled)
+
+Admins can enable or disable authentication from within the UI — no Docker restart required:
+
+1. Click the **⚙️ gear icon** → **Security** tab
+2. Toggle the auth switch on or off
+3. Enabling auth immediately requires all users to log in; disabling auth removes the login requirement for everyone
+4. The Security tab also displays role descriptions (Admin, Editor, Viewer) and sharing guidance for reference
 
 ---
 
@@ -911,6 +954,30 @@ Cards are sorted by urgency: **Failing → Degraded → Healthy → Never Run**,
 
 ---
 
+## Pipeline Sharing
+
+When authentication is enabled, every pipeline has an owner — the user who created it. By default, only the owner (and admins) can edit or delete a pipeline. Other users with the Editor role can see pipelines that have been explicitly shared with them in their sidebar.
+
+### Sharing a Pipeline
+
+1. Open the pipeline you want to share
+2. Click the **Share** icon (🔗) in the toolbar — only visible to the pipeline owner and admins
+3. A Share dialog opens showing the current owner and any existing shares
+4. Use the **"Add people"** field to select a user and choose their access level:
+   - **Editor** — can view and modify the pipeline
+   - **Viewer** — can view and preview but cannot save changes (must submit for review)
+5. Click **Grant Access**
+
+### Managing Shares
+
+- Existing shares are listed in the Share dialog with their access level shown next to each user
+- Use the dropdown next to a share entry to change the access level
+- Click **Revoke** to remove someone's access entirely
+
+**Shared pipelines appear in the sidebar** with a **(shared)** badge next to the pipeline name so it is easy to distinguish pipelines you own from pipelines others have shared with you.
+
+---
+
 ## Approval Workflow
 
 For sensitive or production pipelines, admins can require that all changes go through a review process before being saved. This prevents unauthorized changes from going live.
@@ -1114,3 +1181,6 @@ The notification includes the monitor name, the table scanned, the current DQ sc
 - **Let the agent help** — if you're not sure which transforms to use, describe what you want to Claude and let it build the pipeline for you via the MCP integration.
 - **Check the Dashboard first** — before diving into a failed pipeline, open the Dashboard to get the full picture of which pipelines are healthy and which need attention.
 - **Use approvals for production pipelines** — enable Approval Required on any pipeline that feeds a dashboard or report. It adds a lightweight review gate without slowing down development on other pipelines.
+- **Set your Dremio credentials** — if your Dremio has per-user access control or audit logging, set your personal PAT under User menu → My Dremio Credentials so your queries run under your own identity rather than the shared service account.
+- **Use the Viewer role for stakeholders** — assign the Viewer role to colleagues who need read access but shouldn't be able to modify pipelines. They can browse, preview, and submit change requests for review without the risk of accidentally breaking something.
+- **Share pipelines with collaborators** — instead of giving everyone Admin access, share specific pipelines with the Editor or Viewer access level. This keeps permissions minimal and makes it clear who owns each pipeline.

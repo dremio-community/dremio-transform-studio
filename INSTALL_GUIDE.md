@@ -1,6 +1,6 @@
 # Dremio Transform Studio — Installation Guide
 
-**Version 1.6 | April 2026**
+**Version 1.7 | April 2026**
 
 ---
 
@@ -378,6 +378,34 @@ docker run --rm \
   -v /your/backup/path:/backup \
   alpine tar -xzf /backup/transform-studio-20260410.tar.gz -C /
 ```
+
+### Enabling User Authentication
+
+For team deployments, you should enable the built-in authentication system:
+
+**Option A — Enable via the UI (no restart needed):**
+1. Start the server and open the app
+2. Click the **⚙️ gear icon → Security** tab
+3. Toggle authentication on
+4. The first-time admin account is **username: admin / password: admin** — change it immediately
+5. Create user accounts in **Settings → Users**
+
+**Option B — Enable via environment variable (before first start):**
+Add to your docker-compose or docker run command:
+```
+-e AUTH_ENABLED=true
+-e JWT_SECRET=your-strong-random-secret-here
+```
+
+**Roles:**
+- **Admin** — full access; manages users, settings, and all pipelines
+- **Editor** — default role; creates and owns pipelines; can share with others
+- **Viewer** — read-only access; can preview but not execute; must submit changes for review
+
+**Important for production:**
+- Always set `JWT_SECRET` to a long random string (32+ chars) — the default secret is public
+- Set `ALLOWED_ORIGINS` to your domain (e.g. `https://transforms.mycompany.com`) when auth is enabled
+- These can be set as environment variables or toggled from the Security tab
 
 ---
 

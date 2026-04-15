@@ -42,6 +42,8 @@ import {
   Link,
   Radio,
   ShieldCheck,
+  Share2,
+  KeyRound,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -69,6 +71,7 @@ import {
   logout,
   fetchUsers,
   createUser,
+  updateUserRole,
   deleteUser,
   getToken,
   clearToken,
@@ -99,6 +102,8 @@ import ScheduleModal from './components/ScheduleModal'
 import LoginModal from './components/LoginModal'
 import ParametersPanel from './components/ParametersPanel'
 import RunWithParamsModal from './components/RunWithParamsModal'
+import ShareModal from './components/ShareModal'
+import MyCredentialsModal from './components/MyCredentialsModal'
 import WebhookPanel from './components/WebhookPanel'
 import TestsPanel from './components/TestsPanel'
 import DependencyPanel from './components/DependencyPanel'
@@ -125,6 +130,8 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showManageUsers, setShowManageUsers] = useState(false)
+  const [showMyCredentials, setShowMyCredentials] = useState(false)
+  const [shareModalPipelineId, setShareModalPipelineId] = useState<string | null>(null)
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [activePipelineId, setActivePipelineId] = useState<string | null>(null)
@@ -243,8 +250,13 @@ export default function App() {
     return () => window.removeEventListener('ts:unauthorized', handler)
   }, [authEnabled])
 
-  const handleLogin = (user: { id: string; username: string; is_admin: boolean }) => {
-    setCurrentUser({ user_id: user.id, username: user.username, is_admin: user.is_admin })
+  const handleLogin = (user: { id: string; username: string; is_admin: boolean; role?: string }) => {
+    setCurrentUser({
+      user_id: user.id,
+      username: user.username,
+      is_admin: user.is_admin,
+      role: (user.role as AuthUser['role']) ?? (user.is_admin ? 'admin' : 'editor'),
+    })
     setShowLogin(false)
     qc.invalidateQueries({ queryKey: ['pipelines'] })
   }
@@ -254,6 +266,29 @@ export default function App() {
     setCurrentUser(null)
     setShowUserMenu(false)
     if (authEnabled) setShowLogin(true)
+  }
+
+  // ── Permission helpers ────────────────────────────────────────────────────
+  const canEditPipeline = (p: Pipeline): boolean => {
+    if (!authEnabled) return true
+    if (currentUser?.role === 'admin') return true
+    if (currentUser && p.user_id === currentUser.user_id) return true
+    if (p.shared_access === 'editor') return true
+    return false
+  }
+
+  const canDeletePipeline = (p: Pipeline): boolean => {
+    if (!authEnabled) return true
+    if (currentUser?.role === 'admin') return true
+    if (currentUser && p.user_id === currentUser.user_id) return true
+    return false
+  }
+
+  const canSharePipeline = (p: Pipeline): boolean => {
+    if (!authEnabled) return false  // sharing only makes sense when auth is on
+    if (currentUser?.role === 'admin') return true
+    if (currentUser && p.user_id === currentUser.user_id) return true
+    return false
   }
 
   // ── Queries ───────────────────────────────────────────────────────────────
@@ -900,9 +935,9 @@ export default function App() {
               <div className="absolute right-0 top-full mt-1 w-44 bg-navy-900 border border-navy-700 rounded-lg shadow-xl z-50 overflow-hidden">
                 <div className="px-3 py-2 border-b border-navy-800">
                   <p className="text-xs font-semibold text-white truncate">{currentUser.username}</p>
-                  {currentUser.is_admin && (
-                    <p className="text-xs text-dblue-400">Admin</p>
-                  )}
+                  <p className="text-xs" style={{ color: currentUser.role === 'admin' ? '#60a5fa' : currentUser.role === 'viewer' ? '#f59e0b' : '#6ee7b7' }}>
+                    {currentUser.role === 'admin' ? 'Admin' : currentUser.role === 'viewer' ? 'Viewer' : 'Editor'}
+                  </p>
                 </div>
                 {currentUser.is_admin && (
                   <button
@@ -912,6 +947,12 @@ export default function App() {
                     <Users size={12} /> Manage Users
                   </button>
                 )}
+                <button
+                  onClick={() => { setShowMyCredentials(true); setShowUserMenu(false) }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-surface-300 hover:bg-navy-800 hover:text-white transition-colors"
+                >
+                  <KeyRound size={12} /> My Dremio Credentials
+                </button>
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-surface-300 hover:bg-navy-800 hover:text-red-400 transition-colors"
@@ -968,16 +1009,19 @@ export default function App() {
         />
         <TopBtn
           onClick={handleExecute}
-          disabled={!activePipelineId || !localOutputTable || isLoading}
+          disabled={!activePipelineId || !localOutputTable || isLoading || (authEnabled && currentUser?.role === 'viewer')}
           icon={<Zap size={12} />}
           label="Execute"
           accent="blue"
+          title={authEnabled && currentUser?.role === 'viewer' ? 'Viewers cannot execute pipelines directly' : undefined}
         />
 
         {/* ── Approval-aware save area ───────────────────────────────────── */}
-        {/* When auth is off everyone is treated as admin; when auth is on, check the flag */}
-        {activePipelineId && localApprovalRequired && authEnabled && !currentUser?.is_admin ? (
-          /* Non-admin on an approval-required pipeline */
+        {/* Viewers always go through review; editors go through review on approval-required pipelines */}
+        {activePipelineId && authEnabled && currentUser && (
+          (localApprovalRequired && !currentUser.is_admin) || currentUser.role === 'viewer'
+        ) ? (
+          /* Viewer role OR non-admin on an approval-required pipeline */
           localPendingApprovalId ? (
             /* Already has a pending review — can't submit another */
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 font-medium">
@@ -1022,6 +1066,19 @@ export default function App() {
                 </button>
               </Tooltip>
             )}
+            {activePipelineId && (() => {
+              const ap = pipelines.find(p => p.id === activePipelineId)
+              return ap && canSharePipeline(ap) ? (
+                <Tooltip text="Share pipeline">
+                  <button
+                    onClick={() => setShareModalPipelineId(activePipelineId)}
+                    className="p-1.5 rounded text-surface-500 hover:text-dblue-400 hover:bg-navy-700 transition-colors"
+                  >
+                    <Share2 size={15} />
+                  </button>
+                </Tooltip>
+              ) : null
+            })()}
             <TopBtn
               onClick={handleSave}
               disabled={isLoading}
@@ -1086,7 +1143,10 @@ export default function App() {
                         : 'text-surface-400 hover:bg-navy-800 hover:text-white'
                     )}
                   >
-                    {p.name}
+                    <span className="truncate">{p.name}</span>
+                    {p.shared_access && (
+                      <span className="ml-1 text-[9px] text-dblue-500/70 font-normal">(shared)</span>
+                    )}
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); duplicateMut.mutate(p.id) }}
@@ -1095,20 +1155,33 @@ export default function App() {
                   >
                     <Copy size={11} />
                   </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setRenamingId(p.id); setRenameValue(p.name) }}
-                    title="Rename"
-                    className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-white transition-all"
-                  >
-                    <Pencil size={11} />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(p.id) }}
-                    title="Delete"
-                    className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded text-surface-500 hover:text-red-400 transition-all"
-                  >
-                    <Trash2 size={11} />
-                  </button>
+                  {canSharePipeline(p) && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShareModalPipelineId(p.id) }}
+                      title="Share"
+                      className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-dblue-400 transition-all"
+                    >
+                      <Share2 size={11} />
+                    </button>
+                  )}
+                  {canEditPipeline(p) && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setRenamingId(p.id); setRenameValue(p.name) }}
+                      title="Rename"
+                      className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-white transition-all"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                  )}
+                  {canDeletePipeline(p) && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(p.id) }}
+                      title="Delete"
+                      className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded text-surface-500 hover:text-red-400 transition-all"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -1682,6 +1755,23 @@ export default function App() {
       {showAlerts && <AlertsPage onClose={() => setShowAlerts(false)} />}
       {showDqHub && <DataQualityHub onClose={() => setShowDqHub(false)} />}
 
+      {/* Share modal */}
+      {shareModalPipelineId && (() => {
+        const sharePipeline = pipelines.find(p => p.id === shareModalPipelineId)
+        return sharePipeline && currentUser ? (
+          <ShareModal
+            pipeline={sharePipeline}
+            currentUserId={currentUser.user_id}
+            onClose={() => setShareModalPipelineId(null)}
+          />
+        ) : null
+      })()}
+
+      {/* My Dremio Credentials modal */}
+      {showMyCredentials && (
+        <MyCredentialsModal onClose={() => setShowMyCredentials(false)} />
+      )}
+
       {/* Duplicate pipeline name warning */}
       {showDupeNameWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -1913,10 +2003,10 @@ export default function App() {
 // ── User Management Modal ─────────────────────────────────────────────────────
 
 function UserManagementModal({ onClose }: { onClose: () => void }) {
-  const [users, setUsers] = useState<{ id: string; username: string; is_admin: boolean; created_at: string }[]>([])
+  const [users, setUsers] = useState<{ id: string; username: string; is_admin: boolean; role: string; created_at: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
-  const [newUser, setNewUser] = useState({ username: '', password: '', is_admin: false })
+  const [newUser, setNewUser] = useState({ username: '', password: '', is_admin: false, role: 'editor' })
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -1926,12 +2016,22 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
   const handleCreate = async () => {
     if (!newUser.username.trim() || !newUser.password) return
     try {
-      const created = await createUser({ username: newUser.username.trim(), password: newUser.password, is_admin: newUser.is_admin })
+      const role = newUser.is_admin ? 'admin' : newUser.role
+      const created = await createUser({ username: newUser.username.trim(), password: newUser.password, is_admin: newUser.is_admin, role })
       setUsers((u) => [...u, { ...created, created_at: new Date().toISOString() }])
-      setNewUser({ username: '', password: '', is_admin: false })
+      setNewUser({ username: '', password: '', is_admin: false, role: 'editor' })
       setAdding(false)
     } catch {
       setError('Failed to create user')
+    }
+  }
+
+  const handleRoleChange = async (id: string, role: string) => {
+    try {
+      const updated = await updateUserRole(id, role)
+      setUsers((u) => u.map((x) => x.id === id ? { ...x, role: updated.role, is_admin: role === 'admin' } : x))
+    } catch {
+      setError('Failed to update role')
     }
   }
 
@@ -1969,8 +2069,16 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-surface-800 truncate">{u.username}</p>
-                    {u.is_admin && <p className="text-xs text-dblue-500">Admin</p>}
                   </div>
+                  <select
+                    value={u.role || (u.is_admin ? 'admin' : 'editor')}
+                    onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                    className="text-xs border border-surface-200 rounded px-2 py-1 bg-white text-surface-600 focus:outline-none focus:ring-1 focus:ring-dblue-400"
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
                   <button
                     onClick={() => handleDelete(u.id)}
                     className="opacity-0 group-hover:opacity-100 p-1.5 rounded text-surface-400 hover:text-red-500 hover:bg-red-50 transition-all"
@@ -2009,15 +2117,21 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
                   />
                 </div>
               </div>
-              <label className="flex items-center gap-2 text-xs text-surface-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={newUser.is_admin}
-                  onChange={(e) => setNewUser((u) => ({ ...u, is_admin: e.target.checked }))}
-                  className="rounded"
-                />
-                Admin (can manage users)
-              </label>
+              <div>
+                <label className="block text-xs font-medium text-surface-600 mb-1">Role</label>
+                <select
+                  value={newUser.is_admin ? 'admin' : newUser.role}
+                  onChange={(e) => {
+                    const role = e.target.value
+                    setNewUser((u) => ({ ...u, role, is_admin: role === 'admin' }))
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs border border-surface-300 rounded focus:outline-none focus:ring-1 focus:ring-dblue-400"
+                >
+                  <option value="admin">Admin — can manage users &amp; see all pipelines</option>
+                  <option value="editor">Editor — owns their pipelines, can be shared with</option>
+                  <option value="viewer">Viewer — read-only, must submit for approval</option>
+                </select>
+              </div>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setAdding(false)} className="px-3 py-1.5 text-xs text-surface-500 hover:text-surface-700">Cancel</button>
                 <button
@@ -2048,12 +2162,13 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
 
 // ── Small UI helpers ──────────────────────────────────────────────────────────
 
-function TopBtn({ onClick, disabled, icon, label, accent }: {
+function TopBtn({ onClick, disabled, icon, label, accent, title }: {
   onClick: () => void
   disabled?: boolean
   icon: React.ReactNode
   label: string
   accent?: 'emerald' | 'blue' | 'dark' | 'violet'
+  title?: string
 }) {
   const base = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-40'
   const styles = {
@@ -2064,7 +2179,7 @@ function TopBtn({ onClick, disabled, icon, label, accent }: {
     undefined: 'text-surface-400 hover:text-white hover:bg-navy-800',
   }
   return (
-    <button onClick={onClick} disabled={disabled} className={clsx(base, styles[accent as keyof typeof styles] ?? styles['undefined'])}>
+    <button onClick={onClick} disabled={disabled} title={title} className={clsx(base, styles[accent as keyof typeof styles] ?? styles['undefined'])}>
       {icon} {label}
     </button>
   )

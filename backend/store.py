@@ -205,11 +205,28 @@ class PipelineStore:
                 # DQ monitor alert thresholds (v1.7)
                 "ALTER TABLE dq_monitors ADD COLUMN alert_threshold REAL",
                 "ALTER TABLE dq_monitors ADD COLUMN alert_enabled INTEGER DEFAULT 0",
+                # Multi-user permissions (v1.7)
+                "ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'editor'",
+                "ALTER TABLE users ADD COLUMN dremio_pat TEXT",
             ]:
                 try:
                     await db.execute(col_sql)
                 except Exception:
                     pass
+            # pipeline_permissions table (multi-user sharing)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS pipeline_permissions (
+                    id TEXT PRIMARY KEY,
+                    pipeline_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    access_level TEXT NOT NULL DEFAULT 'viewer',
+                    granted_by TEXT,
+                    granted_at TEXT NOT NULL,
+                    UNIQUE(pipeline_id, user_id),
+                    FOREIGN KEY (pipeline_id) REFERENCES pipelines(id),
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            """)
             # pipeline_approvals table (v1.6)
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS pipeline_approvals (
@@ -263,16 +280,18 @@ class PipelineStore:
 
     # ── Users ─────────────────────────────────────────────────────────────────
 
-    async def create_user(self, username: str, password_hash: str, is_admin: bool = False) -> dict:
+    async def create_user(self, username: str, password_hash: str, is_admin: bool = False, role: str = "editor") -> dict:
         user_id = str(uuid.uuid4())
         now = _now_iso()
+        # is_admin=True always gets admin role
+        effective_role = "admin" if is_admin else role
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
-                "INSERT INTO users (id, username, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?, ?)",
-                (user_id, username, password_hash, 1 if is_admin else 0, now),
+                "INSERT INTO users (id, username, password_hash, is_admin, created_at, role) VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, username, password_hash, 1 if is_admin else 0, now, effective_role),
             )
             await db.commit()
-        return {"id": user_id, "username": username, "is_admin": is_admin, "created_at": now}
+        return {"id": user_id, "username": username, "is_admin": is_admin, "role": effective_role, "created_at": now}
 
     async def get_user_by_username(self, username: str) -> Optional[dict]:
         async with aiosqlite.connect(self._db_path) as db:
@@ -291,9 +310,16 @@ class PipelineStore:
     async def list_users(self) -> list:
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
-            async with db.execute("SELECT id, username, is_admin, created_at FROM users ORDER BY created_at") as cur:
+            async with db.execute("SELECT id, username, is_admin, role, created_at FROM users ORDER BY created_at") as cur:
                 rows = await cur.fetchall()
-        return [dict(row) for row in rows]
+        result = []
+        for row in rows:
+            d = dict(row)
+            # Derive role from is_admin if role column not yet populated
+            if not d.get("role"):
+                d["role"] = "admin" if d.get("is_admin") else "editor"
+            result.append(d)
+        return result
 
     async def update_user_password(self, user_id: str, new_hash: str) -> None:
         async with aiosqlite.connect(self._db_path) as db:
@@ -305,13 +331,110 @@ class PipelineStore:
             await db.execute("DELETE FROM users WHERE id = ?", (user_id,))
             await db.commit()
 
+    async def update_user_role(self, user_id: str, role: str) -> None:
+        is_admin = 1 if role == "admin" else 0
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE users SET role = ?, is_admin = ? WHERE id = ?",
+                (role, is_admin, user_id),
+            )
+            await db.commit()
+
+    async def update_user_pat(self, user_id: str, pat: str) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute("UPDATE users SET dremio_pat = ? WHERE id = ?", (pat, user_id))
+            await db.commit()
+
+    async def get_user_dremio_pat(self, user_id: str) -> Optional[str]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT dremio_pat FROM users WHERE id = ?", (user_id,)) as cur:
+                row = await cur.fetchone()
+        return row["dremio_pat"] if row else None
+
+    # ── Pipeline permissions ───────────────────────────────────────────────────
+
+    async def get_pipeline_permissions(self, pipeline_id: str) -> list:
+        """Return all permission grants for a pipeline, including username of each grantee."""
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """SELECT pp.id, pp.pipeline_id, pp.user_id, pp.access_level,
+                          pp.granted_by, pp.granted_at, u.username
+                   FROM pipeline_permissions pp
+                   LEFT JOIN users u ON pp.user_id = u.id
+                   WHERE pp.pipeline_id = ?
+                   ORDER BY pp.granted_at""",
+                (pipeline_id,),
+            ) as cur:
+                rows = await cur.fetchall()
+        return [dict(row) for row in rows]
+
+    async def upsert_pipeline_permission(
+        self, pipeline_id: str, user_id: str, access_level: str, granted_by: Optional[str] = None
+    ) -> dict:
+        """Create or update a permission grant. Returns the resulting grant record."""
+        perm_id = str(uuid.uuid4())
+        now = _now_iso()
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            # Try insert; on conflict (UNIQUE pipeline_id+user_id) update access_level
+            await db.execute(
+                """INSERT INTO pipeline_permissions (id, pipeline_id, user_id, access_level, granted_by, granted_at)
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(pipeline_id, user_id) DO UPDATE SET access_level = excluded.access_level, granted_by = excluded.granted_by, granted_at = excluded.granted_at""",
+                (perm_id, pipeline_id, user_id, access_level, granted_by, now),
+            )
+            await db.commit()
+            async with db.execute(
+                """SELECT pp.id, pp.pipeline_id, pp.user_id, pp.access_level,
+                          pp.granted_by, pp.granted_at, u.username
+                   FROM pipeline_permissions pp
+                   LEFT JOIN users u ON pp.user_id = u.id
+                   WHERE pp.pipeline_id = ? AND pp.user_id = ?""",
+                (pipeline_id, user_id),
+            ) as cur:
+                row = await cur.fetchone()
+        return dict(row) if row else {}
+
+    async def remove_pipeline_permission(self, pipeline_id: str, user_id: str) -> bool:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "DELETE FROM pipeline_permissions WHERE pipeline_id = ? AND user_id = ?",
+                (pipeline_id, user_id),
+            )
+            await db.commit()
+        return True
+
+    async def can_user_edit_pipeline(self, pipeline_id: str, user_id: str, role: Optional[str] = None) -> bool:
+        """Returns True if user can edit (save) the pipeline — owner, editor grant, or admin."""
+        if role == "admin":
+            return True
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT user_id FROM pipelines WHERE id = ?", (pipeline_id,)) as cur:
+                row = await cur.fetchone()
+        if row is None:
+            return False
+        if row["user_id"] == user_id:
+            return True
+        # Check for editor grant
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT access_level FROM pipeline_permissions WHERE pipeline_id = ? AND user_id = ?",
+                (pipeline_id, user_id),
+            ) as cur:
+                perm = await cur.fetchone()
+        return perm is not None and perm["access_level"] == "editor"
+
     async def seed_admin_if_empty(self) -> None:
         """Create admin/admin user if no users exist."""
         from auth import hash_password
         existing = await self.list_users()
         if not existing:
             pw_hash = hash_password("admin")
-            await self.create_user("admin", pw_hash, is_admin=True)
+            await self.create_user("admin", pw_hash, is_admin=True, role="admin")
 
     async def get_profile_cache(self, table_name: str) -> Optional[dict]:
         """Return cached profile result if it exists and is less than 1 hour old."""
@@ -406,6 +529,9 @@ class PipelineStore:
             microbatch_window=row["microbatch_window"] if "microbatch_window" in keys else None,
             approval_required=bool(row["approval_required"]) if "approval_required" in keys else False,
             pending_approval_id=row["pending_approval_id"] if "pending_approval_id" in keys else None,
+            user_id=row["user_id"] if "user_id" in keys else "default",
+            shared_access=row["shared_access"] if "shared_access" in keys else None,
+            owner_username=row["owner_username"] if "owner_username" in keys else None,
         )
 
     async def create_pipeline(self, data: PipelineCreate, user_id: str = "default") -> Pipeline:
@@ -470,15 +596,29 @@ class PipelineStore:
             microbatch_window=data.microbatch_window,
         )
 
-    async def get_pipeline(self, id: str, user_id: Optional[str] = None) -> Optional[Pipeline]:
+    async def get_pipeline(self, id: str, user_id: Optional[str] = None, role: Optional[str] = None) -> Optional[Pipeline]:
         from auth import auth_enabled
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             if auth_enabled() and user_id is not None:
-                async with db.execute(
-                    "SELECT * FROM pipelines WHERE id = ? AND user_id = ?", (id, user_id)
-                ) as cursor:
-                    row = await cursor.fetchone()
+                if role == "admin":
+                    async with db.execute(
+                        """SELECT p.*, NULL as shared_access, u.username as owner_username
+                           FROM pipelines p LEFT JOIN users u ON p.user_id = u.id
+                           WHERE p.id = ?""",
+                        (id,),
+                    ) as cursor:
+                        row = await cursor.fetchone()
+                else:
+                    async with db.execute(
+                        """SELECT p.*, pp.access_level as shared_access, u.username as owner_username
+                           FROM pipelines p
+                           LEFT JOIN pipeline_permissions pp ON p.id = pp.pipeline_id AND pp.user_id = ?
+                           LEFT JOIN users u ON p.user_id = u.id
+                           WHERE p.id = ? AND (p.user_id = ? OR pp.user_id = ?)""",
+                        (user_id, id, user_id, user_id),
+                    ) as cursor:
+                        row = await cursor.fetchone()
             else:
                 async with db.execute(
                     "SELECT * FROM pipelines WHERE id = ?", (id,)
@@ -523,16 +663,31 @@ class PipelineStore:
                 steps = [TransformStep(**s) for s in raw]
             return self._row_to_pipeline(row, steps, version)
 
-    async def list_pipelines(self, user_id: Optional[str] = None) -> List[Pipeline]:
+    async def list_pipelines(self, user_id: Optional[str] = None, role: Optional[str] = None) -> List[Pipeline]:
         from auth import auth_enabled
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             if auth_enabled() and user_id is not None:
-                async with db.execute(
-                    "SELECT * FROM pipelines WHERE user_id = ? ORDER BY updated_at DESC",
-                    (user_id,)
-                ) as cursor:
-                    rows = await cursor.fetchall()
+                if role == "admin":
+                    # Admin sees all pipelines with owner username
+                    async with db.execute(
+                        """SELECT p.*, NULL as shared_access, u.username as owner_username
+                           FROM pipelines p LEFT JOIN users u ON p.user_id = u.id
+                           ORDER BY p.updated_at DESC""",
+                    ) as cursor:
+                        rows = await cursor.fetchall()
+                else:
+                    # Own pipelines + pipelines with any permission grant
+                    async with db.execute(
+                        """SELECT p.*, pp.access_level as shared_access, u.username as owner_username
+                           FROM pipelines p
+                           LEFT JOIN pipeline_permissions pp ON p.id = pp.pipeline_id AND pp.user_id = ?
+                           LEFT JOIN users u ON p.user_id = u.id
+                           WHERE p.user_id = ? OR pp.user_id = ?
+                           ORDER BY p.updated_at DESC""",
+                        (user_id, user_id, user_id),
+                    ) as cursor:
+                        rows = await cursor.fetchall()
             else:
                 async with db.execute("SELECT * FROM pipelines ORDER BY updated_at DESC") as cursor:
                     rows = await cursor.fetchall()

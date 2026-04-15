@@ -101,7 +101,31 @@ transformstudio.acme-corp.com {
 
 ---
 
-## Step 6 — Start Everything
+## Step 6 — Configure Environment Variables
+
+Before starting, set the required environment variables in your
+`docker-compose.server.yml` (or export them in your shell session):
+
+```yaml
+environment:
+  AUTH_ENABLED: "true"
+  JWT_SECRET: "your-strong-random-secret-here"
+  ALLOWED_ORIGINS: "https://transformstudio.yourcompany.com"
+```
+
+Generate a strong random secret with:
+```bash
+openssl rand -hex 32
+```
+
+> **CORS note:** When `AUTH_ENABLED=true`, always set `ALLOWED_ORIGINS` to your
+> actual domain. The `allow_credentials=True` CORS requirement is incompatible
+> with wildcard `*` origins — setting your domain explicitly is both correct and
+> required by the CORS spec.
+
+---
+
+## Step 7 — Start Everything
 
 ```bash
 cd ~/transform-studio
@@ -125,7 +149,52 @@ You should see both `transform-studio` and `caddy` with status `Up`.
 
 ---
 
-## Step 7 — Access the App
+## Step 8 — Enable User Authentication
+
+Transform Studio v1.7 includes full built-in authentication with role-based
+access control. This is the recommended approach for all team deployments.
+
+### Enabling Auth
+
+**Option A — via environment variables (recommended):**
+
+Set `AUTH_ENABLED=true` and a strong `JWT_SECRET` in your docker-compose file
+before starting (see Step 6). Auth will be active on first launch.
+
+**Option B — live toggle from the UI (no restart needed):**
+
+Start the app without setting `AUTH_ENABLED`, then go to
+**Settings → Security tab** and toggle auth on from the interface. Changes take
+effect immediately without restarting the container.
+
+### First Login
+
+- Default credentials on first launch: **admin / admin**
+- **Change this password immediately** after logging in.
+
+### Roles
+
+| Role | Permissions |
+|---|---|
+| Admin | Full access — manage users, settings, all pipelines |
+| Editor | Create and own pipelines, run and edit their own pipelines |
+| Viewer | Read-only access; can submit pipelines for review but cannot execute |
+
+### Creating Users
+
+Admins create and manage user accounts under **Settings → Users**. From there
+you can add users, assign roles, and delete accounts.
+
+### Per-User Dremio Credentials
+
+Each user can set their own Dremio Personal Access Token (PAT) independently.
+Go to **User menu → My Dremio Credentials** to enter your PAT. This replaces
+the shared connection config for that user's sessions — no admin involvement
+needed.
+
+---
+
+## Step 9 — Access the App
 
 Open a browser and go to:
 ```
@@ -133,6 +202,7 @@ https://transformstudio.yourcompany.com
 ```
 
 That's it! Share this URL with your team — no installs needed on their end.
+If auth is enabled, users will see a login screen before accessing the app.
 
 ---
 
@@ -167,8 +237,8 @@ docker compose restart
 
 ## Data Persistence
 
-Pipeline data (transforms, connection settings) is stored in a SQLite database
-inside a Docker volume called `ts-data`. This survives:
+Pipeline data (transforms, connection settings, users, credentials) is stored in
+a SQLite database inside a Docker volume called `ts-data`. This survives:
 - Container restarts
 - Image updates (`docker compose pull` + `up -d`)
 
@@ -195,36 +265,14 @@ docker run --rm \
 
 ---
 
-## Notes & Current Limitations
+## Notes
 
-- **Shared connection config** — All users on a server instance share the same
-  Dremio connection settings. Per-user authentication is on the roadmap.
 - **Single-tenant** — For isolation between teams, run separate instances on
   separate subdomains (e.g. `team-a.transformstudio.com`, `team-b.transformstudio.com`).
-- **No built-in auth** — The app is accessible to anyone with the URL. For
-  internal use, consider putting it behind a VPN or adding HTTP basic auth via
-  Caddy (see below).
-
-### Optional: Add HTTP Basic Auth via Caddy
-
-If you want a simple login gate before users reach the app, add this to your
-`Caddyfile`:
-
-```
-transformstudio.yourcompany.com {
-    basicauth {
-        # Generate password hash with: caddy hash-password
-        alice $2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNmpkT/5qqR7hx4IjWJPDhjvG
-    }
-    reverse_proxy transform-studio:8000
-    encode gzip
-}
-```
-
-Generate a password hash on the server:
-```bash
-docker run --rm caddy:2-alpine caddy hash-password --plaintext 'yourpassword'
-```
+- **Auth is optional for local/desktop use** — `AUTH_ENABLED` defaults to `false`.
+  Desktop and single-user Docker deployments work without any login configuration.
+- **JWT token expiry** — Tokens are valid for 1 week. Users are prompted to log
+  in again when their token expires.
 
 ---
 

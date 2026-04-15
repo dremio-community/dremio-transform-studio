@@ -111,6 +111,10 @@ class Pipeline(BaseModel):
     # Approval workflow
     approval_required: bool = False
     pending_approval_id: Optional[str] = None
+    # Ownership & sharing (populated by store)
+    user_id: str = "default"
+    shared_access: Optional[str] = None   # 'viewer' | 'editor' — set if this pipeline is shared with you
+    owner_username: Optional[str] = None  # display name of the pipeline owner
 
 
 class PipelineCreate(BaseModel):

@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from auth import (
     auth_enabled,
+    set_auth_enabled_override,
     get_current_user,
     require_admin,
     require_user,
@@ -67,6 +68,10 @@ async def lifespan(app: FastAPI):
     await store.init()
     await store.load_connection_settings()  # restore persisted connection config
     await store.seed_admin_if_empty()
+    # Load auth_enabled from DB (overrides env var if explicitly set)
+    auth_db = await store.get_setting("auth_enabled_override")
+    if auth_db is not None:
+        set_auth_enabled_override(auth_db == "true")
     await scheduler.start()
     yield
     await scheduler.stop()
@@ -120,6 +125,24 @@ class CreateUserBody(BaseModel):
     username: str
     password: str
     is_admin: bool = False
+    role: str = "editor"  # 'admin' | 'editor' | 'viewer'
+
+
+class UpdateUserBody(BaseModel):
+    role: Optional[str] = None  # 'admin' | 'editor' | 'viewer'
+
+
+class PermissionBody(BaseModel):
+    user_id: str
+    access_level: str  # 'viewer' | 'editor'
+
+
+class CredentialsBody(BaseModel):
+    dremio_pat: Optional[str] = None
+
+
+class AuthSettingsBody(BaseModel):
+    enabled: bool
 
 
 @app.get("/api/auth/status", tags=["auth"], summary="Check whether authentication is enabled")
@@ -128,16 +151,33 @@ async def auth_status() -> dict:
     return {"auth_enabled": auth_enabled(), "version": "1.0"}
 
 
+@app.get("/api/settings/auth", tags=["auth"], summary="Get auth settings")
+async def get_auth_settings() -> dict:
+    return {"auth_enabled": auth_enabled()}
+
+
+@app.put("/api/settings/auth", tags=["auth"], summary="Enable or disable login requirement")
+async def update_auth_settings(body: AuthSettingsBody, current_user: dict = Depends(get_current_user)) -> dict:
+    """Toggle login requirement on or off. Only admins can disable auth when it is currently enabled."""
+    # When auth is currently ON, require admin to change it
+    if auth_enabled() and not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required to change auth settings")
+    set_auth_enabled_override(body.enabled)
+    await store.save_setting("auth_enabled_override", "true" if body.enabled else "false")
+    return {"auth_enabled": body.enabled}
+
+
 @app.post("/api/auth/login", tags=["auth"], summary="Log in and obtain a JWT token")
 async def auth_login(body: LoginBody) -> dict:
     """Exchange username + password for a JWT Bearer token. Include the token as `Authorization: Bearer <token>` on all subsequent requests when auth is enabled."""
     user = await store.get_user_by_username(body.username)
     if user is None or not verify_password(body.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    token = create_token(user["id"], user["username"], bool(user["is_admin"]))
+    role = user.get("role") or ("admin" if user.get("is_admin") else "editor")
+    token = create_token(user["id"], user["username"], bool(user["is_admin"]), role=role)
     return {
         "token": token,
-        "user": {"id": user["id"], "username": user["username"], "is_admin": bool(user["is_admin"])},
+        "user": {"id": user["id"], "username": user["username"], "is_admin": bool(user["is_admin"]), "role": role},
     }
 
 
@@ -157,19 +197,37 @@ async def auth_me(current_user: dict = Depends(get_current_user)) -> dict:
 
 @app.get("/api/auth/users", tags=["auth"], summary="List all users (admin only)")
 async def list_users(current_user: dict = Depends(require_admin)) -> list:
-    """Returns all registered users. Requires admin privileges."""
+    """Returns all registered users with roles. Requires admin privileges."""
     return await store.list_users()
 
 
 @app.post("/api/auth/users", status_code=201, tags=["auth"], summary="Create a new user (admin only)")
 async def create_user(body: CreateUserBody, current_user: dict = Depends(require_admin)) -> dict:
-    """Create a new user account. Set `is_admin: true` to grant admin privileges."""
+    """Create a new user account. role must be 'admin', 'editor', or 'viewer'."""
     existing = await store.get_user_by_username(body.username)
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
+    if body.role not in ("admin", "editor", "viewer"):
+        raise HTTPException(status_code=400, detail="role must be 'admin', 'editor', or 'viewer'")
     pw_hash = hash_password(body.password)
-    user = await store.create_user(body.username, pw_hash, body.is_admin)
-    return {"id": user["id"], "username": user["username"], "is_admin": user["is_admin"], "created_at": user["created_at"]}
+    user = await store.create_user(body.username, pw_hash, body.is_admin, role=body.role)
+    return {"id": user["id"], "username": user["username"], "is_admin": user["is_admin"], "role": user["role"], "created_at": user["created_at"]}
+
+
+@app.put("/api/auth/users/{user_id}", tags=["auth"], summary="Update user role (admin only)")
+async def update_user(user_id: str, body: UpdateUserBody, current_user: dict = Depends(require_admin)) -> dict:
+    """Update a user's role. Cannot change your own role."""
+    if user_id == current_user["user_id"]:
+        raise HTTPException(status_code=400, detail="Cannot change your own role")
+    if body.role and body.role not in ("admin", "editor", "viewer"):
+        raise HTTPException(status_code=400, detail="role must be 'admin', 'editor', or 'viewer'")
+    if body.role:
+        await store.update_user_role(user_id, body.role)
+    user = await store.get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    role = user.get("role") or ("admin" if user.get("is_admin") else "editor")
+    return {"id": user["id"], "username": user["username"], "is_admin": bool(user["is_admin"]), "role": role, "created_at": user["created_at"]}
 
 
 @app.delete("/api/auth/users/{user_id}", tags=["auth"], summary="Delete a user (admin only)")
@@ -179,6 +237,22 @@ async def delete_user(user_id: str, current_user: dict = Depends(require_admin))
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
     await store.delete_user(user_id)
     return {"deleted": True}
+
+
+@app.put("/api/auth/me/credentials", tags=["auth"], summary="Update current user's personal Dremio PAT")
+async def update_my_credentials(body: CredentialsBody, current_user: dict = Depends(require_user)) -> dict:
+    """Store a personal Dremio PAT for the current user. Queries will run under this credential."""
+    uid = current_user["user_id"]
+    await store.update_user_pat(uid, body.dremio_pat or "")
+    return {"updated": True}
+
+
+@app.get("/api/auth/me/credentials", tags=["auth"], summary="Get current user's personal Dremio PAT (masked)")
+async def get_my_credentials(current_user: dict = Depends(require_user)) -> dict:
+    """Returns whether the user has a personal PAT set (not the actual value)."""
+    uid = current_user["user_id"]
+    pat = await store.get_user_dremio_pat(uid)
+    return {"has_pat": bool(pat), "pat_preview": (pat[:8] + "...") if pat and len(pat) > 8 else None}
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
@@ -677,15 +751,17 @@ async def create_pipeline(data: PipelineCreate, current_user: dict = Depends(get
 
 @app.get("/api/pipelines", response_model=List[Pipeline], tags=["pipelines"], summary="List all pipelines")
 async def list_pipelines(current_user: dict = Depends(get_current_user)):
-    """Returns all pipelines owned by the current user, including their steps, output settings, dependencies, tests, and parameters."""
+    """Returns all pipelines the current user owns or has been granted access to."""
     uid = current_user["user_id"] if current_user else "default"
-    return await store.list_pipelines(user_id=uid)
+    role = current_user.get("role", "editor") if current_user else "editor"
+    return await store.list_pipelines(user_id=uid, role=role)
 
 
 @app.get("/api/pipelines/{pipeline_id}", response_model=Pipeline, tags=["pipelines"], summary="Get a single pipeline")
 async def get_pipeline(pipeline_id: str, current_user: dict = Depends(get_current_user)):
     uid = current_user["user_id"] if current_user else "default"
-    pipeline = await store.get_pipeline(pipeline_id, user_id=uid)
+    role = current_user.get("role", "editor") if current_user else "editor"
+    pipeline = await store.get_pipeline(pipeline_id, user_id=uid, role=role)
     if pipeline is None:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     return pipeline
@@ -693,8 +769,12 @@ async def get_pipeline(pipeline_id: str, current_user: dict = Depends(get_curren
 
 @app.put("/api/pipelines/{pipeline_id}", response_model=Pipeline, tags=["pipelines"], summary="Save pipeline (steps, output, parameters, tests, dependencies)")
 async def save_pipeline(pipeline_id: str, data: PipelineSave, current_user: dict = Depends(get_current_user)):
-    """Full pipeline save. Replaces all steps, output settings, parameters, tests, and dependency list. Creates a new version in history. Send the complete pipeline state — this is not a partial update."""
+    """Full pipeline save. Only the pipeline owner, users with editor grant, or admins can save."""
     uid = current_user["user_id"] if current_user else "default"
+    role = current_user.get("role", "editor") if current_user else "editor"
+    can_edit = await store.can_user_edit_pipeline(pipeline_id, uid, role)
+    if not can_edit:
+        raise HTTPException(status_code=403, detail="You don't have permission to edit this pipeline")
     try:
         return await store.save_pipeline(pipeline_id, data, user_id=uid)
     except ValueError as e:
@@ -703,11 +783,14 @@ async def save_pipeline(pipeline_id: str, data: PipelineSave, current_user: dict
 
 @app.delete("/api/pipelines/{pipeline_id}", tags=["pipelines"], summary="Delete a pipeline and all its history")
 async def delete_pipeline(pipeline_id: str, current_user: dict = Depends(get_current_user)):
-    """Permanently deletes the pipeline, all version history, schedules, and run logs. Irreversible."""
+    """Permanently deletes the pipeline. Only the owner or admins can delete."""
     uid = current_user["user_id"] if current_user else "default"
-    pipeline = await store.get_pipeline(pipeline_id, user_id=uid)
+    role = current_user.get("role", "editor") if current_user else "editor"
+    pipeline = await store.get_pipeline(pipeline_id, user_id=uid, role=role)
     if pipeline is None:
         raise HTTPException(status_code=404, detail="Pipeline not found")
+    if role != "admin" and pipeline.user_id != uid:
+        raise HTTPException(status_code=403, detail="Only the pipeline owner can delete it")
     deleted = await store.delete_pipeline(pipeline_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Pipeline not found")
@@ -718,7 +801,8 @@ async def delete_pipeline(pipeline_id: str, current_user: dict = Depends(get_cur
 async def get_pipeline_history(pipeline_id: str, current_user: dict = Depends(get_current_user)) -> List[dict]:
     """Returns all saved versions with version number, save message, and timestamp."""
     uid = current_user["user_id"] if current_user else "default"
-    pipeline = await store.get_pipeline(pipeline_id, user_id=uid)
+    role = current_user.get("role", "editor") if current_user else "editor"
+    pipeline = await store.get_pipeline(pipeline_id, user_id=uid, role=role)
     if pipeline is None:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     return await store.get_pipeline_history(pipeline_id)
@@ -732,9 +816,61 @@ async def get_pipeline_version(pipeline_id: str, version: int, current_user: dic
     return pipeline
 
 
+# ── Pipeline Permissions (sharing) ───────────────────────────────────────────
+
+@app.get("/api/pipelines/{pipeline_id}/permissions", tags=["pipelines"], summary="List who a pipeline is shared with")
+async def get_pipeline_permissions(pipeline_id: str, current_user: dict = Depends(require_user)):
+    uid = current_user["user_id"]
+    role = current_user.get("role", "editor")
+    pipeline = await store.get_pipeline(pipeline_id, user_id=uid, role=role)
+    if pipeline is None:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    permissions = await store.get_pipeline_permissions(pipeline_id)
+    return {"pipeline_id": pipeline_id, "owner_id": pipeline.user_id, "owner_username": pipeline.owner_username, "permissions": permissions}
+
+
+@app.post("/api/pipelines/{pipeline_id}/permissions", status_code=201, tags=["pipelines"], summary="Share a pipeline with another user")
+async def add_pipeline_permission(pipeline_id: str, body: PermissionBody, current_user: dict = Depends(require_user)):
+    uid = current_user["user_id"]
+    role = current_user.get("role", "editor")
+    pipeline = await store.get_pipeline(pipeline_id, user_id=uid, role=role)
+    if pipeline is None:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    if role != "admin" and pipeline.user_id != uid:
+        raise HTTPException(status_code=403, detail="Only the pipeline owner can manage sharing")
+    if body.access_level not in ("viewer", "editor"):
+        raise HTTPException(status_code=400, detail="access_level must be 'viewer' or 'editor'")
+    if body.user_id == uid and role != "admin":
+        raise HTTPException(status_code=400, detail="Cannot share a pipeline with yourself")
+    # Verify target user exists
+    target = await store.get_user_by_id(body.user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="Target user not found")
+    perm = await store.upsert_pipeline_permission(pipeline_id, body.user_id, body.access_level, granted_by=uid)
+    return perm
+
+
+@app.delete("/api/pipelines/{pipeline_id}/permissions/{target_user_id}", tags=["pipelines"], summary="Revoke a user's access to a pipeline")
+async def remove_pipeline_permission(pipeline_id: str, target_user_id: str, current_user: dict = Depends(require_user)):
+    uid = current_user["user_id"]
+    role = current_user.get("role", "editor")
+    pipeline = await store.get_pipeline(pipeline_id, user_id=uid, role=role)
+    if pipeline is None:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    if role != "admin" and pipeline.user_id != uid:
+        raise HTTPException(status_code=403, detail="Only the pipeline owner can manage sharing")
+    await store.remove_pipeline_permission(pipeline_id, target_user_id)
+    return {"removed": True}
+
+
 @app.post("/api/pipelines/{pipeline_id}/duplicate", response_model=Pipeline, status_code=201)
 async def duplicate_pipeline(pipeline_id: str, current_user: dict = Depends(get_current_user)):
     uid = current_user["user_id"] if current_user else "default"
+    role = current_user.get("role", "editor") if current_user else "editor"
+    # Verify access before duplicating
+    src = await store.get_pipeline(pipeline_id, user_id=uid, role=role)
+    if src is None:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
     try:
         return await store.duplicate_pipeline(pipeline_id, user_id=uid)
     except ValueError as e:
@@ -744,7 +880,8 @@ async def duplicate_pipeline(pipeline_id: str, current_user: dict = Depends(get_
 @app.get("/api/pipelines/{pipeline_id}/export")
 async def export_pipeline(pipeline_id: str, current_user: dict = Depends(get_current_user)):
     uid = current_user["user_id"] if current_user else "default"
-    pipeline = await store.get_pipeline(pipeline_id, user_id=uid)
+    role = current_user.get("role", "editor") if current_user else "editor"
+    pipeline = await store.get_pipeline(pipeline_id, user_id=uid, role=role)
     if pipeline is None:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     return {
@@ -813,6 +950,7 @@ async def _run_preview(
     steps: List[TransformStep],
     parameters: Optional[List[PipelineParameter]] = None,
     param_values: Optional[Dict[str, str]] = None,
+    pat_override: Optional[str] = None,
 ) -> PreviewResult:
     initial_columns = await _fetch_column_names(source_table)
     sql = compile_pipeline(
@@ -823,7 +961,7 @@ async def _run_preview(
         parameters=parameters,
     )
     try:
-        rows = await dremio_client.run_query(sql)
+        rows = await dremio_client.run_query(sql, pat_override=pat_override)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Query failed: {e}")
 
@@ -864,7 +1002,8 @@ async def preview_pipeline(
         raise HTTPException(status_code=404, detail="Pipeline not found")
     """Compiles and runs the pipeline SQL against Dremio without writing any output. Returns up to 500 rows. Optionally pass `param_values` to override pipeline parameters for this run."""
     pv = body.param_values if body else None
-    return await _run_preview(pipeline.source_table, pipeline.steps, parameters=pipeline.parameters, param_values=pv)
+    user_pat = await store.get_user_dremio_pat(uid) if uid != "default" else None
+    return await _run_preview(pipeline.source_table, pipeline.steps, parameters=pipeline.parameters, param_values=pv, pat_override=user_pat)
 
 
 async def _bisect_pipeline_failure(
@@ -948,6 +1087,9 @@ async def execute_pipeline(
     if pipeline is None:
         raise HTTPException(status_code=404, detail="Pipeline not found")
 
+    # Fetch user's personal Dremio PAT (if set) so queries run under their identity
+    user_pat = await store.get_user_dremio_pat(uid) if uid != "default" else None
+
     # Use body-supplied values (local UI state) when available, fall back to DB
     output_table = (body.output_table or "").strip() if body and body.output_table else (pipeline.output_table or "")
     mode = (body.output_mode or "").strip() if body and body.output_mode else (pipeline.output_mode or "preview")
@@ -983,7 +1125,7 @@ async def execute_pipeline(
         # ── Pre-hook ────────────────────────────────────────────────────────
         if pipeline.pre_hook_sql and pipeline.pre_hook_sql.strip():
             try:
-                await dremio_client.run_query(pipeline.pre_hook_sql.strip())
+                await dremio_client.run_query(pipeline.pre_hook_sql.strip(), pat_override=user_pat)
             except Exception as hook_err:
                 error_msg = f"Pre-hook failed: {hook_err}"
                 await store.log_run(
@@ -1010,7 +1152,7 @@ async def execute_pipeline(
             # Check if target table exists
             table_exists = False
             try:
-                await dremio_client.run_query(incr["check_sql"])
+                await dremio_client.run_query(incr["check_sql"], pat_override=user_pat)
                 table_exists = True
             except Exception:
                 table_exists = False
@@ -1029,7 +1171,8 @@ async def execute_pipeline(
                 # Get last processed timestamp from output table
                 try:
                     _last_rows = await dremio_client.run_query(
-                        f"SELECT MAX({incr_key}) AS _last FROM {output_table}"
+                        f"SELECT MAX({incr_key}) AS _last FROM {output_table}",
+                        pat_override=user_pat,
                     )
                     _last_val = _last_rows[0]["_last"] if _last_rows and _last_rows[0]["_last"] else None
                 except Exception:
@@ -1049,7 +1192,12 @@ async def execute_pipeline(
                 _batch_sql_template = incr["incremental_sql"]
                 _batches_run = 0
                 _total_rows = 0
-                _token = await dremio_client._get_token()
+                if user_pat:
+                    _token = user_pat
+                    _bearer = True
+                else:
+                    _token = await dremio_client._get_token()
+                    _bearer = False
 
                 while _batch_start < _now:
                     _batch_end = min(_batch_start + _window, _now)
@@ -1057,8 +1205,8 @@ async def execute_pipeline(
                         batch_start=_batch_start.strftime("%Y-%m-%d %H:%M:%S"),
                         batch_end=_batch_end.strftime("%Y-%m-%d %H:%M:%S"),
                     )
-                    _job_info = await dremio_client.sql(_batch_sql, _token)
-                    _result = await dremio_client.poll_job(_job_info["id"], _token)
+                    _job_info = await dremio_client.sql(_batch_sql, _token, bearer=_bearer)
+                    _result = await dremio_client.poll_job(_job_info["id"], _token, bearer=_bearer)
                     if _result.get("jobState") == "FAILED":
                         raise RuntimeError(
                             f"Microbatch failed at window {_batch_start} → {_batch_end}: "
@@ -1120,7 +1268,7 @@ async def execute_pipeline(
             # Detect first vs. subsequent run
             table_exists = False
             try:
-                await dremio_client.run_query(scd["check_sql"])
+                await dremio_client.run_query(scd["check_sql"], pat_override=user_pat)
                 table_exists = True
             except Exception:
                 table_exists = False
@@ -1129,16 +1277,21 @@ async def execute_pipeline(
                 sql = scd["ctas_sql"]
             else:
                 # Run two SQL statements: close old records, then insert new
-                token = await dremio_client._get_token()
+                if user_pat:
+                    token = user_pat
+                    scd_bearer = True
+                else:
+                    token = await dremio_client._get_token()
+                    scd_bearer = False
                 sql = scd["close_sql"]
-                close_info = await dremio_client.sql(sql, token)
-                close_result = await dremio_client.poll_job(close_info["id"], token)
+                close_info = await dremio_client.sql(sql, token, bearer=scd_bearer)
+                close_result = await dremio_client.poll_job(close_info["id"], token, bearer=scd_bearer)
                 if close_result.get("jobState") == "FAILED":
                     raise RuntimeError(f"SCD2 close step failed: {close_result.get('errorMessage', 'Unknown error')}")
 
                 sql = scd["insert_sql"]
-                insert_info = await dremio_client.sql(sql, token)
-                result = await dremio_client.poll_job(insert_info["id"], token)
+                insert_info = await dremio_client.sql(sql, token, bearer=scd_bearer)
+                result = await dremio_client.poll_job(insert_info["id"], token, bearer=scd_bearer)
                 duration_ms = int(time.time() * 1000) - start_ms
                 completed_at = datetime.now(timezone.utc).isoformat()
                 rows_written = result.get("outputRecords") or 0
@@ -1182,10 +1335,15 @@ async def execute_pipeline(
                 parameters=pipeline.parameters,
             )
 
-        token = await dremio_client._get_token()
-        job_info = await dremio_client.sql(sql, token)
+        if user_pat:
+            token = user_pat
+            exec_bearer = True
+        else:
+            token = await dremio_client._get_token()
+            exec_bearer = False
+        job_info = await dremio_client.sql(sql, token, bearer=exec_bearer)
         job_id = job_info["id"]
-        result = await dremio_client.poll_job(job_id, token)
+        result = await dremio_client.poll_job(job_id, token, bearer=exec_bearer)
         duration_ms = int(time.time() * 1000) - start_ms
         completed_at = datetime.now(timezone.utc).isoformat()
 
@@ -1229,7 +1387,8 @@ async def execute_pipeline(
         if mode in ("ctas", "view", "incremental") and rows_written == 0:
             try:
                 count_results = await dremio_client.run_query(
-                    f"SELECT COUNT(*) AS _cnt FROM {output_table}"
+                    f"SELECT COUNT(*) AS _cnt FROM {output_table}",
+                    pat_override=user_pat,
                 )
                 if count_results:
                     rows_written = int(count_results[0].get("_cnt", 0))
@@ -1304,7 +1463,7 @@ async def execute_pipeline(
         post_hook_error: Optional[str] = None
         if pipeline.post_hook_sql and pipeline.post_hook_sql.strip():
             try:
-                await dremio_client.run_query(pipeline.post_hook_sql.strip())
+                await dremio_client.run_query(pipeline.post_hook_sql.strip(), pat_override=user_pat)
             except Exception as hook_err:
                 post_hook_error = f"Post-hook failed (pipeline succeeded): {hook_err}"
 

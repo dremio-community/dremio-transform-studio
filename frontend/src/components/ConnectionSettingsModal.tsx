@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, CheckCircle, XCircle, Loader2, Wifi, Bell, HardDrive, Download, Upload } from 'lucide-react'
+import { X, CheckCircle, XCircle, Loader2, Wifi, Bell, HardDrive, Download, Upload, Shield, Users, Lock, Unlock } from 'lucide-react'
 import clsx from 'clsx'
 import {
   fetchConnectionSettings,
@@ -12,6 +12,9 @@ import {
   saveStorageSettings,
   downloadBackup,
   restoreBackup,
+  fetchAuthSettings,
+  updateAuthSettings,
+  fetchUsers,
   type ConnectionSettings,
   type NotificationSettings,
   type StorageSettings,
@@ -22,7 +25,7 @@ interface Props {
   onSaved?: () => void
 }
 
-type ModalTab = 'connection' | 'notifications' | 'storage'
+type ModalTab = 'connection' | 'notifications' | 'storage' | 'security'
 
 const CLOUD_HOSTS = [
   { label: 'Dremio Cloud (US)', value: 'api.dremio.cloud' },
@@ -80,6 +83,13 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
   const [restoreBusy, setRestoreBusy] = useState(false)
   const [restoreMsg, setRestoreMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
+  // Security tab state
+  const [authEnabled, setAuthEnabled] = useState(false)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authSaving, setAuthSaving] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [userCount, setUserCount] = useState<number | null>(null)
+
   useEffect(() => {
     fetchConnectionSettings()
       .then((s) => setForm({ ...s, password: '', pat: '' }))
@@ -95,7 +105,33 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
       .then((s) => { setStorageInfo(s); setCustomPath(s.db_path) })
       .catch(() => {})
       .finally(() => setStorageLoading(false))
+
+    fetchAuthSettings()
+      .then((s) => setAuthEnabled(s.auth_enabled))
+      .catch(() => {})
+      .finally(() => setAuthLoading(false))
+
+    fetchUsers()
+      .then((users) => setUserCount(users.length))
+      .catch(() => setUserCount(null))
   }, [])
+
+  const handleAuthToggle = async (enable: boolean) => {
+    setAuthSaving(true)
+    setAuthError(null)
+    try {
+      const result = await updateAuthSettings(enable)
+      setAuthEnabled(result.auth_enabled)
+      // If just enabled auth, reload the page so the login flow kicks in properly
+      if (result.auth_enabled) {
+        window.location.reload()
+      }
+    } catch (e: unknown) {
+      setAuthError(e instanceof Error ? e.message : 'Failed to update auth settings')
+    } finally {
+      setAuthSaving(false)
+    }
+  }
 
   const set = (key: keyof ConnectionSettings, value: unknown) =>
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -175,7 +211,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-navy-950">
@@ -222,6 +258,17 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
             )}
           >
             <HardDrive size={13} /> Storage
+          </button>
+          <button
+            onClick={() => setActiveTab('security')}
+            className={clsx(
+              'flex items-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+              activeTab === 'security'
+                ? 'text-dblue-600 border-dblue-500'
+                : 'text-gray-400 border-transparent hover:text-gray-600'
+            )}
+          >
+            <Shield size={13} /> Security
           </button>
         </div>
 
@@ -741,6 +788,115 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
           </button>
         </div>
         )}
+
+        {/* ── Security Tab ── */}
+        {activeTab === 'security' && (
+        <div className="p-5 space-y-5">
+          {authLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 size={16} className="animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <>
+              {/* Auth toggle card */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
+                  <div className="flex items-center gap-2.5">
+                    {authEnabled ? (
+                      <Lock size={15} className="text-dblue-600" />
+                    ) : (
+                      <Unlock size={15} className="text-gray-400" />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">Require Login</p>
+                      <p className="text-xs text-gray-500">
+                        {authEnabled
+                          ? 'Users must log in with a username and password.'
+                          : 'Anyone with access to this URL can use the app.'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleAuthToggle(!authEnabled)}
+                    disabled={authSaving}
+                    className={clsx(
+                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none',
+                      authEnabled ? 'bg-dblue-500' : 'bg-gray-300'
+                    )}
+                  >
+                    <span
+                      className={clsx(
+                        'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                        authEnabled ? 'translate-x-6' : 'translate-x-1'
+                      )}
+                    />
+                  </button>
+                </div>
+                {authEnabled && (
+                  <div className="px-4 py-3 border-t border-gray-100 bg-blue-50/50">
+                    <div className="flex items-start gap-2 text-xs text-blue-700">
+                      <Shield size={13} className="mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-medium mb-0.5">Auth is ON</p>
+                        <p>
+                          {userCount !== null
+                            ? `${userCount} user${userCount === 1 ? '' : 's'} registered. `
+                            : ''}
+                          Manage users via the Users button in the toolbar. Default admin credentials: <code className="bg-blue-100 px-1 rounded">admin / admin</code>.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {!authEnabled && (
+                  <div className="px-4 py-3 border-t border-gray-100 bg-amber-50/50">
+                    <div className="flex items-start gap-2 text-xs text-amber-700">
+                      <Unlock size={13} className="mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-medium mb-0.5">Auth is OFF</p>
+                        <p>All visitors have full admin access. Enable login for multi-user deployments or shared servers.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {authError && (
+                <p className="text-xs text-red-600 bg-red-50 rounded px-3 py-2">{authError}</p>
+              )}
+
+              {/* Roles explanation */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">User Roles</p>
+                <div className="space-y-2">
+                  {[
+                    { role: 'Admin', color: 'text-purple-600 bg-purple-50 border-purple-200', desc: 'Sees all pipelines. Can manage users, change roles, and delete anything.' },
+                    { role: 'Editor', color: 'text-dblue-600 bg-blue-50 border-blue-200', desc: 'Owns their own pipelines (full control). Can be granted view or edit access to others.' },
+                    { role: 'Viewer', color: 'text-gray-600 bg-gray-50 border-gray-200', desc: 'Read-only. Can run pipelines. Must submit for approval on pipelines with approval required.' },
+                  ].map(({ role, color, desc }) => (
+                    <div key={role} className="flex items-start gap-3 px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-lg">
+                      <span className={clsx('text-xs font-semibold px-2 py-0.5 rounded border shrink-0', color)}>{role}</span>
+                      <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sharing explanation */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Pipeline Sharing</p>
+                <div className="text-xs text-gray-500 space-y-1.5 bg-gray-50 border border-gray-100 rounded-lg px-4 py-3">
+                  <p>• Pipeline owners and admins can share pipelines via the <strong className="text-gray-700">Share</strong> button (⬡ icon) on any pipeline.</p>
+                  <p>• Shared pipelines appear in the recipient's list with a <em>(shared)</em> label.</p>
+                  <p>• <strong className="text-gray-700">Editor</strong> access — can view and save changes but cannot delete.</p>
+                  <p>• <strong className="text-gray-700">Viewer</strong> access — can view and run only.</p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+        )}
+
       </div>
     </div>
   )

@@ -61,32 +61,30 @@ class DremioClient:
     def _catalog_path(self) -> str:
         return f"{settings.api_prefix}/catalog" if settings.api_prefix else "/api/v3/catalog"
 
-    async def sql(self, query: str, token: str) -> dict:
+    def _resolve_headers(self, token: str, bearer: bool) -> dict:
+        """Return auth headers. `bearer=True` forces Bearer format (for PAT overrides)."""
+        if bearer:
+            return {"Authorization": f"Bearer {token}"}
+        return self._auth_headers(token)
+
+    async def sql(self, query: str, token: str, bearer: bool = False) -> dict:
+        headers = self._resolve_headers(token, bearer)
         async with self._make_client() as client:
-            resp = await client.post(
-                self._sql_path(),
-                json={"sql": query},
-                headers=self._auth_headers(token),
-            )
-            if resp.status_code == 401 and not self._is_pat():
+            resp = await client.post(self._sql_path(), json={"sql": query}, headers=headers)
+            if resp.status_code == 401 and not bearer and not self._is_pat():
                 token = await self.login()
-                resp = await client.post(
-                    self._sql_path(),
-                    json={"sql": query},
-                    headers=self._auth_headers(token),
-                )
+                headers = self._resolve_headers(token, bearer)
+                resp = await client.post(self._sql_path(), json={"sql": query}, headers=headers)
             resp.raise_for_status()
             return resp.json()
 
-    async def poll_job(self, job_id: str, token: str, timeout: int = 120) -> dict:
+    async def poll_job(self, job_id: str, token: str, timeout: int = 120, bearer: bool = False) -> dict:
         deadline = time.time() + timeout
         async with self._make_client() as client:
             while time.time() < deadline:
-                resp = await client.get(
-                    self._job_path(job_id),
-                    headers=self._auth_headers(token),
-                )
-                if resp.status_code == 401 and not self._is_pat():
+                headers = self._resolve_headers(token, bearer)
+                resp = await client.get(self._job_path(job_id), headers=headers)
+                if resp.status_code == 401 and not bearer and not self._is_pat():
                     token = await self.login()
                     continue
                 resp.raise_for_status()
@@ -97,43 +95,47 @@ class DremioClient:
                 await asyncio.sleep(0.5)
         raise TimeoutError(f"Job {job_id} did not complete within {timeout}s")
 
-    async def job_results(self, job_id: str, token: str, offset: int = 0, limit: int = 500) -> dict:
+    async def job_results(self, job_id: str, token: str, offset: int = 0, limit: int = 500, bearer: bool = False) -> dict:
+        headers = self._resolve_headers(token, bearer)
         async with self._make_client() as client:
             resp = await client.get(
                 f"{self._job_path(job_id)}/results",
                 params={"offset": offset, "limit": limit},
-                headers=self._auth_headers(token),
+                headers=headers,
             )
-            if resp.status_code == 401 and not self._is_pat():
+            if resp.status_code == 401 and not bearer and not self._is_pat():
                 token = await self.login()
+                headers = self._resolve_headers(token, bearer)
                 resp = await client.get(
                     f"{self._job_path(job_id)}/results",
                     params={"offset": offset, "limit": limit},
-                    headers=self._auth_headers(token),
+                    headers=headers,
                 )
             resp.raise_for_status()
             return resp.json()
 
-    async def run_ddl(self, query: str) -> None:
-        """Execute a DDL statement (CREATE TABLE, etc.) and wait for completion.
-        Does NOT attempt to fetch job results (DDL has none)."""
-        token = await self._get_token()
-        job_info = await self.sql(query, token)
+    async def run_ddl(self, query: str, pat_override: str | None = None) -> None:
+        """Execute a DDL statement. If pat_override is set, runs under that user's identity."""
+        bearer = pat_override is not None
+        token = pat_override if bearer else await self._get_token()
+        job_info = await self.sql(query, token, bearer=bearer)
         job_id = job_info["id"]
-        result = await self.poll_job(job_id, token)
+        result = await self.poll_job(job_id, token, bearer=bearer)
         if result.get("jobState") == "FAILED":
             error_msg = result.get("errorMessage", "Unknown error")
             raise RuntimeError(f"Dremio job failed: {error_msg}")
 
-    async def run_query(self, query: str) -> list[dict]:
-        token = await self._get_token()
-        job_info = await self.sql(query, token)
+    async def run_query(self, query: str, pat_override: str | None = None) -> list[dict]:
+        """Run a SELECT query. If pat_override is set, runs under that user's identity."""
+        bearer = pat_override is not None
+        token = pat_override if bearer else await self._get_token()
+        job_info = await self.sql(query, token, bearer=bearer)
         job_id = job_info["id"]
-        result = await self.poll_job(job_id, token)
+        result = await self.poll_job(job_id, token, bearer=bearer)
         if result.get("jobState") == "FAILED":
             error_msg = result.get("errorMessage", "Unknown error")
             raise RuntimeError(f"Dremio job failed: {error_msg}")
-        rows_data = await self.job_results(job_id, token)
+        rows_data = await self.job_results(job_id, token, bearer=bearer)
         rows = rows_data.get("rows", [])
         return rows
 

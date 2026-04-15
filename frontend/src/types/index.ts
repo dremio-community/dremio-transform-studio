@@ -227,6 +227,10 @@ export interface Pipeline {
   // Approval workflow
   approval_required?: boolean
   pending_approval_id?: string
+  // Ownership & sharing
+  user_id?: string
+  shared_access?: 'viewer' | 'editor' | null
+  owner_username?: string | null
 }
 
 export interface PipelineCreate {

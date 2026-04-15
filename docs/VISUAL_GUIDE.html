@@ -316,7 +316,7 @@
   <div class="cover-logo">⚡</div>
   <div>
     <h1>Dremio Transform Studio</h1>
-    <p>Visual User Guide — v1.5</p>
+    <p>Visual User Guide — v1.7</p>
     <div class="cover-meta">
       <span class="cover-badge">🗓 April 2026</span>
       <span class="cover-badge">⚡ 52 Transforms</span>
@@ -324,6 +324,7 @@
       <span class="cover-badge">🖥 Desktop + Docker</span>
       <span class="cover-badge">📊 Health Dashboard</span>
       <span class="cover-badge">✅ Approval Workflow</span>
+      <span class="cover-badge">👥 Multi-User Roles &amp; Sharing</span>
     </div>
   </div>
 </div>
@@ -344,6 +345,7 @@
     <a href="#s10"><span class="toc-num">10</span> Advanced Features</a>
     <a href="#s11"><span class="toc-num">11</span> Pipeline Health Dashboard</a>
     <a href="#s12"><span class="toc-num">12</span> Approval Workflow</a>
+    <a href="#s13"><span class="toc-num">13</span> Multi-User Roles &amp; Sharing</a>
   </div>
 </div>
 
@@ -1068,10 +1070,74 @@
   </div>
 </div>
 
+
+<!-- ══════════ SECTION 13 — MULTI-USER ROLES & SHARING ══════════ -->
+<div class="section" id="s13">
+  <div class="section-header">
+    <div class="section-num">13</div>
+    <div>
+      <div class="section-title">Multi-User Roles &amp; Sharing</div>
+      <div class="section-subtitle">Collaborate with your team using roles, pipeline sharing, and per-user credentials</div>
+    </div>
+  </div>
+
+  <h3 style="font-size:16px;font-weight:600;margin:0 0 12px">User Roles</h3>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">When authentication is enabled, every user has one of three roles. Your role is shown in colour under your username in the top-right user menu.</p>
+
+  <div class="two-col">
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;">
+      <h4 style="font-size:14px;font-weight:700;color:#1d4ed8;margin-bottom:6px">🔵 Admin</h4>
+      <p style="font-size:13px;color:#1e3a8a;line-height:1.6">Full access to all pipelines. Manages users and settings. Can enable/disable authentication live from Settings → Security. Approves change reviews.</p>
+    </div>
+    <div style="background:var(--green-light);border:1px solid #a7f3d0;border-radius:10px;padding:16px;">
+      <h4 style="font-size:14px;font-weight:700;color:#065f46;margin-bottom:6px">🟢 Editor</h4>
+      <p style="font-size:13px;color:#064e3b;line-height:1.6">Default role. Creates and owns pipelines. Can share pipelines with others. Can edit pipelines shared with them at Editor level.</p>
+    </div>
+  </div>
+  <div style="background:var(--amber-light);border:1px solid #fcd34d;border-radius:10px;padding:16px;margin-top:12px;">
+    <h4 style="font-size:14px;font-weight:700;color:#92400e;margin-bottom:6px">🟡 Viewer</h4>
+    <p style="font-size:13px;color:#78350f;line-height:1.6">Read-only access. Can browse and preview any pipeline they have access to but cannot save changes directly. Changes must go through the Submit for Review workflow. Execute is disabled.</p>
+  </div>
+
+  <h3 style="font-size:16px;font-weight:600;margin:28px 0 12px">Enabling Authentication</h3>
+  <div class="steps">
+    <div class="step"><div class="step-body"><strong>Open Settings → Security tab</strong><span>Click the ⚙️ gear icon in the toolbar and switch to the <strong>Security</strong> tab. Toggle authentication on — no Docker restart required.</span></div></div>
+    <div class="step"><div class="step-body"><strong>Log in as admin</strong><span>The default first-run account is <strong>admin / admin</strong>. Change the password immediately after enabling auth.</span></div></div>
+    <div class="step"><div class="step-body"><strong>Create user accounts</strong><span>Go to <strong>Settings → Users</strong> to create accounts and assign roles to your team members.</span></div></div>
+  </div>
+
+  <h3 style="font-size:16px;font-weight:600;margin:28px 0 12px">Sharing a Pipeline</h3>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Pipeline owners and admins can share individual pipelines with specific users. Shared pipelines appear in the recipient's sidebar with a <strong>(shared)</strong> badge.</p>
+  <div class="steps">
+    <div class="step"><div class="step-body"><strong>Click the Share icon</strong><span>Open the pipeline and click the <strong>🔗 Share</strong> icon in the top toolbar. It's only visible to the pipeline owner and admins.</span></div></div>
+    <div class="step"><div class="step-body"><strong>Add a user</strong><span>In the Share dialog, use the <strong>Add people</strong> field to find a user by username, then choose their access level: <strong>Editor</strong> (can modify) or <strong>Viewer</strong> (read-only).</span></div></div>
+    <div class="step"><div class="step-body"><strong>Grant Access</strong><span>Click <strong>Grant Access</strong>. The user now sees the pipeline in their sidebar. You can change their access level or revoke access at any time from the same dialog.</span></div></div>
+  </div>
+
+  <h3 style="font-size:16px;font-weight:600;margin:28px 0 12px">Per-User Dremio Credentials</h3>
+  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Each user can store their own personal Dremio PAT so their queries run under their own Dremio identity — not the shared service account. Useful when Dremio has per-user access control or audit logging.</p>
+  <div class="steps">
+    <div class="step"><div class="step-body"><strong>Open User menu → My Dremio Credentials</strong><span>Click your username in the top-right corner, then select <strong>My Dremio Credentials</strong>.</span></div></div>
+    <div class="step"><div class="step-body"><strong>Enter your PAT</strong><span>Paste your Dremio Personal Access Token. For Dremio Cloud, create a PAT under Account Settings → Personal Access Tokens. For Dremio Software 25.x+, use your user profile page.</span></div></div>
+    <div class="step"><div class="step-body"><strong>Save</strong><span>Click <strong>Save PAT</strong>. From now on, all your previews and executes run under your Dremio identity. Leave blank to use the shared service account.</span></div></div>
+  </div>
+
+  <div class="callouts">
+    <div class="callout">
+      <div class="callout-num blue">💡</div>
+      <div><strong>Auth is optional</strong><span>Authentication is disabled by default. If your instance has no login screen, all users have full access — no roles or sharing needed.</span></div>
+    </div>
+    <div class="callout">
+      <div class="callout-num amber">🔑</div>
+      <div><strong>PAT works for Cloud &amp; Software</strong><span>Dremio Cloud always uses PAT. Dremio Software 25.x+ supports PAT. Older Software versions should leave the field blank and use the shared account.</span></div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /content -->
 
 <footer>
-  <strong>Dremio Transform Studio v1.5</strong> &nbsp;·&nbsp;
+  <strong>Dremio Transform Studio v1.7</strong> &nbsp;·&nbsp;
   Built with FastAPI + React &nbsp;·&nbsp;
   For full API reference see <code>USER_GUIDE.md</code>
 </footer>

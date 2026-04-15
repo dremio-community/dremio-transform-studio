@@ -71,6 +71,9 @@ On first launch, go to **Settings (gear icon) → Connection** and enter your Dr
 - **Alerts** — custom SQL, pipeline health, data quality, and source freshness
 - **Data Quality Hub** — dedicated DQ workspace with monitors, scoring, scheduling, and 14 built-in rules across 6 categories
 - **Export documentation** — self-contained HTML doc for all pipelines
+- **Multi-user roles** — Admin / Editor / Viewer roles; auth is opt-in via `AUTH_ENABLED=true`
+- **Pipeline sharing** — owners can share pipelines with other users (viewer or editor access) via a Share button
+- **Per-user Dremio credentials** — each user can set a personal Dremio PAT under User menu → "My Dremio Credentials" so their queries run under their own Dremio identity
 
 ---
 
@@ -90,12 +93,14 @@ DREMIO_PROJECT_ID=             # Dremio Cloud project ID
 DB_PATH=/data/transforms.db   # Default in Docker; change to use a custom path
 
 # Authentication (disabled by default)
-AUTH_ENABLED=false             # Set "true" to require login
+AUTH_ENABLED=false             # Set "true" to require login (recommended for team deployments)
 JWT_SECRET=change-me-in-prod   # Change this for production deployments
 
 # CORS (for shared server deployments)
 ALLOWED_ORIGINS=*              # Or: "https://transforms.mycompany.com"
 ```
+
+Once running, admins can also toggle auth on or off live — without restarting Docker — via **Settings → Security**.
 
 ---
 
@@ -107,7 +112,7 @@ git clone https://github.com/dremio-community/dremio-community-connectors
 cd dremio-transform-studio
 ./deploy/setup_server.sh
 ```
-Sets up nginx + SSL via Let's Encrypt. Set `AUTH_ENABLED=true` and configure `ALLOWED_ORIGINS` for production.
+Sets up nginx + SSL via Let's Encrypt. For shared team deployments, set `AUTH_ENABLED=true` and configure `ALLOWED_ORIGINS` to your domain. Admins can toggle auth and manage users live from **Settings → Security** without restarting the container.
 
 ---
 

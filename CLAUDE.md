@@ -601,7 +601,7 @@ build\build_windows.bat
 
 ---
 
-## Current State (as of 2026-04-13) — v1.6
+## Current State (as of 2026-04-14) — v1.7
 
 All features working and tested against Dremio Cloud:
 
@@ -686,6 +686,23 @@ All features working and tested against Dremio Cloud:
 - ✅ Eliminated all 20+ `SELECT * EXCEPT` usages across 6 transform files (Dremio/Calcite does not support this syntax)
 - ✅ JSON_VALUE in Flatten JSON: added `lax` mode (`'$.field'` → `'lax $.field'`) for Dremio compatibility
 - ✅ Sample Rows: removed `RAND(seed)` → `RAND()` (Dremio does not support seeded RAND)
+
+### Features Added in v1.7 — Multi-User Access Control
+- ✅ **Role-based access control** — three roles: Admin (full access), Editor (default, creates/owns pipelines), Viewer (read-only, submits for review)
+- ✅ **Pipeline ownership** — `user_id` on pipelines; owner + admin can edit/delete; others need explicit grant
+- ✅ **Pipeline sharing** — ShareModal.tsx; owners/admins share pipelines with editor or viewer access; `pipeline_permissions` table; LEFT JOIN in list/get queries surfaces `shared_access` + `owner_username`; "(shared)" badge in sidebar
+- ✅ **Live auth toggle** — Settings → Security tab; `_auth_enabled_override` module variable in auth.py; persisted to `app_settings` DB key; no Docker restart needed
+- ✅ **Auth toggle UI** — ConnectionSettingsModal Security tab with toggle switch, role explanation cards (Admin/Editor/Viewer), amber/blue info banners
+- ✅ **Settings modal widened** — `max-w-lg` → `max-w-2xl` so Security tab label isn't cut off
+- ✅ **JWT role field** — `role` added to token payload; backward-compatible decode (derives from `is_admin` if missing)
+- ✅ **User management** — role column with dropdown in Users panel; role selector in new user form
+- ✅ **Per-user Dremio PAT** — `dremio_pat` column on `users` table; `GET/PUT /api/auth/me/credentials`; MyCredentialsModal.tsx accessible from user menu → "My Dremio Credentials"
+- ✅ **Per-user query execution** — execute/preview routes fetch user PAT, pass as `pat_override` to all `dremio_client.run_query()` and direct `sql()`/`poll_job()` calls (pre/post hooks, incremental, microbatch, SCD2, standard mode, count queries); `bearer=True` format when PAT present
+- ✅ **Role badge in user menu** — shows Admin (blue) / Editor (green) / Viewer (amber) under username
+- ✅ **Viewer enforcement** — Viewer role → "Submit for Review" replaces Save; Execute button disabled
+- ✅ **Pipeline permissions table** — `(id, pipeline_id, user_id, access_level, granted_by, granted_at, UNIQUE(pipeline_id, user_id))`
+- ✅ **New store methods** — `update_user_role()`, `update_user_pat()`, `get_user_dremio_pat()`, `get_pipeline_permissions()`, `upsert_pipeline_permission()`, `remove_pipeline_permission()`, `can_user_edit_pipeline()`
+- ✅ **New API routes** — `GET/PUT /api/settings/auth`, `PUT /api/auth/users/{id}` (role), `GET/PUT /api/auth/me/credentials`, `GET/POST/DELETE /api/pipelines/{id}/permissions`
 
 ### Dremio SQL Compatibility Notes
 - `SELECT * EXCEPT (col)` — NOT supported. All transforms use explicit column lists via `replace_select()` / `drop_select()` helpers in `transforms/utils.py`

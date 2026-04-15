@@ -1,6 +1,6 @@
 # Dremio Transform Studio — Full Capabilities Reference
 
-> This document is intended for AI agents answering analyst RFI questions (e.g., Forrester Wave, Gartner Magic Quadrant) about data pipeline and transformation capabilities. It covers all features, architecture, deployment options, and technical depth of Dremio Transform Studio v1.6.
+> This document is intended for AI agents answering analyst RFI questions (e.g., Forrester Wave, Gartner Magic Quadrant) about data pipeline and transformation capabilities. It covers all features, architecture, deployment options, and technical depth of Dremio Transform Studio v1.7.
 
 ---
 
@@ -14,6 +14,7 @@
 - Native Dremio integration: browses the Dremio catalog, executes SQL against Dremio, writes output tables/views back to Dremio
 - Self-contained: scheduling, alerts, auth, lineage, versioning, monitoring, and a dedicated Data Quality Hub are all built in — no external orchestrator required
 - AI-native: built-in MCP server exposes 25 tools for AI agent integration
+- Multi-user ready: role-based access control, pipeline sharing, per-user Dremio identity, and an approval workflow — all in one container
 
 **Comparable products:** dbt (open source transformation), Matillion, Fivetran Transformations, Coalesce
 
@@ -355,6 +356,7 @@ Four alert types with independent cron schedules, email/Slack notifications, and
 - Admins review pending submissions and approve or reject
 - Approval panel shows: submitter, timestamp, diff of changes
 - Prevents unauthorized changes to production pipelines
+- Viewer-role users must submit changes for review — execution is gated on admin approval
 - Designed for multi-user team environments
 
 ---
@@ -414,18 +416,37 @@ Four alert types with independent cron schedules, email/Slack notifications, and
 
 ### Auth Modes
 - **Disabled (default)** — no login required; all users treated as admin; zero-config for local/personal use
-- **Enabled** (`AUTH_ENABLED=true`) — JWT-based login required; role-based access
+- **Enabled** — JWT-based login required; full role-based access control
+- Auth can be toggled on or off live from **Settings → Security** — no restart or environment variable change required
 
 ### User Roles (when auth enabled)
-- **Admin** — full access: manage users, approve pipelines, change settings, run anything
-- **Standard user** — can build and run pipelines; cannot manage users or system settings
+| Role | Capabilities |
+|------|-------------|
+| **Admin** | Full access to all pipelines; manages users and system settings; can enable/disable auth live; approves pipeline submissions |
+| **Editor** | Default role; creates and owns pipelines; can be granted editor or viewer access to pipelines owned by others |
+| **Viewer** | Read-only access; can browse and browse pipelines; must submit changes for review via the approval workflow |
 
-### Features
-- JWT tokens with 1-week expiry, stored in browser localStorage
+Roles are enforced at both the UI and API levels.
+
+### Pipeline Sharing
+- Pipeline owners can share individual pipelines with specific users
+- Two sharing access levels: **editor** (can modify) or **viewer** (read-only)
+- Google Docs-style sharing modal with user picker and access revocation
+- Shared pipelines appear in the recipient's sidebar with a "(shared)" badge
+- Sharing is only available when authentication is enabled
+
+### Per-User Dremio Identity
+- Each user can store a personal Dremio Personal Access Token (PAT) via **User menu → My Dremio Credentials**
+- When set, all pipeline previews and executions run under that user's Dremio identity — not the shared service account
+- Enables per-user Dremio access control, audit logging, and data governance
+- Works for both Dremio Cloud (PAT required) and Dremio Software 25.x+ (PAT optional)
+- No admin action required — each user configures their own credentials
+
+### Session & Credential Security
+- JWT tokens with 1-week expiry, stored client-side in browser localStorage
 - Passwords hashed with sha256_crypt (via passlib)
-- Admin user seeded automatically on first run (`admin/admin`, prompt to change)
-- User management UI: create, delete users; toggle admin role
-- Per-user pipeline ownership model (stored, UI enforcement in progress)
+- First-run seeds an admin/admin account (prompted to change on first login)
+- User management UI (admin only): create users, delete users, assign roles
 
 ---
 
@@ -665,7 +686,7 @@ dq_scan_history
 | Mode | Description |
 |------|-------------|
 | **Docker (local)** | `docker run -d -p 8000:8000 -v ~/transform-studio-data:/data mshainman/transform-studio:latest` |
-| **Docker (server/team)** | nginx + SSL via `deploy/setup_server.sh`; supports multiple concurrent users |
+| **Docker (server/team)** | nginx + SSL via `deploy/setup_server.sh`; supports multiple concurrent users with full RBAC |
 | **Mac Desktop App** | `.dmg` installer; fully offline; data persists at `~/.transform_studio/` |
 | **Windows Desktop** | `.exe` installer (build script provided) |
 | **Linux Desktop** | `.deb` and `.tar.gz` (build scripts provided) |
@@ -685,10 +706,16 @@ DREMIO_PASS=password
 DREMIO_PAT=                    # Personal Access Token (Dremio Cloud)
 DREMIO_PROJECT_ID=             # Dremio Cloud project ID
 DB_PATH=/data/transforms.db    # SQLite path
-AUTH_ENABLED=false             # Set "true" for multi-user deployments
+AUTH_ENABLED=false             # Set "true" for multi-user deployments (also togglable live in UI)
 JWT_SECRET=change-me           # Change in production
 ALLOWED_ORIGINS=*              # Set to domain for server deployments
 ```
+
+### Deployment Considerations
+- Auth can be enabled or disabled live from Settings → Security without restarting the container or changing environment variables
+- For team/server deployments, set `AUTH_ENABLED=true` and configure `ALLOWED_ORIGINS` to your domain
+- Per-user Dremio PATs are stored per user in SQLite and do not require any environment variable configuration
+- Each user's Dremio identity is isolated: one user's PAT does not affect another user's queries
 
 ---
 
@@ -721,21 +748,68 @@ ALLOWED_ORIGINS=*              # Set to domain for server deployments
 
 ---
 
-## 31. Competitive Positioning Summary
+## 31. Multi-User Access Control & Collaboration
+
+Transform Studio v1.7 introduces a full multi-user access control system designed for team deployments.
+
+### Role-Based Access Control
+
+Three roles govern what users can see and do:
+
+| Role | Description |
+|------|-------------|
+| **Admin** | Full access to all pipelines regardless of ownership; manages users and system settings; can enable or disable authentication live from Settings → Security; approves submitted pipeline changes |
+| **Editor** | Default role for new users; creates and owns pipelines; can be granted editor or viewer access to pipelines owned by others via the sharing modal |
+| **Viewer** | Read-only access; can browse and preview pipelines they have been shared on; cannot save changes directly — must submit them for admin review via the approval workflow |
+
+Roles are enforced at both the UI and API levels: API routes check the caller's role and return 403 for unauthorized actions, not just client-side guards.
+
+### Pipeline Sharing
+
+Owners can share individual pipelines with specific users:
+
+- **Two access levels:** editor (can modify and execute) or viewer (read-only, approval workflow required for changes)
+- **Sharing modal:** Google Docs-style interface with a user picker, access level selector, and per-user revocation
+- **Sidebar indicator:** shared pipelines appear in the recipient's sidebar with a "(shared)" badge to distinguish them from owned pipelines
+- **Scope:** sharing is available only when authentication is enabled; in single-user (auth-off) mode all pipelines are visible to all sessions
+
+### Authentication
+
+- Optional per deployment — disabled by default for single-user and local use
+- Toggle auth on or off live from **Settings → Security** — no restart or environment variable change required
+- JWT-based session tokens, 1-week expiry, stored client-side in browser localStorage
+- Passwords hashed with sha256_crypt
+- First-run seeds an admin/admin account (prompted to change on first login)
+
+### Per-User Dremio Identity
+
+Each user can configure a personal Dremio PAT via **User menu → My Dremio Credentials**:
+
+- When a personal PAT is set, all pipeline previews and executions for that user run under their Dremio identity — not the shared service account configured in Settings
+- Enables per-user Dremio access control (users can only query tables their Dremio account has access to), audit logging, and data governance traceability
+- Works with Dremio Cloud (PAT required) and Dremio Software 25.x+ (PAT optional)
+- No admin action required — each user configures and saves their own credentials independently
+- If no personal PAT is set, the user falls back to the shared service account connection
+
+---
+
+## 32. Competitive Positioning Summary
 
 ### vs. dbt Core
-Transform Studio adds: visual UI, built-in scheduler, alerts, monitoring, approvals, auth, MCP/AI integration, data profiling, step-by-step preview, webhook triggers, and desktop app — all without requiring any SQL or command-line knowledge.
+Transform Studio adds: visual UI, built-in scheduler, alerts, monitoring, approvals, role-based access control, pipeline sharing, per-user Dremio identity, MCP/AI integration, data profiling, step-by-step preview, webhook triggers, and desktop app — all without requiring any SQL or command-line knowledge.
 
 ### vs. dbt Cloud
-Transform Studio is self-hosted (no SaaS dependency), Dremio-native, includes an MCP server for AI agent integration, and is significantly lower cost.
+Transform Studio is self-hosted (no SaaS dependency), Dremio-native, includes an MCP server for AI agent integration, supports per-user Dremio credentials for fine-grained data governance, and is significantly lower cost.
 
 ### vs. Matillion / Coalesce
-Transform Studio is purpose-built for Dremio, open-source friendly, includes an MCP server, runs as a single Docker container with zero external dependencies, and includes a desktop app for individual use.
+Transform Studio is purpose-built for Dremio, open-source friendly, includes an MCP server, runs as a single Docker container with zero external dependencies, supports team collaboration with RBAC and pipeline sharing, and includes a desktop app for individual use.
 
 ### Key Differentiators
 1. **Dremio-native** — built specifically for Dremio; leverages Dremio's SQL engine, catalog, and Iceberg support natively
 2. **Zero external dependencies** — no Airflow, no external scheduler, no cloud subscription required
 3. **AI-native via MCP** — the only pipeline tool with a built-in MCP server enabling full AI agent control
-4. **Full-stack in one container** — UI, API, scheduler, alerting, auth, and lineage all in a single Docker image
+4. **Full-stack in one container** — UI, API, scheduler, alerting, auth, lineage, and RBAC all in a single Docker image
 5. **Desktop + server** — works as a personal desktop app or a shared team server
 6. **Transparent SQL** — every transform generates viewable, copyable Dremio SQL
+7. **Multi-user collaboration** — role-based access control, pipeline sharing with granular permissions, and per-user Dremio identity for audit logging and data governance
+8. **Per-user Dremio identity** — each team member runs pipelines under their own Dremio account, enabling row-level security, Dremio audit trails, and per-user access enforcement without any infrastructure changes

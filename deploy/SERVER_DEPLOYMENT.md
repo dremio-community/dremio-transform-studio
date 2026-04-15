@@ -151,7 +151,7 @@ You should see both `transform-studio` and `caddy` with status `Up`.
 
 ## Step 8 — Enable User Authentication
 
-Transform Studio v1.7 includes full built-in authentication with role-based
+Transform Studio includes full built-in authentication with role-based
 access control. This is the recommended approach for all team deployments.
 
 ### Enabling Auth
@@ -265,6 +265,46 @@ docker run --rm \
 
 ---
 
+## SSO / Single Sign-On (Enterprise)
+
+Transform Studio supports OIDC-based Single Sign-On for Okta, Azure AD (Microsoft
+Entra ID), Google Workspace, or any standard OIDC-compatible identity provider.
+When configured, users see "Sign in with…" buttons on the login screen and
+authenticate via your corporate IdP — no separate password required.
+
+> **Prerequisite:** `AUTH_ENABLED=true` must be set (Step 6 above).
+
+### Configuring an SSO Provider
+
+1. Start the app and log in as an admin
+2. Go to **Settings → SSO** (gear icon in toolbar → SSO tab)
+3. Click **Add Provider** and choose your provider type
+4. Enter the following values from your IdP application settings:
+   - **Client ID** — the OAuth application client ID
+   - **Client Secret** — the OAuth application client secret
+   - **OIDC Discovery URL** — the `/.well-known/openid-configuration` endpoint
+5. Register the **Redirect URI** shown in the form back in your IdP:
+   ```
+   https://your-domain.com/api/auth/sso/{provider_name}/callback
+   ```
+6. Click **Add Provider** — the "Sign in with…" button appears on the login screen immediately
+
+### Common Discovery URLs
+
+| Provider | Discovery URL |
+|----------|--------------|
+| Okta | `https://{your-domain}.okta.com/oauth2/default/.well-known/openid-configuration` |
+| Azure AD | `https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration` |
+| Google Workspace | `https://accounts.google.com/.well-known/openid-configuration` |
+
+### User Provisioning
+
+New SSO users are provisioned automatically on first sign-in. You can configure
+the **default role** (Admin / Editor / Viewer) per provider in the SSO settings.
+Existing users are matched by their SSO subject ID, with an email fallback.
+
+---
+
 ## Notes
 
 - **Single-tenant** — For isolation between teams, run separate instances on
@@ -273,6 +313,8 @@ docker run --rm \
   Desktop and single-user Docker deployments work without any login configuration.
 - **JWT token expiry** — Tokens are valid for 1 week. Users are prompted to log
   in again when their token expires.
+- **SSO requires auth enabled** — SSO configuration has no effect unless
+  `AUTH_ENABLED=true` is set or toggled on in Settings → Security.
 
 ---
 

@@ -79,6 +79,9 @@ class PipelineStore:
                     last_run_status TEXT,
                     last_run_error TEXT,
                     next_run_at TEXT,
+                    max_retries INTEGER DEFAULT 0,
+                    retry_count INTEGER DEFAULT 0,
+                    retry_next_at TEXT,
                     created_at TEXT,
                     updated_at TEXT,
                     FOREIGN KEY (pipeline_id) REFERENCES pipelines(id)
@@ -208,6 +211,10 @@ class PipelineStore:
                 # Multi-user permissions (v1.7)
                 "ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'editor'",
                 "ALTER TABLE users ADD COLUMN dremio_pat TEXT",
+                # Retry logic (v1.9)
+                "ALTER TABLE pipeline_schedules ADD COLUMN max_retries INTEGER DEFAULT 0",
+                "ALTER TABLE pipeline_schedules ADD COLUMN retry_count INTEGER DEFAULT 0",
+                "ALTER TABLE pipeline_schedules ADD COLUMN retry_next_at TEXT",
             ]:
                 try:
                     await db.execute(col_sql)
@@ -1028,17 +1035,19 @@ class PipelineStore:
         sched_id = str(uuid.uuid4())
         now = _now_iso()
         async with aiosqlite.connect(self._db_path) as db:
+            max_retries = int(data.get("max_retries", 0) or 0)
             await db.execute(
                 """
                 INSERT INTO pipeline_schedules
-                  (id, pipeline_id, cron_expression, enabled, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                  (id, pipeline_id, cron_expression, enabled, max_retries, retry_count, retry_next_at, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?)
                 """,
                 (
                     sched_id,
                     data["pipeline_id"],
                     data["cron_expression"],
                     1 if data.get("enabled", True) else 0,
+                    max_retries,
                     now,
                     now,
                 ),
@@ -1053,6 +1062,9 @@ class PipelineStore:
             "last_run_status": None,
             "last_run_error": None,
             "next_run_at": None,
+            "max_retries": max_retries,
+            "retry_count": 0,
+            "retry_next_at": None,
             "created_at": now,
             "updated_at": now,
         }
@@ -1064,17 +1076,19 @@ class PipelineStore:
         now = _now_iso()
         cron = data.get("cron_expression", existing["cron_expression"])
         enabled = data.get("enabled", existing["enabled"])
+        max_retries = int(data.get("max_retries", existing.get("max_retries", 0)) or 0)
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 """
                 UPDATE pipeline_schedules
-                SET cron_expression = ?, enabled = ?, updated_at = ?
+                SET cron_expression = ?, enabled = ?, max_retries = ?, updated_at = ?
                 WHERE id = ?
                 """,
-                (cron, 1 if enabled else 0, now, id),
+                (cron, 1 if enabled else 0, max_retries, now, id),
             )
             await db.commit()
-        return {**existing, "cron_expression": cron, "enabled": 1 if enabled else 0, "updated_at": now}
+        return {**existing, "cron_expression": cron, "enabled": 1 if enabled else 0,
+                "max_retries": max_retries, "updated_at": now}
 
     async def delete_schedule(self, id: str) -> bool:
         async with aiosqlite.connect(self._db_path) as db:
@@ -1089,17 +1103,50 @@ class PipelineStore:
         return True
 
     async def record_schedule_run(self, id: str, status: str, error: Optional[str] = None) -> None:
+        """Record completed run (success or final failure). Resets retry state."""
         now = _now_iso()
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 """
                 UPDATE pipeline_schedules
-                SET last_run_at = ?, last_run_status = ?, last_run_error = ?
+                SET last_run_at = ?, last_run_status = ?, last_run_error = ?,
+                    retry_count = 0, retry_next_at = NULL
                 WHERE id = ?
                 """,
                 (now, status, error, id),
             )
             await db.commit()
+
+    async def set_retry_state(self, id: str, retry_count: int, retry_next_at: str) -> None:
+        """Set retry state after a transient failure — does not reset last_run fields."""
+        now = _now_iso()
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                """
+                UPDATE pipeline_schedules
+                SET retry_count = ?, retry_next_at = ?, last_run_status = 'retrying',
+                    last_run_error = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (retry_count, retry_next_at, f"Retry {retry_count} scheduled for {retry_next_at}", now, id),
+            )
+            await db.commit()
+
+    async def get_retrying_schedules(self) -> list:
+        """Return enabled schedules that have a pending retry due now or in the past."""
+        from datetime import datetime as _dt, timezone as _tz
+        now = _dt.now(_tz.utc).isoformat()
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT * FROM pipeline_schedules
+                WHERE enabled = 1 AND retry_next_at IS NOT NULL AND retry_next_at <= ?
+                """,
+                (now,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
 
     # ── Pipeline duplication ──────────────────────────────────────────────────
 

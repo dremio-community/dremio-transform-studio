@@ -357,8 +357,11 @@ export interface PipelineSchedule {
   cron_expression: string
   enabled: boolean
   last_run_at?: string
-  last_run_status?: 'success' | 'failed'
+  last_run_status?: 'success' | 'failed' | 'retrying'
   last_run_error?: string
+  max_retries: number
+  retry_count: number
+  retry_next_at?: string
   created_at: string
   updated_at: string
 }

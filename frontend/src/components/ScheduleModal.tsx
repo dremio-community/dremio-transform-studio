@@ -59,10 +59,11 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
 
   const [cronInput, setCronInput] = useState('0 0 * * *')
   const [enabledInput, setEnabledInput] = useState(true)
+  const [maxRetriesInput, setMaxRetriesInput] = useState(0)
   const [cronError, setCronError] = useState<string | null>(null)
 
   const createMut = useMutation({
-    mutationFn: () => createPipelineSchedule(pipelineId, { cron_expression: cronInput.trim(), enabled: enabledInput }),
+    mutationFn: () => createPipelineSchedule(pipelineId, { cron_expression: cronInput.trim(), enabled: enabledInput, max_retries: maxRetriesInput }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules', pipelineId] }),
   })
 
@@ -73,8 +74,8 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
   })
 
   const updateCronMut = useMutation({
-    mutationFn: ({ id, cron }: { id: string; cron: string }) =>
-      updateSchedule(id, { cron_expression: cron }),
+    mutationFn: ({ id, cron, maxRetries }: { id: string; cron: string; maxRetries: number }) =>
+      updateSchedule(id, { cron_expression: cron, max_retries: maxRetries }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules', pipelineId] }),
   })
 
@@ -168,7 +169,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                       onClick={() => {
                         const val = cronInput || existingSchedule.cron_expression
                         if (!validateCron(val)) return
-                        updateCronMut.mutate({ id: existingSchedule.id, cron: val })
+                        updateCronMut.mutate({ id: existingSchedule.id, cron: val, maxRetries: maxRetriesInput || existingSchedule.max_retries })
                       }}
                       disabled={updateCronMut.isPending}
                       className="px-3 py-1.5 text-xs font-medium bg-dblue-500 text-white rounded hover:bg-dblue-600 disabled:opacity-50"
@@ -217,11 +218,46 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                     </div>
                   )}
                 </div>
-                {existingSchedule.last_run_error && (
+                {existingSchedule.last_run_status === 'retrying' && existingSchedule.retry_next_at && (
+                  <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-2 rounded-lg">
+                    <Loader2 size={12} className="animate-spin shrink-0" />
+                    <span>
+                      Retry {existingSchedule.retry_count}/{existingSchedule.max_retries} — next attempt at{' '}
+                      {new Date(existingSchedule.retry_next_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                )}
+                {existingSchedule.last_run_status === 'failed' && existingSchedule.last_run_error && (
                   <p className="text-xs text-red-500 bg-red-50 px-2 py-1.5 rounded">
                     {existingSchedule.last_run_error}
                   </p>
                 )}
+
+                {/* Retry config */}
+                <div className="pt-1 border-t border-surface-200">
+                  <label className="block text-xs font-semibold text-surface-500 mb-1.5">
+                    Retry on failure
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0} max={5} step={1}
+                      value={maxRetriesInput !== 0 ? maxRetriesInput : (existingSchedule.max_retries ?? 0)}
+                      onChange={(e) => setMaxRetriesInput(Number(e.target.value))}
+                      className="flex-1 accent-dblue-500"
+                    />
+                    <span className="text-xs font-mono w-16 text-surface-600">
+                      {(maxRetriesInput !== 0 ? maxRetriesInput : (existingSchedule.max_retries ?? 0)) === 0
+                        ? 'No retry'
+                        : `${maxRetriesInput !== 0 ? maxRetriesInput : existingSchedule.max_retries}× retry`}
+                    </span>
+                  </div>
+                  {(maxRetriesInput !== 0 ? maxRetriesInput : (existingSchedule.max_retries ?? 0)) > 0 && (
+                    <p className="text-xs text-surface-400 mt-1">
+                      Backoff: 1m → 2m → 4m → 8m → 16m before alerting
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Delete */}
@@ -285,6 +321,30 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                   ? <p className="mt-1 text-xs text-red-500">{cronError}</p>
                   : <p className="mt-1 text-xs text-surface-400">{describeCron(cronInput)}</p>
                 }
+              </div>
+
+              {/* Retry on failure */}
+              <div>
+                <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+                  Retry on failure
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0} max={5} step={1}
+                    value={maxRetriesInput}
+                    onChange={(e) => setMaxRetriesInput(Number(e.target.value))}
+                    className="flex-1 accent-dblue-500"
+                  />
+                  <span className="text-xs font-mono w-16 text-surface-600">
+                    {maxRetriesInput === 0 ? 'No retry' : `${maxRetriesInput}× retry`}
+                  </span>
+                </div>
+                {maxRetriesInput > 0 && (
+                  <p className="text-xs text-surface-400 mt-1">
+                    Exponential backoff: 1m → 2m → 4m → … before alerting
+                  </p>
+                )}
               </div>
 
               {/* Enable toggle */}

@@ -2,7 +2,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import smtplib
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from email.mime.text import MIMEText
 from typing import Optional
 
@@ -161,6 +161,13 @@ class PipelineScheduler:
                     due_scheds.append(sched)
             except Exception as e:
                 logger.warning(f"Bad cron expression {cron!r}: {e}")
+
+        # ── Pick up pending retries (may overlap with due_scheds, deduplicate) ──
+        retrying = await store.get_retrying_schedules()
+        due_ids = {s["id"] for s in due_scheds}
+        for sched in retrying:
+            if sched["id"] not in due_ids:
+                due_scheds.append(sched)
 
         if due_scheds:
             asyncio.create_task(self._run_due_pipelines_parallel(due_scheds))
@@ -350,15 +357,36 @@ class PipelineScheduler:
         except Exception as e:
             error_msg = str(e)
             completed_at = datetime.now(timezone.utc).isoformat()
-            await store.record_schedule_run(schedule_id, "failed", error_msg)
-            await store.log_run(
-                pipeline_id=pipeline_id, pipeline_name=pipeline_name,
-                run_type="scheduled", status="failed",
-                row_count=None, error_message=error_msg,
-                started_at=started_at, completed_at=completed_at,
-            )
-            logger.error(f"Scheduled pipeline {pipeline_id} failed: {e}")
-            await send_failure_notification(pipeline_name, error_msg)
+            max_retries = int(sched.get("max_retries", 0) or 0)
+            retry_count = int(sched.get("retry_count", 0) or 0)
+
+            if max_retries > 0 and retry_count < max_retries:
+                # Schedule a retry with exponential backoff: 1, 2, 4, 8, 16 minutes
+                next_attempt = retry_count + 1
+                delay_seconds = 60 * (2 ** retry_count)  # 60s, 120s, 240s, 480s, 960s
+                retry_at = (datetime.now(timezone.utc) + timedelta(seconds=delay_seconds)).isoformat()
+                await store.set_retry_state(schedule_id, next_attempt, retry_at)
+                logger.warning(
+                    f"Scheduled pipeline '{pipeline_name}' failed (attempt {next_attempt}/{max_retries}). "
+                    f"Retrying in {delay_seconds // 60}m at {retry_at}. Error: {error_msg}"
+                )
+            else:
+                # All retries exhausted (or no retries configured) — mark failed and alert
+                await store.record_schedule_run(schedule_id, "failed", error_msg)
+                await store.log_run(
+                    pipeline_id=pipeline_id, pipeline_name=pipeline_name,
+                    run_type="scheduled", status="failed",
+                    row_count=None, error_message=error_msg,
+                    started_at=started_at, completed_at=completed_at,
+                )
+                if max_retries > 0:
+                    logger.error(
+                        f"Scheduled pipeline '{pipeline_name}' failed after {max_retries} retries: {error_msg}"
+                    )
+                    error_msg = f"Failed after {max_retries} retries: {error_msg}"
+                else:
+                    logger.error(f"Scheduled pipeline {pipeline_id} failed: {e}")
+                await send_failure_notification(pipeline_name, error_msg)
 
 
 scheduler = PipelineScheduler()

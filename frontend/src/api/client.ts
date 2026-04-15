@@ -887,3 +887,34 @@ export async function exportDocs(): Promise<void> {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+export async function exportDbt(): Promise<void> {
+  const res = await api.get('/api/dbt/export', { responseType: 'blob' })
+  const url = URL.createObjectURL(new Blob([res.data], { type: 'application/zip' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'transform_studio_dbt.zip'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+export async function previewDbtImport(file: File): Promise<{
+  models: any[]
+  global_warnings: string[]
+  error: string | null
+}> {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await api.post('/api/dbt/import/preview', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+
+export async function confirmDbtImport(
+  models: any[],
+  namePrefix?: string,
+): Promise<{ created: any[]; skipped: string[]; errors: string[] }> {
+  const res = await api.post('/api/dbt/import/confirm', { models, name_prefix: namePrefix ?? null })
+  return res.data
+}

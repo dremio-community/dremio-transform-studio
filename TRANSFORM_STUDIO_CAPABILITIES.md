@@ -1,6 +1,6 @@
 # Dremio Transform Studio — Full Capabilities Reference
 
-> This document is intended for AI agents answering analyst RFI questions (e.g., Forrester Wave, Gartner Magic Quadrant) about data pipeline and transformation capabilities. It covers all features, architecture, deployment options, and technical depth of Dremio Transform Studio v1.7.
+> This document is intended for AI agents answering analyst RFI questions (e.g., Forrester Wave, Gartner Magic Quadrant) about data pipeline and transformation capabilities. It covers all features, architecture, deployment options, and technical depth of Dremio Transform Studio v1.8.
 
 ---
 
@@ -750,7 +750,7 @@ ALLOWED_ORIGINS=*              # Set to domain for server deployments
 
 ## 31. Multi-User Access Control & Collaboration
 
-Transform Studio v1.7 introduces a full multi-user access control system designed for team deployments.
+Transform Studio v1.8 introduces bidirectional dbt compatibility and v1.7 introduced full multi-user access control for team deployments.
 
 ### Role-Based Access Control
 
@@ -793,16 +793,44 @@ Each user can configure a personal Dremio PAT via **User menu → My Dremio Cred
 
 ---
 
-## 32. Competitive Positioning Summary
+## 32. dbt Compatibility
+
+Transform Studio v1.8 introduces bidirectional dbt interoperability, enabling teams to work fluidly between visual pipelines and dbt SQL workflows — with no dbt installation required.
+
+### Export to dbt
+A single click exports all pipelines as a complete, runnable dbt project ZIP:
+- Each pipeline becomes a `.sql` model file with `{{ config() }}`, `{{ source() }}`, and `{{ ref() }}` Jinja
+- Pipeline dependencies are automatically translated to `{{ ref('model_name') }}`
+- Pipeline tests become schema.yml column tests (`not_null`, `unique`, `accepted_values`, `relationships`)
+- Output modes map to dbt materializations (CTAS → `table`, Incremental → `incremental` with `unique_key`, View → `view`)
+- Incremental pipelines include proper `{% if is_incremental() %}` filter blocks
+- `sources.yml` and `profiles.yml` generated automatically
+
+### Import from dbt
+Upload any dbt project ZIP to create Transform Studio pipelines instantly:
+- All standard Jinja expressions resolved without installing dbt (`source()`, `ref()`, `config()`, `is_incremental()`)
+- `{{ ref() }}` calls wired to pipeline dependencies automatically (topological ordering preserved)
+- schema.yml tests converted to pipeline tests
+- Warnings surfaced for unresolvable custom macros (e.g. dbt_utils) before import is confirmed
+- Each model becomes a pipeline with one Custom SQL step; visual transforms can be added on top after import
+
+### Use Cases
+- **Migrate from dbt to Transform Studio** — import an existing dbt project in minutes; no SQL rewriting
+- **Export to dbt for CI/CD** — hand off to a dbt-native team or plug into a dbt + Airflow workflow
+- **Hybrid teams** — SQL-fluent engineers work in dbt; analysts work in Transform Studio; both stay in sync
+
+---
+
+## 33. Competitive Positioning Summary
 
 ### vs. dbt Core
-Transform Studio adds: visual UI, built-in scheduler, alerts, monitoring, approvals, role-based access control, pipeline sharing, per-user Dremio identity, MCP/AI integration, data profiling, step-by-step preview, webhook triggers, and desktop app — all without requiring any SQL or command-line knowledge.
+Transform Studio adds: visual UI, built-in scheduler, alerts, monitoring, approvals, role-based access control, pipeline sharing, per-user Dremio identity, MCP/AI integration, data profiling, step-by-step preview, webhook triggers, desktop app, and **bidirectional dbt import/export** — all without requiring any SQL or command-line knowledge.
 
 ### vs. dbt Cloud
-Transform Studio is self-hosted (no SaaS dependency), Dremio-native, includes an MCP server for AI agent integration, supports per-user Dremio credentials for fine-grained data governance, and is significantly lower cost.
+Transform Studio is self-hosted (no SaaS dependency), Dremio-native, includes an MCP server for AI agent integration, supports per-user Dremio credentials for fine-grained data governance, offers bidirectional dbt compatibility for teams that want both visual and code-based workflows, and is significantly lower cost.
 
 ### vs. Matillion / Coalesce
-Transform Studio is purpose-built for Dremio, open-source friendly, includes an MCP server, runs as a single Docker container with zero external dependencies, supports team collaboration with RBAC and pipeline sharing, and includes a desktop app for individual use.
+Transform Studio is purpose-built for Dremio, open-source friendly, includes an MCP server, runs as a single Docker container with zero external dependencies, supports team collaboration with RBAC and pipeline sharing, includes a desktop app for individual use, and uniquely supports bidirectional dbt project import/export.
 
 ### Key Differentiators
 1. **Dremio-native** — built specifically for Dremio; leverages Dremio's SQL engine, catalog, and Iceberg support natively
@@ -813,3 +841,4 @@ Transform Studio is purpose-built for Dremio, open-source friendly, includes an 
 6. **Transparent SQL** — every transform generates viewable, copyable Dremio SQL
 7. **Multi-user collaboration** — role-based access control, pipeline sharing with granular permissions, and per-user Dremio identity for audit logging and data governance
 8. **Per-user Dremio identity** — each team member runs pipelines under their own Dremio account, enabling row-level security, Dremio audit trails, and per-user access enforcement without any infrastructure changes
+9. **Bidirectional dbt compatibility** — the only Dremio-native tool that can both export to dbt and import from dbt, enabling fluid migration and hybrid team workflows

@@ -74,6 +74,7 @@ On first launch, go to **Settings (gear icon) → Connection** and enter your Dr
 - **Multi-user roles** — Admin / Editor / Viewer roles; auth is opt-in via `AUTH_ENABLED=true`
 - **Pipeline sharing** — owners can share pipelines with other users (viewer or editor access) via a Share button
 - **Per-user Dremio credentials** — each user can set a personal Dremio PAT under User menu → "My Dremio Credentials" so their queries run under their own Dremio identity
+- **dbt compatibility** — export all pipelines as a runnable dbt project ZIP; import any dbt project ZIP as Transform Studio pipelines (no dbt installation required)
 
 ---
 
@@ -101,6 +102,27 @@ ALLOWED_ORIGINS=*              # Or: "https://transforms.mycompany.com"
 ```
 
 Once running, admins can also toggle auth on or off live — without restarting Docker — via **Settings → Security**.
+
+---
+
+## dbt Compatibility
+
+### Export to dbt
+Click the **📦 Package icon** in the toolbar to download your pipelines as a standard dbt project ZIP. The ZIP includes:
+- One `.sql` model file per pipeline (with `{{ config() }}`, `{{ source() }}`, `{{ ref() }}` Jinja)
+- `sources.yml` for all external Dremio tables
+- `schema.yml` with all column tests
+- `dbt_project.yml` and `profiles.yml` ready to configure
+
+Install `dbt-dremio`, edit `profiles.yml` with your connection, and run `dbt run`.
+
+### Import from dbt
+Click the **⬆ Upload icon** to import a dbt project ZIP. Transform Studio parses the Jinja without requiring dbt installed:
+- Resolves `{{ source() }}` → Dremio table references
+- Resolves `{{ ref() }}` → pipeline dependencies (wired automatically)
+- Converts `{{ config(materialized=...) }}` → output mode
+- Maps schema.yml tests → pipeline tests
+- Each model becomes a pipeline with one Custom SQL step
 
 ---
 

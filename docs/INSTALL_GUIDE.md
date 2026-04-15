@@ -1,6 +1,6 @@
 # Dremio Transform Studio — Installation Guide
 
-**Version 1.7 | April 2026**
+**Version 1.8 | April 2026**
 
 ---
 
@@ -488,6 +488,44 @@ A new fourth alert type monitors when source data goes stale. Checks the maximum
 
 ### Step Bisection on Failure
 When a pipeline execute fails, Transform Studio automatically runs a bisection search to identify which specific step caused the failure. The execute result message now includes "Failed at step N: [step name]", pinpointing the problem without manual trial and error.
+
+---
+
+## v1.8 Features — What's New
+
+Version 1.8 adds **bidirectional dbt compatibility** — export Transform Studio pipelines as a runnable dbt project, or import any dbt project ZIP as Transform Studio pipelines.
+
+### Export as dbt Project
+
+Click the **📦 Package icon** in the top toolbar. Transform Studio generates and downloads a complete dbt project ZIP containing:
+- One `.sql` model file per pipeline, with proper `{{ config() }}`, `{{ source() }}`, and `{{ ref() }}` Jinja syntax
+- `sources.yml` declaring all external Dremio tables
+- `schema.yml` with all column-level tests translated to dbt test syntax
+- `dbt_project.yml` and `profiles.yml` ready to configure and run
+
+Output modes map to dbt materializations: CTAS → `table`, Incremental → `incremental` (with `unique_key` and strategy), View → `view`.
+
+### Import from dbt
+
+Click the **⬆ Upload icon** in the top toolbar, then drag a dbt project `.zip` file into the drop zone. Transform Studio:
+- Resolves all Jinja (`{{ source() }}`, `{{ ref() }}`, `{{ config() }}`, `{% if is_incremental() %}`) without requiring dbt to be installed
+- Creates one pipeline per model, with a Custom SQL step containing the resolved SQL
+- Wires up pipeline dependencies from `{{ ref() }}` calls automatically
+- Converts schema.yml tests to pipeline tests
+- Shows a preview table before committing — you can review every model and see any warnings before clicking Import
+
+---
+
+## v1.7 Features — What's New
+
+Version 1.7 adds **multi-user access control, roles, pipeline sharing, and per-user Dremio credentials** for team deployments.
+
+See the [Server Deployment Guide](deploy/SERVER_DEPLOYMENT.md) for full setup instructions. Key additions:
+
+- **Roles:** Admin, Editor (default), Viewer — enforced on all pipeline CRUD operations
+- **Pipeline sharing:** owners share with specific users at editor or viewer access level via the Share button
+- **Live auth toggle:** Settings → Security tab; no Docker restart needed
+- **Per-user Dremio PAT:** each user sets their own PAT under User menu → My Dremio Credentials
 
 ---
 

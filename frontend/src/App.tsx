@@ -44,6 +44,7 @@ import {
   ShieldCheck,
   Share2,
   KeyRound,
+  Package,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -76,6 +77,7 @@ import {
   getToken,
   clearToken,
   exportDocs,
+  exportDbt,
   setApprovalRequired,
   submitPipelineReview,
   fetchNamespaces,
@@ -104,6 +106,7 @@ import ParametersPanel from './components/ParametersPanel'
 import RunWithParamsModal from './components/RunWithParamsModal'
 import ShareModal from './components/ShareModal'
 import MyCredentialsModal from './components/MyCredentialsModal'
+import DbtImportModal from './components/DbtImportModal'
 import WebhookPanel from './components/WebhookPanel'
 import TestsPanel from './components/TestsPanel'
 import DependencyPanel from './components/DependencyPanel'
@@ -131,6 +134,7 @@ export default function App() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showManageUsers, setShowManageUsers] = useState(false)
   const [showMyCredentials, setShowMyCredentials] = useState(false)
+  const [showDbtImport, setShowDbtImport] = useState(false)
   const [shareModalPipelineId, setShareModalPipelineId] = useState<string | null>(null)
 
   // ── State ─────────────────────────────────────────────────────────────────
@@ -898,6 +902,22 @@ export default function App() {
             className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
           >
             <FileText size={15} />
+          </button>
+        </Tooltip>
+        <Tooltip text="Export as dbt Project">
+          <button
+            onClick={exportDbt}
+            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+          >
+            <Package size={15} />
+          </button>
+        </Tooltip>
+        <Tooltip text="Import from dbt">
+          <button
+            onClick={() => setShowDbtImport(true)}
+            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+          >
+            <Upload size={15} />
           </button>
         </Tooltip>
         <Tooltip text={activePipelineId ? 'Schedule Pipeline' : 'Save a pipeline first'}>
@@ -1770,6 +1790,14 @@ export default function App() {
       {/* My Dremio Credentials modal */}
       {showMyCredentials && (
         <MyCredentialsModal onClose={() => setShowMyCredentials(false)} />
+      )}
+
+      {/* dbt Import modal */}
+      {showDbtImport && (
+        <DbtImportModal
+          onClose={() => setShowDbtImport(false)}
+          onImported={() => { qc.invalidateQueries({ queryKey: ['pipelines'] }) }}
+        />
       )}
 
       {/* Duplicate pipeline name warning */}

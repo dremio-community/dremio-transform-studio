@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 import csv
 import io
 import json as _json_mod
+import re
 import shutil
 import tempfile
 
@@ -61,6 +62,7 @@ from transforms import registry as reg
 from transforms.codegen import compile_execute, compile_incremental, compile_pipeline, compile_scd2, compute_column_lineage
 from test_runner import run_pipeline_tests, summarize_results
 from dag_utils import build_dag_response, get_run_order_for_pipeline, find_cycles
+from dbt_compat import export_project_to_zip, parse_dbt_project
 
 
 @asynccontextmanager
@@ -1876,6 +1878,175 @@ async def activate_environment(
     }
     await store.save_connection_settings(conn_data)
     return {"activated": True, "environment": env}
+
+
+# ── dbt Export ────────────────────────────────────────────────────────────────
+
+@app.get("/api/dbt/export", tags=["dbt"], summary="Export all pipelines as a dbt project ZIP")
+async def dbt_export(current_user: dict = Depends(get_current_user)):
+    """
+    Downloads a ZIP archive containing a complete dbt project generated from
+    all Transform Studio pipelines the current user can see.
+
+    The ZIP contains:
+      transform_studio/
+      ├── dbt_project.yml
+      ├── profiles.yml
+      ├── README.md
+      └── models/
+          ├── sources.yml   — all external Dremio source tables
+          ├── schema.yml    — model descriptions and column tests
+          └── *.sql         — one model file per pipeline
+    """
+    uid = current_user["user_id"] if current_user else "default"
+    role = current_user.get("role", "editor") if current_user else "editor"
+    pipelines = await store.list_pipelines(user_id=uid, role=role)
+
+    zip_bytes = export_project_to_zip(pipelines)
+
+    return StreamingResponse(
+        io.BytesIO(zip_bytes),
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=transform_studio_dbt.zip"},
+    )
+
+
+@app.post("/api/dbt/import/preview", tags=["dbt"], summary="Parse a dbt project ZIP and preview what would be imported")
+async def dbt_import_preview(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Upload a dbt project ZIP and get back a structured preview of the models
+    that would be imported as Transform Studio pipelines.
+    No pipelines are created — this is a dry-run for the UI to display.
+    """
+    zip_bytes = await file.read()
+    result = parse_dbt_project(zip_bytes)
+    return result
+
+
+class DbtImportConfirmRequest(BaseModel):
+    models: List[dict]   # list of parsed model dicts from /preview
+    name_prefix: Optional[str] = None  # optional prefix to prepend to pipeline names
+
+
+@app.post("/api/dbt/import/confirm", tags=["dbt"], summary="Create Transform Studio pipelines from a parsed dbt project")
+async def dbt_import_confirm(
+    data: DbtImportConfirmRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Takes the model list from /preview and creates Transform Studio pipelines.
+
+    Pipeline creation order:
+      1. All models with no ref() dependencies first
+      2. Then models whose dependencies have been created
+    This matches the dbt ref() dependency graph.
+
+    Returns: { created: [Pipeline], skipped: [str], errors: [str] }
+    """
+    uid = current_user["user_id"] if current_user else "default"
+    prefix = (data.name_prefix.strip() + " ") if data.name_prefix else ""
+
+    # Build a map from model_name → output_table so we can resolve ref() placeholders
+    # Default output_table: "dbt_imported"."<model_name>"
+    model_to_output: Dict[str, str] = {}
+    for m in data.models:
+        mn = m["model_name"]
+        model_to_output[mn] = f'"dbt_imported"."{mn}"'
+
+    created_pipelines = []
+    created_ids: Dict[str, str] = {}   # model_name → pipeline_id
+    skipped: List[str] = []
+    errors: List[str] = []
+
+    # Topological order: process models with no outstanding deps first
+    remaining = list(data.models)
+    max_passes = len(remaining) + 1
+    passes = 0
+    while remaining and passes < max_passes:
+        passes += 1
+        next_remaining = []
+        for m in remaining:
+            refs = m.get("refs", [])
+            # Check all refs are already created or unknown (we allow unknown refs)
+            unresolved = [r for r in refs if r not in created_ids and r in {x["model_name"] for x in data.models}]
+            if unresolved:
+                next_remaining.append(m)
+                continue
+
+            try:
+                # Resolve _dbt_ref__ placeholders in source_table and custom_sql
+                source_table = m["source_table"]
+                custom_sql = m["custom_sql"]
+
+                for ref_name, ref_pipeline_id in created_ids.items():
+                    placeholder = f"_dbt_ref__{ref_name}"
+                    real_table = model_to_output.get(ref_name, f'"dbt_imported"."{ref_name}"')
+                    source_table = source_table.replace(placeholder, real_table)
+                    custom_sql = custom_sql.replace(placeholder, real_table)
+
+                # Also resolve any remaining _dbt_ref__ for models NOT in this import set
+                # (e.g. referencing an existing pipeline output)
+                remaining_refs = re.findall(r"_dbt_ref__(\w+)", source_table + custom_sql)
+                for rr in remaining_refs:
+                    fallback = f'"dbt_imported"."{rr}"'
+                    source_table = source_table.replace(f"_dbt_ref__{rr}", fallback)
+                    custom_sql = custom_sql.replace(f"_dbt_ref__{rr}", fallback)
+
+                pipeline_name = f"{prefix}{m['display_name']}"
+
+                # Build the dependency list (pipeline IDs of already-created refs)
+                dep_ids = [created_ids[r] for r in m.get("refs", []) if r in created_ids]
+
+                # Build tests list
+                from models import PipelineTest as _PT
+                tests = []
+                for t in m.get("tests", []):
+                    try:
+                        tests.append(_PT(**t))
+                    except Exception:
+                        pass
+
+                create_data = PipelineCreate(
+                    name=pipeline_name,
+                    description=m.get("description"),
+                    source_table=source_table,
+                    steps=[TransformStep(
+                        id=str(_uuid_mod.uuid4()),
+                        transform_type="custom_sql",
+                        config={"sql": custom_sql},
+                        label="dbt model SQL",
+                    )],
+                    output_table=model_to_output[m["model_name"]],
+                    output_mode=m.get("output_mode", "ctas"),
+                    dependencies=dep_ids,
+                    incremental_strategy=m.get("incremental_strategy"),
+                    incremental_key=m.get("unique_key"),
+                    tests=tests,
+                )
+
+                pipeline = await store.create_pipeline(create_data, user_id=uid)
+                created_ids[m["model_name"]] = pipeline.id
+                created_pipelines.append(pipeline)
+
+            except Exception as exc:
+                errors.append(f"{m.get('model_name', '?')}: {exc}")
+                skipped.append(m.get("model_name", "?"))
+
+        remaining = next_remaining
+
+    # Any still-remaining models have circular or unresolvable deps
+    for m in remaining:
+        errors.append(f"{m['model_name']}: circular or unresolvable ref() dependency")
+        skipped.append(m["model_name"])
+
+    return {
+        "created": [p.model_dump() for p in created_pipelines],
+        "skipped": skipped,
+        "errors": errors,
+    }
 
 
 # ── Documentation Export ──────────────────────────────────────────────────────

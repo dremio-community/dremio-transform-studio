@@ -1,6 +1,6 @@
 # Dremio Transform Studio — User Guide
 
-**Version 1.7 | April 2026**
+**Version 1.8 | April 2026**
 
 ---
 
@@ -1184,3 +1184,72 @@ The notification includes the monitor name, the table scanned, the current DQ sc
 - **Set your Dremio credentials** — if your Dremio has per-user access control or audit logging, set your personal PAT under User menu → My Dremio Credentials so your queries run under your own identity rather than the shared service account.
 - **Use the Viewer role for stakeholders** — assign the Viewer role to colleagues who need read access but shouldn't be able to modify pipelines. They can browse, preview, and submit change requests for review without the risk of accidentally breaking something.
 - **Share pipelines with collaborators** — instead of giving everyone Admin access, share specific pipelines with the Editor or Viewer access level. This keeps permissions minimal and makes it clear who owns each pipeline.
+- **Export to dbt for CI/CD** — use the dbt export to bring your pipelines into a version-controlled dbt project, run them through dbt's testing framework, or hand them off to a dbt-native team.
+- **Import from dbt to migrate** — if your team already has a dbt project, import it directly. Each model becomes a runnable pipeline in seconds. Edit steps visually after import.
+
+---
+
+## dbt Compatibility
+
+Transform Studio v1.8 adds full bidirectional dbt compatibility — export your work to dbt or import an existing dbt project, without installing dbt.
+
+### Export as dbt Project
+
+Click the **📦 Package icon** in the top toolbar to download all your pipelines as a runnable dbt project ZIP.
+
+**What's in the ZIP:**
+
+```
+transform_studio/
+├── dbt_project.yml       — project config
+├── profiles.yml          — Dremio connection template (edit before using)
+├── README.md             — setup instructions
+└── models/
+    ├── sources.yml       — all external Dremio tables declared as dbt sources
+    ├── schema.yml        — model descriptions and column tests
+    └── *.sql             — one model file per pipeline
+```
+
+**Each model file includes:**
+- `{{ config(materialized=...) }}` — matches your pipeline's output mode (table, incremental, view)
+- `{{ source('schema', 'table') }}` — for external Dremio source tables
+- `{{ ref('other_pipeline') }}` — for pipelines that depend on other pipelines
+- `{% if is_incremental() %}` filter blocks for incremental pipelines
+
+**To run the exported project:**
+```bash
+pip install dbt-dremio
+# Edit transform_studio/profiles.yml with your Dremio connection details
+cd transform_studio
+dbt debug    # verify connection
+dbt run      # execute all models
+dbt test     # run data tests
+```
+
+---
+
+### Import from dbt
+
+Click the **⬆ Upload icon** in the top toolbar to import a dbt project ZIP as Transform Studio pipelines.
+
+**How to import:**
+
+1. Click the **⬆ Upload icon** — the import modal opens
+2. Drag your dbt project `.zip` file onto the drop zone (or click to browse)
+3. Transform Studio parses the project and shows a **preview table** — one row per model with source, output mode, dependencies, and test counts
+4. Optionally enter a **name prefix** to tag imported pipelines (e.g. `dbt_`)
+5. Click **Import N Pipelines** — pipelines are created instantly
+
+**What gets resolved automatically:**
+- `{{ source('schema', 'table') }}` → Dremio-quoted table reference (`"schema"."table"`)
+- `{{ ref('model_name') }}` → pipeline dependency (the `dependencies` field is wired up automatically)
+- `{{ config(materialized=...) }}` → output mode (`table` → CTAS, `incremental` → Incremental, `view` → View)
+- `{% if is_incremental() %}...{% endif %}` blocks → stripped (Transform Studio handles incremental natively)
+- schema.yml column tests → pipeline tests (`not_null`, `unique`, `accepted_values`, `relationships`)
+- `unique_key` and `incremental_strategy` from config → incremental settings
+
+**Each model becomes:** a pipeline with one Custom SQL step containing the resolved SQL. You can add visual transform steps on top after import, or run it as-is.
+
+**Warnings:** if a model uses custom macros (e.g. `dbt_utils`) that can't be resolved automatically, they are flagged as warnings in the preview — you can fix them manually in the Custom SQL step after import.
+
+> **No dbt installation required** — all Jinja resolution is done by Transform Studio internally using regex-based parsing.

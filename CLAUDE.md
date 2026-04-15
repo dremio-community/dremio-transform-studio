@@ -28,6 +28,7 @@ dremio-transform-studio/
 │   ├── scheduler.py            # Cron-based scheduler (pipelines + DQ monitor scans every 60s)
 │   ├── test_runner.py          # Pipeline test execution (not_null, unique, row_count, accepted_values, custom_sql)
 │   ├── dag_utils.py            # Cross-pipeline DAG: topological_sort, find_cycles, build_dag_response
+│   ├── dbt_compat.py           # dbt bidirectional compat: export_project_to_zip(), parse_dbt_project()
 │   ├── dq_engine.py            # Data Quality engine: 14 SQL-based rules, evaluate_rule(), run_scan(), _quote_table()
 │   ├── desktop_launcher.py     # Entry point for PyInstaller desktop builds
 │   ├── requirements.txt        # Python dependencies
@@ -601,7 +602,7 @@ build\build_windows.bat
 
 ---
 
-## Current State (as of 2026-04-14) — v1.7
+## Current State (as of 2026-04-15) — v1.8
 
 All features working and tested against Dremio Cloud:
 
@@ -703,6 +704,19 @@ All features working and tested against Dremio Cloud:
 - ✅ **Pipeline permissions table** — `(id, pipeline_id, user_id, access_level, granted_by, granted_at, UNIQUE(pipeline_id, user_id))`
 - ✅ **New store methods** — `update_user_role()`, `update_user_pat()`, `get_user_dremio_pat()`, `get_pipeline_permissions()`, `upsert_pipeline_permission()`, `remove_pipeline_permission()`, `can_user_edit_pipeline()`
 - ✅ **New API routes** — `GET/PUT /api/settings/auth`, `PUT /api/auth/users/{id}` (role), `GET/PUT /api/auth/me/credentials`, `GET/POST/DELETE /api/pipelines/{id}/permissions`
+
+### Features Added in v1.8 — dbt Compatibility
+- ✅ **dbt Export** — `GET /api/dbt/export` returns a ZIP of the full dbt project; 📦 Package icon in toolbar; `export_project_to_zip()` in `backend/dbt_compat.py`
+- ✅ **dbt Import preview** — `POST /api/dbt/import/preview` parses ZIP, returns structured model list; no pipelines created (dry run)
+- ✅ **dbt Import confirm** — `POST /api/dbt/import/confirm` creates pipelines in topological dep order; resolves all `{{ ref() }}` to pipeline IDs
+- ✅ **Jinja resolver** — regex-based, no dbt installation required; resolves `source()`, `ref()`, `config()`, `{% if is_incremental() %}`; detects unresolvable macros as warnings
+- ✅ **Test mapping** — `not_null`, `unique`, `accepted_values`, `relationships` from schema.yml → PipelineTest objects
+- ✅ **Materialization mapping** — `table` → ctas, `incremental` → incremental (with unique_key/strategy), `view` → view, `ephemeral` → preview
+- ✅ **Model name deduplication** — pipelines with same name get short hex suffix (e.g. `customer_00edaf`) to avoid ZIP conflicts
+- ✅ **DbtImportModal.tsx** — 4-step UI: drop zone → model preview table with mode badges/warnings/deps → import → done summary
+- ✅ **⬆ Upload icon** in toolbar opens DbtImportModal; 📦 Package icon triggers download
+- ✅ **`backend/dbt_compat.py`** — new file; `export_project_to_zip()` + `parse_dbt_project()` + all helpers
+- ✅ **`import re`** added to `main.py` (needed for ref placeholder resolution in confirm route)
 
 ### Dremio SQL Compatibility Notes
 - `SELECT * EXCEPT (col)` — NOT supported. All transforms use explicit column lists via `replace_select()` / `drop_select()` helpers in `transforms/utils.py`

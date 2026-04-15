@@ -63,6 +63,8 @@ from transforms.codegen import compile_execute, compile_incremental, compile_pip
 from test_runner import run_pipeline_tests, summarize_results
 from dag_utils import build_dag_response, get_run_order_for_pipeline, find_cycles
 from dbt_compat import export_project_to_zip, parse_dbt_project
+import sso as _sso
+from templates import list_templates, get_template, instantiate_template
 
 
 @asynccontextmanager
@@ -255,6 +257,142 @@ async def get_my_credentials(current_user: dict = Depends(require_user)) -> dict
     uid = current_user["user_id"]
     pat = await store.get_user_dremio_pat(uid)
     return {"has_pat": bool(pat), "pat_preview": (pat[:8] + "...") if pat and len(pat) > 8 else None}
+
+
+# ── SSO / OIDC ────────────────────────────────────────────────────────────────
+
+class SsoConfigCreate(BaseModel):
+    provider_name: str       # slug: "google", "okta", "azure", or custom
+    display_name: str        # shown on login button: "Google Workspace", "Okta", etc.
+    client_id: str
+    client_secret: str
+    discovery_url: str       # OIDC discovery base URL (without /.well-known/...)
+    enabled: bool = True
+    default_role: str = "editor"
+
+
+@app.get("/api/auth/sso/providers", tags=["sso"], summary="List enabled SSO providers (public)")
+async def list_sso_providers():
+    """Returns providers visible to the login page — no secrets included."""
+    configs = await store.list_sso_configs()
+    return [
+        {
+            "provider_name": c["provider_name"],
+            "display_name":  c["display_name"],
+            "enabled":       bool(c["enabled"]),
+            "icon":          _sso.PROVIDER_ICONS.get(c["provider_name"].lower(), ""),
+        }
+        for c in configs if c["enabled"]
+    ]
+
+
+@app.get("/api/settings/sso", tags=["sso"], summary="List all SSO configs (admin)")
+async def list_sso_configs_admin(current_user: dict = Depends(require_admin)):
+    configs = await store.list_sso_configs()
+    # Mask secrets
+    return [
+        {**c, "client_secret": ("*" * 8 if c.get("client_secret") else "")}
+        for c in configs
+    ]
+
+
+@app.post("/api/settings/sso", tags=["sso"], summary="Create or update SSO provider config (admin)")
+async def upsert_sso_config(data: SsoConfigCreate, current_user: dict = Depends(require_admin)):
+    result = await store.upsert_sso_config(data.model_dump())
+    return {**result, "client_secret": "*" * 8}
+
+
+@app.delete("/api/settings/sso/{provider_name}", tags=["sso"], summary="Remove SSO provider (admin)")
+async def delete_sso_config(provider_name: str, current_user: dict = Depends(require_admin)):
+    await store.delete_sso_config(provider_name)
+    return {"ok": True}
+
+
+@app.get("/api/auth/sso/{provider_name}/login", tags=["sso"], summary="Redirect to IdP login")
+async def sso_login(provider_name: str, request: Request):
+    from fastapi.responses import RedirectResponse
+    config = await store.get_sso_config(provider_name)
+    if not config or not config["enabled"]:
+        raise HTTPException(status_code=404, detail=f"SSO provider '{provider_name}' not found or disabled")
+    redirect_uri = _sso.get_redirect_uri(str(request.base_url), provider_name)
+    try:
+        auth_url = await _sso.build_auth_url(provider_name, config, redirect_uri)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not reach identity provider: {e}")
+    return RedirectResponse(auth_url)
+
+
+@app.get("/api/auth/sso/{provider_name}/callback", tags=["sso"], summary="Handle IdP callback")
+async def sso_callback(provider_name: str, request: Request, code: str = "", state: str = "", error: str = ""):
+    from fastapi.responses import RedirectResponse
+    if error:
+        return RedirectResponse(f"/?sso_error={error}")
+
+    config = await store.get_sso_config(provider_name)
+    if not config:
+        return RedirectResponse("/?sso_error=unknown_provider")
+
+    redirect_uri = _sso.get_redirect_uri(str(request.base_url), provider_name)
+    try:
+        user_info = await _sso.exchange_code(provider_name, config, code, state, redirect_uri)
+    except Exception as e:
+        return RedirectResponse(f"/?sso_error={str(e)[:120]}")
+
+    # Find or create user
+    user = await store.find_or_create_sso_user(
+        provider_name,
+        user_info["sub"],
+        user_info["email"],
+        user_info["name"],
+        default_role=config.get("default_role", "editor"),
+    )
+
+    token = create_token(
+        user_id=user["id"],
+        username=user["username"],
+        is_admin=bool(user.get("is_admin")),
+        role=user.get("role", "editor"),
+    )
+    return RedirectResponse(f"/?sso_token={token}")
+
+
+# ── Pipeline Templates ────────────────────────────────────────────────────────
+
+@app.get("/api/templates", tags=["templates"], summary="List all built-in pipeline templates")
+async def get_templates():
+    return list_templates()
+
+
+class TemplateDeployRequest(BaseModel):
+    source_table: str
+    output_table: Optional[str] = None
+
+
+@app.post("/api/templates/{template_id}/deploy", response_model=Pipeline, status_code=201, tags=["templates"])
+async def deploy_template(
+    template_id: str,
+    body: TemplateDeployRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Instantiate a template as a new pipeline using the given source table."""
+    tmpl = get_template(template_id)
+    if not tmpl:
+        raise HTTPException(status_code=404, detail=f"Template '{template_id}' not found")
+
+    payload = instantiate_template(tmpl, body.source_table)
+    if body.output_table:
+        payload["output_table"] = body.output_table
+
+    uid = current_user["user_id"] if current_user else "default"
+    from models import PipelineCreate, TransformStep as _TS
+    create_data = PipelineCreate(
+        name=payload["name"],
+        source_table=payload["source_table"],
+        output_table=payload.get("output_table", ""),
+        output_mode=payload.get("output_mode", "preview"),
+        steps=[_TS(**s) for s in payload["steps"]],
+    )
+    return await store.create_pipeline(create_data, user_id=uid)
 
 
 # ── Health ────────────────────────────────────────────────────────────────────

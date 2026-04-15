@@ -45,6 +45,7 @@ import {
   Share2,
   KeyRound,
   Package,
+  LayoutTemplate,
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -108,6 +109,7 @@ import RunWithParamsModal from './components/RunWithParamsModal'
 import ShareModal from './components/ShareModal'
 import MyCredentialsModal from './components/MyCredentialsModal'
 import DbtImportModal from './components/DbtImportModal'
+import TemplatesModal from './components/TemplatesModal'
 import WebhookPanel from './components/WebhookPanel'
 import TestsPanel from './components/TestsPanel'
 import DependencyPanel from './components/DependencyPanel'
@@ -136,6 +138,7 @@ export default function App() {
   const [showManageUsers, setShowManageUsers] = useState(false)
   const [showMyCredentials, setShowMyCredentials] = useState(false)
   const [showDbtImport, setShowDbtImport] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
@@ -217,6 +220,20 @@ export default function App() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
+      // Pick up SSO token from URL (after IdP callback redirect)
+      const urlParams = new URLSearchParams(window.location.search)
+      const ssoToken = urlParams.get('sso_token')
+      const ssoError = urlParams.get('sso_error')
+      if (ssoToken) {
+        localStorage.setItem('ts_token', ssoToken)
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+      if (ssoError) {
+        window.history.replaceState({}, '', window.location.pathname)
+        // Show error briefly — it will surface through the normal auth flow below
+        console.error('SSO error:', ssoError)
+      }
+
       try {
         const status = await fetchAuthStatus()
         if (cancelled) return
@@ -841,6 +858,14 @@ export default function App() {
         >
           <Plus size={12} />
           New Pipeline
+        </button>
+        <button
+          onClick={() => setShowTemplates(true)}
+          title="Pipeline templates"
+          className="flex items-center gap-1 px-2.5 py-1 rounded border border-navy-700 hover:border-dblue-500 text-surface-400 hover:text-white hover:bg-navy-800 transition-colors text-xs font-medium"
+        >
+          <LayoutTemplate size={12} />
+          Templates
         </button>
 
         <div className="h-5 w-px bg-navy-700" />
@@ -1906,6 +1931,18 @@ export default function App() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Templates modal */}
+      {showTemplates && (
+        <TemplatesModal
+          onClose={() => setShowTemplates(false)}
+          onDeployed={(pipeline) => {
+            qc.invalidateQueries({ queryKey: ['pipelines'] })
+            loadPipeline(pipeline)
+            setShowTemplates(false)
+          }}
+        />
       )}
 
       {/* dbt Import modal */}

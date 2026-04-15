@@ -215,6 +215,9 @@ class PipelineStore:
                 "ALTER TABLE pipeline_schedules ADD COLUMN max_retries INTEGER DEFAULT 0",
                 "ALTER TABLE pipeline_schedules ADD COLUMN retry_count INTEGER DEFAULT 0",
                 "ALTER TABLE pipeline_schedules ADD COLUMN retry_next_at TEXT",
+                # SSO (v1.9)
+                "ALTER TABLE users ADD COLUMN sso_provider TEXT",
+                "ALTER TABLE users ADD COLUMN sso_sub TEXT",
             ]:
                 try:
                     await db.execute(col_sql)
@@ -232,6 +235,21 @@ class PipelineStore:
                     UNIQUE(pipeline_id, user_id),
                     FOREIGN KEY (pipeline_id) REFERENCES pipelines(id),
                     FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            """)
+            # SSO provider configs (v1.9)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS sso_configs (
+                    id TEXT PRIMARY KEY,
+                    provider_name TEXT NOT NULL UNIQUE,
+                    display_name TEXT NOT NULL,
+                    client_id TEXT NOT NULL,
+                    client_secret TEXT NOT NULL,
+                    discovery_url TEXT NOT NULL,
+                    enabled INTEGER DEFAULT 1,
+                    default_role TEXT DEFAULT 'editor',
+                    created_at TEXT,
+                    updated_at TEXT
                 )
             """)
             # pipeline_approvals table (v1.6)
@@ -1933,6 +1951,124 @@ class PipelineStore:
                     "latest_scan": dict(last_scan) if last_scan else None,
                 })
         return results
+
+
+    # ── SSO provider configs ──────────────────────────────────────────────────
+
+    async def list_sso_configs(self) -> list:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM sso_configs ORDER BY created_at") as cur:
+                rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_sso_config(self, provider_name: str) -> Optional[dict]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM sso_configs WHERE provider_name = ?", (provider_name,)
+            ) as cur:
+                row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def upsert_sso_config(self, data: dict) -> dict:
+        import uuid as _uuid
+        now = _now_iso()
+        existing = await self.get_sso_config(data["provider_name"])
+        async with aiosqlite.connect(self._db_path) as db:
+            if existing:
+                await db.execute(
+                    """UPDATE sso_configs
+                       SET display_name=?, client_id=?, client_secret=?,
+                           discovery_url=?, enabled=?, default_role=?, updated_at=?
+                       WHERE provider_name=?""",
+                    (
+                        data.get("display_name", existing["display_name"]),
+                        data.get("client_id", existing["client_id"]),
+                        data.get("client_secret", existing["client_secret"]),
+                        data.get("discovery_url", existing["discovery_url"]),
+                        1 if data.get("enabled", True) else 0,
+                        data.get("default_role", existing.get("default_role", "editor")),
+                        now,
+                        data["provider_name"],
+                    ),
+                )
+            else:
+                cfg_id = str(_uuid.uuid4())
+                await db.execute(
+                    """INSERT INTO sso_configs
+                       (id, provider_name, display_name, client_id, client_secret,
+                        discovery_url, enabled, default_role, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        cfg_id,
+                        data["provider_name"],
+                        data.get("display_name", data["provider_name"].title()),
+                        data.get("client_id", ""),
+                        data.get("client_secret", ""),
+                        data.get("discovery_url", ""),
+                        1 if data.get("enabled", True) else 0,
+                        data.get("default_role", "editor"),
+                        now, now,
+                    ),
+                )
+            await db.commit()
+        return await self.get_sso_config(data["provider_name"])
+
+    async def delete_sso_config(self, provider_name: str) -> bool:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute("DELETE FROM sso_configs WHERE provider_name = ?", (provider_name,))
+            await db.commit()
+        return True
+
+    async def find_or_create_sso_user(
+        self, provider_name: str, sso_sub: str, email: str, name: str, default_role: str = "editor"
+    ) -> dict:
+        """Find existing SSO user by provider+sub, or create a new one from IdP claims."""
+        import uuid as _uuid
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            # Try match by sso_provider + sso_sub
+            async with db.execute(
+                "SELECT * FROM users WHERE sso_provider = ? AND sso_sub = ?",
+                (provider_name, sso_sub),
+            ) as cur:
+                row = await cur.fetchone()
+            if row:
+                return dict(row)
+            # Try match by email (may have been manually created)
+            async with db.execute(
+                "SELECT * FROM users WHERE username = ?", (email,)
+            ) as cur:
+                row = await cur.fetchone()
+            if row:
+                # Link SSO to existing account
+                await db.execute(
+                    "UPDATE users SET sso_provider=?, sso_sub=? WHERE id=?",
+                    (provider_name, sso_sub, row["id"]),
+                )
+                await db.commit()
+                return {**dict(row), "sso_provider": provider_name, "sso_sub": sso_sub}
+            # Create new user
+            now = _now_iso()
+            user_id = str(_uuid.uuid4())
+            is_admin = 0
+            # Check if this is the very first user — make them admin
+            async with db.execute("SELECT COUNT(*) as n FROM users") as cur:
+                count_row = await cur.fetchone()
+            if count_row and count_row["n"] == 0:
+                is_admin = 1
+                default_role = "admin"
+            await db.execute(
+                """INSERT INTO users (id, username, password_hash, is_admin, role, sso_provider, sso_sub, created_at)
+                   VALUES (?, ?, '', ?, ?, ?, ?, ?)""",
+                (user_id, email, is_admin, default_role, provider_name, sso_sub, now),
+            )
+            await db.commit()
+        return {
+            "id": user_id, "username": email, "is_admin": is_admin,
+            "role": default_role, "sso_provider": provider_name, "sso_sub": sso_sub,
+        }
 
 
 store = PipelineStore()

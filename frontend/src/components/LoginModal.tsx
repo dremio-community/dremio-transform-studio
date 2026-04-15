@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { Layers, AlertCircle, Loader2 } from 'lucide-react'
-import { login, setToken } from '../api/client'
+import { useState, useEffect } from 'react'
+import { Layers, AlertCircle, Loader2, KeyRound } from 'lucide-react'
+import { login, setToken, fetchSsoProviders, type SsoProvider } from '../api/client'
 
 interface LoginModalProps {
   onLogin: (user: { id: string; username: string; is_admin: boolean }) => void
@@ -11,6 +11,13 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [ssoProviders, setSsoProviders] = useState<SsoProvider[]>([])
+
+  useEffect(() => {
+    fetchSsoProviders()
+      .then(setSsoProviders)
+      .catch(() => {})
+  }, [])
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault()
@@ -32,6 +39,11 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
     }
   }
 
+  const handleSsoLogin = (providerName: string) => {
+    // Redirect browser to SSO auth URL; callback will redirect back with sso_token
+    window.location.href = `/api/auth/sso/${providerName}/login`
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950">
       <div className="w-full max-w-sm mx-4">
@@ -43,6 +55,29 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
           <h1 className="text-xl font-bold text-white tracking-tight">Transform Studio</h1>
           <p className="text-surface-400 text-sm mt-1">for Dremio</p>
         </div>
+
+        {/* SSO Buttons */}
+        {ssoProviders.length > 0 && (
+          <div className="mb-4 space-y-2">
+            {ssoProviders.map((p) => (
+              <button
+                key={p.provider_name}
+                onClick={() => handleSsoLogin(p.provider_name)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-navy-800 hover:bg-navy-700 border border-navy-700 text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                <KeyRound size={14} className="text-dblue-400" />
+                Sign in with {p.display_name}
+              </button>
+            ))}
+
+            {/* Divider */}
+            <div className="relative flex items-center py-2">
+              <div className="flex-grow border-t border-navy-700" />
+              <span className="mx-3 text-xs text-surface-500">or</span>
+              <div className="flex-grow border-t border-navy-700" />
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="bg-navy-900 rounded-xl border border-navy-700 shadow-2xl overflow-hidden">

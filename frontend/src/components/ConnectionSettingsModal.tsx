@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, CheckCircle, XCircle, Loader2, Wifi, Bell, HardDrive, Download, Upload, Shield, Users, Lock, Unlock } from 'lucide-react'
+import { X, CheckCircle, XCircle, Loader2, Wifi, Bell, HardDrive, Download, Upload, Shield, Users, Lock, Unlock, KeyRound, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import clsx from 'clsx'
 import {
   fetchConnectionSettings,
@@ -15,9 +15,13 @@ import {
   fetchAuthSettings,
   updateAuthSettings,
   fetchUsers,
+  fetchSsoConfigs,
+  upsertSsoConfig,
+  deleteSsoConfig,
   type ConnectionSettings,
   type NotificationSettings,
   type StorageSettings,
+  type SsoConfig,
 } from '../api/client'
 
 interface Props {
@@ -25,7 +29,7 @@ interface Props {
   onSaved?: () => void
 }
 
-type ModalTab = 'connection' | 'notifications' | 'storage' | 'security'
+type ModalTab = 'connection' | 'notifications' | 'storage' | 'security' | 'sso'
 
 const CLOUD_HOSTS = [
   { label: 'Dremio Cloud (US)', value: 'api.dremio.cloud' },
@@ -90,6 +94,23 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
   const [authError, setAuthError] = useState<string | null>(null)
   const [userCount, setUserCount] = useState<number | null>(null)
 
+  // SSO tab state
+  const [ssoConfigs, setSsoConfigs] = useState<SsoConfig[]>([])
+  const [ssoLoading, setSsoLoading] = useState(false)
+  const [ssoSaving, setSsoSaving] = useState(false)
+  const [ssoError, setSsoError] = useState<string | null>(null)
+  const [ssoForm, setSsoForm] = useState<Partial<SsoConfig> & { client_secret?: string }>({
+    provider_name: 'okta',
+    display_name: '',
+    client_id: '',
+    client_secret: '',
+    discovery_url: '',
+    default_role: 'editor',
+    enabled: true,
+  })
+  const [ssoShowForm, setSsoShowForm] = useState(false)
+  const [ssoEditName, setSsoEditName] = useState<string | null>(null)
+
   useEffect(() => {
     fetchConnectionSettings()
       .then((s) => setForm({ ...s, password: '', pat: '' }))
@@ -115,6 +136,18 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
       .then((users) => setUserCount(users.length))
       .catch(() => setUserCount(null))
   }, [])
+
+  const loadSsoConfigs = () => {
+    setSsoLoading(true)
+    fetchSsoConfigs()
+      .then(setSsoConfigs)
+      .catch(() => {})
+      .finally(() => setSsoLoading(false))
+  }
+
+  useEffect(() => {
+    if (activeTab === 'sso') loadSsoConfigs()
+  }, [activeTab])
 
   const handleAuthToggle = async (enable: boolean) => {
     setAuthSaving(true)
@@ -269,6 +302,17 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
             )}
           >
             <Shield size={13} /> Security
+          </button>
+          <button
+            onClick={() => setActiveTab('sso')}
+            className={clsx(
+              'flex items-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+              activeTab === 'sso'
+                ? 'text-dblue-600 border-dblue-500'
+                : 'text-gray-400 border-transparent hover:text-gray-600'
+            )}
+          >
+            <KeyRound size={13} /> SSO
           </button>
         </div>
 
@@ -894,6 +938,251 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
               </div>
             </>
           )}
+        </div>
+        )}
+
+        {/* ── SSO Tab ── */}
+        {activeTab === 'sso' && (
+        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+          <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700">
+            <KeyRound size={13} className="mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold mb-0.5">Single Sign-On (OIDC)</p>
+              <p>Connect Okta, Azure AD, Google Workspace, or any OIDC-compatible identity provider. Users will see "Sign in with …" buttons on the login screen.</p>
+            </div>
+          </div>
+
+          {/* Existing providers */}
+          {ssoLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 size={16} className="animate-spin text-gray-400" />
+            </div>
+          ) : ssoConfigs.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Configured Providers</p>
+              {ssoConfigs.map((cfg) => (
+                <div key={cfg.provider_name} className="flex items-center justify-between px-3 py-2.5 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex items-center gap-2.5">
+                    <span className={clsx('w-2 h-2 rounded-full shrink-0', cfg.enabled ? 'bg-emerald-500' : 'bg-gray-300')} />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{cfg.display_name}</p>
+                      <p className="text-xs text-gray-400">{cfg.provider_name} · default role: {cfg.default_role}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setSsoForm({ ...cfg, client_secret: '' })
+                        setSsoEditName(cfg.provider_name)
+                        setSsoShowForm(true)
+                      }}
+                      className="text-xs text-dblue-600 hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`Remove ${cfg.display_name}?`)) return
+                        await deleteSsoConfig(cfg.provider_name).catch(() => {})
+                        loadSsoConfigs()
+                      }}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 text-center py-4">No SSO providers configured yet.</p>
+          )}
+
+          {/* Add / Edit form */}
+          <div>
+            <button
+              onClick={() => {
+                if (ssoShowForm && !ssoEditName) { setSsoShowForm(false); return }
+                setSsoForm({ provider_name: 'okta', display_name: '', client_id: '', client_secret: '', discovery_url: '', default_role: 'editor', enabled: true })
+                setSsoEditName(null)
+                setSsoShowForm(true)
+              }}
+              className="flex items-center gap-1.5 text-xs font-medium text-dblue-600 hover:text-dblue-700"
+            >
+              {ssoShowForm && !ssoEditName ? <ChevronUp size={13} /> : <Plus size={13} />}
+              {ssoShowForm && !ssoEditName ? 'Cancel' : 'Add Provider'}
+            </button>
+
+            {ssoShowForm && (
+              <div className="mt-3 space-y-3 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <p className="text-xs font-semibold text-gray-700">{ssoEditName ? `Edit — ${ssoEditName}` : 'New Provider'}</p>
+
+                {/* Provider type */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Provider Type</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      { value: 'okta', label: 'Okta', hint: 'https://{domain}/.well-known/openid-configuration' },
+                      { value: 'azure', label: 'Azure AD', hint: 'https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration' },
+                      { value: 'google', label: 'Google', hint: 'https://accounts.google.com/.well-known/openid-configuration' },
+                      { value: 'custom', label: 'Custom', hint: '' },
+                    ].map(({ value, label, hint }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setSsoForm(f => ({
+                          ...f,
+                          provider_name: value,
+                          display_name: f.display_name || label,
+                          discovery_url: hint || f.discovery_url || '',
+                        }))}
+                        className={clsx(
+                          'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+                          ssoForm.provider_name === value
+                            ? 'bg-dblue-500 text-white border-dblue-500'
+                            : 'border-gray-200 text-gray-600 hover:border-dblue-400'
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Display name */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Display Name <span className="text-red-400">*</span></label>
+                  <input
+                    value={ssoForm.display_name ?? ''}
+                    onChange={e => setSsoForm(f => ({ ...f, display_name: e.target.value }))}
+                    placeholder="e.g. Okta, Company SSO"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500"
+                  />
+                </div>
+
+                {/* Client ID + Secret */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">Client ID <span className="text-red-400">*</span></label>
+                    <input
+                      value={ssoForm.client_id ?? ''}
+                      onChange={e => setSsoForm(f => ({ ...f, client_id: e.target.value }))}
+                      placeholder="0oabc123..."
+                      className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      Client Secret {ssoEditName && <span className="font-normal text-gray-400">(leave blank to keep)</span>}
+                    </label>
+                    <input
+                      type="password"
+                      value={ssoForm.client_secret ?? ''}
+                      onChange={e => setSsoForm(f => ({ ...f, client_secret: e.target.value }))}
+                      placeholder="••••••••"
+                      className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Discovery URL */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">OIDC Discovery URL <span className="text-red-400">*</span></label>
+                  <input
+                    value={ssoForm.discovery_url ?? ''}
+                    onChange={e => setSsoForm(f => ({ ...f, discovery_url: e.target.value }))}
+                    placeholder="https://…/.well-known/openid-configuration"
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500 font-mono text-xs"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-0.5">
+                    Okta: <code>https://&#123;domain&#125;/oauth2/default/.well-known/openid-configuration</code>
+                  </p>
+                </div>
+
+                {/* Default role */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Default Role for New SSO Users</label>
+                  <select
+                    value={ssoForm.default_role ?? 'editor'}
+                    onChange={e => setSsoForm(f => ({ ...f, default_role: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500 bg-white"
+                  >
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Viewer</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+
+                {/* Enabled toggle */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-600">Enable this provider</span>
+                  <button
+                    type="button"
+                    onClick={() => setSsoForm(f => ({ ...f, enabled: !f.enabled }))}
+                    className={clsx(
+                      'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+                      ssoForm.enabled ? 'bg-dblue-500' : 'bg-gray-300'
+                    )}
+                  >
+                    <span className={clsx(
+                      'inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform',
+                      ssoForm.enabled ? 'translate-x-4.5' : 'translate-x-0.5'
+                    )} />
+                  </button>
+                </div>
+
+                {ssoError && (
+                  <p className="text-xs text-red-600 bg-red-50 rounded px-3 py-2">{ssoError}</p>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    onClick={() => { setSsoShowForm(false); setSsoEditName(null); setSsoError(null) }}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={ssoSaving || !ssoForm.display_name?.trim() || !ssoForm.client_id?.trim() || !ssoForm.discovery_url?.trim()}
+                    onClick={async () => {
+                      setSsoSaving(true)
+                      setSsoError(null)
+                      try {
+                        await upsertSsoConfig({
+                          provider_name: ssoForm.provider_name ?? 'custom',
+                          display_name: ssoForm.display_name ?? '',
+                          client_id: ssoForm.client_id ?? '',
+                          client_secret: ssoForm.client_secret,
+                          discovery_url: ssoForm.discovery_url ?? '',
+                          default_role: ssoForm.default_role ?? 'editor',
+                          enabled: ssoForm.enabled ?? true,
+                        })
+                        setSsoShowForm(false)
+                        setSsoEditName(null)
+                        loadSsoConfigs()
+                      } catch (e: unknown) {
+                        setSsoError(e instanceof Error ? e.message : 'Failed to save SSO config')
+                      } finally {
+                        setSsoSaving(false)
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold bg-dblue-500 text-white rounded hover:bg-dblue-600 transition-colors disabled:opacity-50"
+                  >
+                    {ssoSaving ? <Loader2 size={12} className="animate-spin" /> : null}
+                    {ssoEditName ? 'Save Changes' : 'Add Provider'}
+                  </button>
+                </div>
+
+                {/* Redirect URI hint */}
+                <div className="border-t border-gray-200 pt-3">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Redirect URI to configure in your IdP</p>
+                  <code className="block text-[11px] text-gray-600 bg-white border border-gray-200 rounded px-2 py-1.5 break-all font-mono">
+                    {window.location.origin}/api/auth/sso/{ssoForm.provider_name ?? 'provider'}/callback
+                  </code>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         )}
 

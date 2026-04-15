@@ -932,3 +932,72 @@ export async function globalSearch(q: string): Promise<SearchResult[]> {
   const res = await api.get('/api/search', { params: { q } })
   return res.data
 }
+
+// ── Pipeline Templates ────────────────────────────────────────────────────────
+
+export interface PipelineTemplate {
+  id: string
+  name: string
+  description: string
+  category: string
+  icon: string
+  tags: string[]
+  source_hint: string
+  steps: any[]
+  output_mode: string
+}
+
+export async function fetchTemplates(): Promise<PipelineTemplate[]> {
+  const res = await api.get('/api/templates')
+  return res.data
+}
+
+export async function deployTemplate(
+  templateId: string,
+  sourceTable: string,
+  outputTable?: string,
+): Promise<Pipeline> {
+  const res = await api.post(`/api/templates/${templateId}/deploy`, {
+    source_table: sourceTable,
+    output_table: outputTable || null,
+  })
+  return res.data
+}
+
+// ── SSO ───────────────────────────────────────────────────────────────────────
+
+export interface SsoProvider {
+  provider_name: string
+  display_name: string
+  enabled: boolean
+  icon: string
+}
+
+export interface SsoConfig {
+  provider_name: string
+  display_name: string
+  client_id: string
+  client_secret: string
+  discovery_url: string
+  enabled: boolean
+  default_role: string
+}
+
+export async function fetchSsoProviders(): Promise<SsoProvider[]> {
+  const res = await api.get('/api/auth/sso/providers')
+  return res.data
+}
+
+export async function fetchSsoConfigs(): Promise<SsoConfig[]> {
+  const res = await api.get('/api/settings/sso')
+  return res.data
+}
+
+export async function upsertSsoConfig(data: Omit<SsoConfig, 'client_secret'> & { client_secret?: string }): Promise<SsoConfig> {
+  const res = await api.post('/api/settings/sso', data)
+  return res.data
+}
+
+export async function deleteSsoConfig(providerName: string): Promise<void> {
+  await api.delete(`/api/settings/sso/${providerName}`)
+}

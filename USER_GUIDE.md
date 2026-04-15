@@ -1,6 +1,6 @@
 # Dremio Transform Studio — User Guide
 
-**Version 1.8 | April 2026**
+**Version 1.9 | April 2026**
 
 ---
 
@@ -40,6 +40,18 @@ The interface has four main areas:
 
 ---
 
+## Global Search
+
+Press **⌘K** (Mac) or **Ctrl+K** (Windows/Linux) anywhere in the app to open the search palette. Type to search across:
+- Pipeline names and descriptions
+- Source and output table names
+- Transform step labels and notes
+- Step configuration values
+
+Click any result to jump directly to that pipeline.
+
+---
+
 ## Getting Started
 
 ### Step 1 — Open the App
@@ -74,6 +86,8 @@ If your administrator has enabled user authentication, you will see a login scre
 | **Viewer** | Read-only access — can view and preview pipelines but cannot save changes; must submit changes for review |
 
 Your role is shown under your username in the top-right user menu. Admins can change any user's role in **Settings → Users**.
+
+If your administrator has configured Single Sign-On (SSO), you will also see **"Sign in with [Provider]"** buttons above the username/password form. Click the appropriate button to authenticate with your corporate identity provider (Okta, Azure AD, Google Workspace, etc.). No password is required — you'll be redirected to your IdP and then back to Transform Studio automatically.
 
 > **Note:** Authentication is optional and disabled by default. If your instance doesn't show a login screen, no login is required and all users have full access.
 
@@ -157,9 +171,37 @@ Click the **🗑️ trash icon** on a step to remove it.
 ### Step Labels
 Each step shows a summary line describing what it does (e.g. "Filter customer_id equals 123"). This is auto-generated from the configuration.
 
+### Step Notes
+Each step has an optional **Notes** field — a free-text annotation you can use to document what the step does, link to a ticket, or explain why it exists. Notes appear on the step card in the pipeline builder (in amber text) and are included in global search results.
+
+To add a note: select a step → in the CONFIG panel, scroll to the **Notes** field → type your annotation.
+
 ---
 
-## Transform Library — All 52 Transforms
+## Pipeline Templates
+
+The **Templates** button (📐 icon) in the toolbar opens the template library — a collection of 8 pre-built pipelines for common data patterns.
+
+### Template Categories
+- **Analytics** — Daily Sales Summary, Customer 360, Top Products by Revenue, Revenue by Region
+- **Marketing** — Churn Candidates
+- **Product** — User Activity Funnel, Monthly Cohort Retention
+- **Operations** — Data Freshness Audit
+
+### Deploying a Template
+
+1. Click the **📐 Templates** button in the toolbar
+2. Browse by category (left sidebar) or view all
+3. Click any template card to see a preview of the steps it includes
+4. Enter your **Source table** — the fully qualified Dremio table this pipeline will read from (e.g. `my_space.sales_data`)
+5. Optionally enter an **Output table** — you can also set this later
+6. Click **Deploy Template** — the pipeline is created and opens immediately
+
+Templates are fully editable starting points. Every step, config value, and name can be changed after deployment. The template is copied — the original is not affected.
+
+---
+
+## Transform Library — All 53 Transforms
 
 ### 🧹 Clean (14 transforms)
 Transforms for fixing data quality issues.
@@ -181,7 +223,7 @@ Transforms for fixing data quality issues.
 | **Rename Columns** | Rename one or more columns |
 | **Select Columns** | Keep only the columns you specify |
 
-### 🔀 Reshape (9 transforms)
+### 🔀 Reshape (10 transforms)
 Transforms for changing the structure of your data.
 
 | Transform | What it does |
@@ -195,6 +237,7 @@ Transforms for changing the structure of your data.
 | **Reorder Columns** | Specify the column order in the output |
 | **Unpivot** | Convert wide format to long format (multiple value columns → key/value pairs) |
 | **Flatten JSON** | Extract fields from a JSON column into separate columns |
+| **Pivot** | Rotate row values into columns using conditional aggregation (SUM/COUNT/AVG of each distinct value in a column becomes a separate output column) |
 
 ### 📅 DateTime (5 transforms)
 Transforms for working with dates and times.
@@ -335,6 +378,16 @@ Schedules can be **paused and resumed** without deleting them. The last run time
 
 If email or Slack notifications are configured (in **Settings → Notifications**), the app will send an alert whenever a scheduled pipeline run fails. Configure SMTP settings for email alerts or paste a Slack incoming webhook URL for Slack alerts.
 
+### Retry on Failure
+
+Each schedule can be configured with a **retry count** (0–5 retries). When a scheduled run fails:
+- If retries are configured, Transform Studio waits and retries with **exponential backoff**: 1 minute after the first failure, 2 minutes after the second, 4 minutes after the third, and so on
+- The failure alert is sent only after all retries are exhausted
+- The pipeline list shows **"Retrying"** status during retry attempts, with the next retry time displayed
+- Set retries to 0 (default) to send an alert immediately on the first failure
+
+Configure the retry count using the slider in the **Schedule** modal.
+
 ---
 
 ## Parameterized Pipelines
@@ -345,7 +398,15 @@ Pipelines can accept **runtime parameters** — named values that are substitute
 
 1. Click the **Parameters** tab in the right panel (the `{…}` icon)
 2. Click **+ Add Parameter**
-3. Give the parameter a name (e.g. `start_date`), choose its type (string / number / date), and optionally set a default value and description
+3. Give the parameter a name (e.g. `start_date`), choose its type, and optionally set a default value and description
+
+**Parameter types:**
+- **Text (string)** — free-text input
+- **Number** — numeric input
+- **Date** — calendar date picker
+- **Boolean** — on/off toggle
+- **Select (dropdown)** — choose one value from a predefined list
+- **Multi-select** — choose multiple values from a predefined list
 
 ### Using Parameters in Steps
 
@@ -493,6 +554,10 @@ Admins can enable or disable authentication from within the UI — no Docker res
 2. Toggle the auth switch on or off
 3. Enabling auth immediately requires all users to log in; disabling auth removes the login requirement for everyone
 4. The Security tab also displays role descriptions (Admin, Editor, Viewer) and sharing guidance for reference
+
+### SSO (Admin only, when auth is enabled)
+
+**SSO tab** — Configure Single Sign-On providers (Okta, Azure AD, Google Workspace, or any OIDC provider). Add a provider by entering the Client ID, Client Secret, and OIDC Discovery URL from your identity provider. The redirect URI to register in your IdP is shown automatically. Requires authentication to be enabled (Security tab).
 
 ---
 
@@ -1191,7 +1256,7 @@ The notification includes the monitor name, the table scanned, the current DQ sc
 
 ## dbt Compatibility
 
-Transform Studio v1.8 adds full bidirectional dbt compatibility — export your work to dbt or import an existing dbt project, without installing dbt.
+Transform Studio v1.9 adds full bidirectional dbt compatibility — export your work to dbt or import an existing dbt project, without installing dbt.
 
 ### Export as dbt Project
 

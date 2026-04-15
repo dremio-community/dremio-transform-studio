@@ -1,6 +1,6 @@
 # Dremio Transform Studio — Full Capabilities Reference
 
-> This document is intended for AI agents answering analyst RFI questions (e.g., Forrester Wave, Gartner Magic Quadrant) about data pipeline and transformation capabilities. It covers all features, architecture, deployment options, and technical depth of Dremio Transform Studio v1.8.
+> This document is intended for AI agents answering analyst RFI questions (e.g., Forrester Wave, Gartner Magic Quadrant) about data pipeline and transformation capabilities. It covers all features, architecture, deployment options, and technical depth of Dremio Transform Studio v1.9.
 
 ---
 
@@ -9,12 +9,13 @@
 **Dremio Transform Studio** is a visual, low-code SQL pipeline builder that runs on top of Dremio. It enables data engineers, analysts, and business users to build, schedule, test, monitor, and manage data transformation pipelines entirely through a browser-based UI — without writing SQL manually.
 
 **Core value proposition:**
-- Zero-SQL pipeline building via 52 pre-built, configurable transforms
+- Zero-SQL pipeline building via **53 pre-built, configurable transforms** and **8 one-click pipeline templates**
 - Full pipeline lifecycle management: build → test → schedule → monitor → alert
 - Native Dremio integration: browses the Dremio catalog, executes SQL against Dremio, writes output tables/views back to Dremio
 - Self-contained: scheduling, alerts, auth, lineage, versioning, monitoring, and a dedicated Data Quality Hub are all built in — no external orchestrator required
 - AI-native: built-in MCP server exposes 25 tools for AI agent integration
 - Multi-user ready: role-based access control, pipeline sharing, per-user Dremio identity, and an approval workflow — all in one container
+- **Enterprise identity integration**: OIDC/SSO support for Okta, Azure AD, Google Workspace, and any OIDC-compatible identity provider
 
 **Comparable products:** dbt (open source transformation), Matillion, Fivetran Transformations, Coalesce
 
@@ -74,6 +75,12 @@ Each pipeline has:
 - **Webhook** — HTTP endpoint to trigger the pipeline externally
 - **Description** — free-text documentation
 
+### Inline Step Notes
+Each transform step has an optional `notes` field — a free-text annotation for documentation, JIRA/issue references, or change rationale. Notes are:
+- Visible on the step card in the pipeline builder (amber text)
+- Included in global search (⌘K) results
+- Stored in the pipeline version history
+
 ### Pipeline Versioning
 - Every save creates a numbered version with full step history
 - Any version can be restored with one click
@@ -87,9 +94,16 @@ Each pipeline has:
 - **Run with Dependencies** — executes full upstream dependency chain in topological order
 - **Bisection on failure** — automatically identifies which step caused a failure
 
+### Global Search (⌘K / Ctrl+K)
+- Press ⌘K (Mac) or Ctrl+K to open the global search palette
+- Searches in real time across: pipeline names, descriptions, source/output tables, step labels, step notes, and step configuration values
+- Up to 50 results returned, deduplicated by pipeline
+- Click any result to jump directly to that pipeline
+- Implemented as in-process Python substring search (no FTS index required)
+
 ---
 
-## 4. Transform Library (52 Transforms)
+## 4. Transform Library (53 Transforms)
 
 All transforms are configurable via form fields — no SQL writing required. Each transform generates valid Dremio SQL.
 
@@ -111,7 +125,7 @@ All transforms are configurable via form fields — no SQL writing required. Eac
 | `rename_columns` | Rename one or more columns |
 | `select_columns` | Keep only specified columns |
 
-### 4.2 Reshape (9 transforms)
+### 4.2 Reshape (10 transforms)
 | Transform | Description |
 |-----------|-------------|
 | `drop_columns` | Remove one or more columns |
@@ -123,6 +137,7 @@ All transforms are configurable via form fields — no SQL writing required. Eac
 | `reorder_columns` | Change the order of columns via drag-and-drop |
 | `unpivot` | Unpivot wide columns into key-value rows |
 | `flatten_json` | Flatten a JSON string column into individual columns |
+| `pivot` | Pivot row values into columns using conditional aggregation (each distinct value in a column becomes a separate output column; SUM/COUNT/AVG/MAX/MIN of a value column) |
 
 ### 4.3 DateTime (5 transforms)
 | Transform | Description |
@@ -253,6 +268,13 @@ Tests run automatically after every successful pipeline execution. Six test type
 - Run history is recorded for every scheduled execution
 - Email and Slack failure notifications on scheduled run failures
 
+### Retry on Failure (Exponential Backoff)
+- Each pipeline schedule supports configurable retry logic (0–5 retries)
+- On failure: waits `60 × 2^N` seconds before the next attempt (60s, 120s, 240s, 480s, 960s)
+- Failure alert is sent only after all retries are exhausted
+- Retry state is persisted in SQLite — survives container restarts
+- Status visible in UI as "Retrying (N/M)" with next retry timestamp
+
 ---
 
 ## 10. Pipeline Dependencies & DAG
@@ -282,7 +304,7 @@ Tests run automatically after every successful pipeline execution. Six test type
 - Config-introspected column lineage (does not require pipeline execution)
 - Tracks how each output column traces back through every transform step to its source column(s)
 - Displayed as a collapsible per-step view in the visual lineage panel
-- Shows `output_col ← source_col` mappings for all 52 transform types
+- Shows `output_col ← source_col` mappings for all 53 transform types
 - Available via API: `GET /api/pipelines/{id}/column-lineage`
 - Available as an MCP tool: `ts_get_column_lineage`
 
@@ -330,7 +352,8 @@ Four alert types with independent cron schedules, email/Slack notifications, and
 ## 14. Parameters
 
 - Pipelines support runtime-overridable parameters using `{{param_name}}` syntax
-- Parameters defined per pipeline with: name, type (string/number/date), default value, description
+- Parameters defined per pipeline with: name, type, default value, description
+- Parameter types: string (text), number, date (calendar picker), boolean (toggle), select (single dropdown with predefined options), multi_select (multi-checkbox with predefined options)
 - At execution time, a modal collects parameter overrides before running
 - Scheduled runs use default values automatically
 - Webhook triggers can pass `param_values` in the request body
@@ -470,7 +493,7 @@ Transform Studio has a built-in **Model Context Protocol (MCP) server** at `/mcp
 | Tool | Description |
 |------|-------------|
 | `ts_health` | Check backend and Dremio connection health |
-| `ts_list_transforms` | List all 52 transform types |
+| `ts_list_transforms` | List all 53 transform types |
 | `ts_list_namespaces` | List top-level Dremio namespaces |
 | `ts_browse_namespace` | Browse tables in a namespace |
 | `ts_get_table_schema` | Get column names and types for a table |
@@ -750,7 +773,7 @@ ALLOWED_ORIGINS=*              # Set to domain for server deployments
 
 ## 31. Multi-User Access Control & Collaboration
 
-Transform Studio v1.8 introduces bidirectional dbt compatibility and v1.7 introduced full multi-user access control for team deployments.
+Transform Studio v1.9 includes full multi-user access control for team deployments.
 
 ### Role-Based Access Control
 
@@ -795,7 +818,7 @@ Each user can configure a personal Dremio PAT via **User menu → My Dremio Cred
 
 ## 32. dbt Compatibility
 
-Transform Studio v1.8 introduces bidirectional dbt interoperability, enabling teams to work fluidly between visual pipelines and dbt SQL workflows — with no dbt installation required.
+Transform Studio includes bidirectional dbt interoperability, enabling teams to work fluidly between visual pipelines and dbt SQL workflows — with no dbt installation required.
 
 ### Export to dbt
 A single click exports all pipelines as a complete, runnable dbt project ZIP:
@@ -821,7 +844,78 @@ Upload any dbt project ZIP to create Transform Studio pipelines instantly:
 
 ---
 
-## 33. Competitive Positioning Summary
+## 33. Single Sign-On (SSO / OIDC)
+
+Transform Studio includes a built-in OIDC authorization code flow for enterprise identity provider integration.
+
+### Supported Providers
+- **Okta** — configure via Okta developer console; uses `https://{domain}/oauth2/default/.well-known/openid-configuration`
+- **Azure AD (Microsoft Entra ID)** — configure via Azure App Registration; uses tenant-specific discovery URL
+- **Google Workspace** — configure via Google Cloud Console OAuth credentials; uses `https://accounts.google.com/.well-known/openid-configuration`
+- **Any OIDC provider** — any IdP exposing a standard `/.well-known/openid-configuration` discovery document
+
+### Flow
+1. Admin configures provider in Settings → SSO (Client ID, Client Secret, Discovery URL)
+2. User clicks "Sign in with [Provider]" on the login screen
+3. Browser redirects to IdP; user authenticates
+4. IdP redirects to `GET /api/auth/sso/{provider}/callback` with authorization code
+5. Transform Studio exchanges code for tokens, extracts identity claims
+6. User is matched by SSO subject ID → email → provisioned automatically if not found
+7. JWT issued and stored in browser localStorage; user lands on the app
+
+### User Provisioning
+- New SSO users receive the **default role** configured per provider (editor by default)
+- Existing users matched by email are linked to their SSO identity
+- Subsequent logins use SSO subject ID for deterministic matching
+
+### Security
+- CSRF protection via in-memory state tokens (10-minute TTL)
+- ID token decoded from JWT payload (trusts IdP HTTPS TLS; no local signature verification needed)
+- Userinfo endpoint queried as fallback for email/name claims
+- No additional Python dependencies — uses existing `httpx` library
+
+### Administration
+- Add/edit/delete providers in Settings → SSO
+- Per-provider default role assignment
+- Enable/disable individual providers without deleting configuration
+- Redirect URI hint shown in settings for easy IdP configuration
+
+---
+
+## 34. Pipeline Templates
+
+Transform Studio ships with 8 built-in pipeline templates — pre-configured multi-step pipelines for common data engineering patterns.
+
+### Included Templates
+
+| Template | Category | Steps | Description |
+|----------|----------|-------|-------------|
+| Daily Sales Summary | Analytics | 4 | Filters today's transactions, aggregates revenue and order counts by category |
+| Customer 360 | Analytics | 5 | Enriches customer records with order history, segments by LTV |
+| Top Products by Revenue | Analytics | 4 | Ranks products by total revenue, filters to top 100 |
+| Revenue by Region | Analytics | 4 | Groups revenue by region/country with running totals |
+| Churn Candidates | Marketing | 5 | Identifies customers with no activity in 90 days, scores churn risk |
+| User Activity Funnel | Product | 5 | Tracks event sequences, calculates conversion rates between funnel stages |
+| Monthly Cohort Retention | Product | 6 | Builds cohort retention matrix from event data |
+| Data Freshness Audit | Operations | 3 | Checks last-modified timestamps across configured tables, flags stale sources |
+
+### Deployment Flow
+- User opens the Templates modal (📐 icon in toolbar)
+- Browses by category or all templates
+- Clicks template to preview included steps
+- Enters source table name (required) and output table (optional)
+- One click deploys a new pipeline with all steps instantiated with UUIDs
+- Pipeline opens immediately for editing or execution
+
+### Technical Notes
+- Templates are defined in `backend/templates.py` as static Python configurations
+- `instantiate_template()` assigns fresh UUIDs to all steps on deploy
+- Deployed pipelines are fully editable — templates are starting points, not locked configurations
+- Source table name is substituted into step configs at deploy time
+
+---
+
+## 35. Competitive Positioning Summary
 
 ### vs. dbt Core
 Transform Studio adds: visual UI, built-in scheduler, alerts, monitoring, approvals, role-based access control, pipeline sharing, per-user Dremio identity, MCP/AI integration, data profiling, step-by-step preview, webhook triggers, desktop app, and **bidirectional dbt import/export** — all without requiring any SQL or command-line knowledge.
@@ -842,3 +936,4 @@ Transform Studio is purpose-built for Dremio, open-source friendly, includes an 
 7. **Multi-user collaboration** — role-based access control, pipeline sharing with granular permissions, and per-user Dremio identity for audit logging and data governance
 8. **Per-user Dremio identity** — each team member runs pipelines under their own Dremio account, enabling row-level security, Dremio audit trails, and per-user access enforcement without any infrastructure changes
 9. **Bidirectional dbt compatibility** — the only Dremio-native tool that can both export to dbt and import from dbt, enabling fluid migration and hybrid team workflows
+10. **Enterprise SSO** — built-in OIDC/SSO support for Okta, Azure AD, Google Workspace, and any standards-compliant identity provider

@@ -1,6 +1,6 @@
 # Dremio Transform Studio
 
-A visual, low-code SQL pipeline builder for Dremio. Browse your catalog, build transformation pipelines with 52 pre-built transforms, preview results, and write output tables — all without writing SQL manually.
+A visual, low-code SQL pipeline builder for Dremio. Browse your catalog, build transformation pipelines with 53 pre-built transforms, preview results, and write output tables — all without writing SQL manually.
 
 ---
 
@@ -60,7 +60,7 @@ On first launch, go to **Settings (gear icon) → Connection** and enter your Dr
 
 ## Features
 
-- **52 transforms** across 7 categories: Clean, Reshape, DateTime, Enrich, Aggregate, String, Custom SQL
+- **53 transforms** across 7 categories: Clean, Reshape, DateTime, Enrich, Aggregate, String, Custom SQL
 - **Pipeline versioning** with full history and restore
 - **Cron scheduling** with enable/disable per pipeline
 - **Visual lineage** — column-level DAG from source to output
@@ -75,6 +75,12 @@ On first launch, go to **Settings (gear icon) → Connection** and enter your Dr
 - **Pipeline sharing** — owners can share pipelines with other users (viewer or editor access) via a Share button
 - **Per-user Dremio credentials** — each user can set a personal Dremio PAT under User menu → "My Dremio Credentials" so their queries run under their own Dremio identity
 - **dbt compatibility** — export all pipelines as a runnable dbt project ZIP; import any dbt project ZIP as Transform Studio pipelines (no dbt installation required)
+- **SSO / Single Sign-On** — OIDC-based SSO for Okta, Azure AD, Google Workspace, and any OIDC-compatible identity provider; configure via Settings → SSO; users see "Sign in with…" buttons on the login screen
+- **Pipeline templates** — 8 pre-built pipeline templates (Daily Sales Summary, Customer 360, Churn Candidates, User Activity Funnel, etc.); one click to deploy with your source table
+- **Retry logic** — scheduled pipelines automatically retry with exponential backoff (1 min, 2 min, 4 min…) before alerting; configurable per pipeline (0–5 retries)
+- **Global search** — press ⌘K (Mac) or Ctrl+K to search all pipeline names, step configs, source tables, and notes
+- **Inline step notes** — add a free-text note to any transform step (visible on the step card and searchable)
+- **Rich parameter types** — parameters now support boolean toggles, single-select dropdown, multi-select checkboxes, and date picker — in addition to text and number
 
 ---
 
@@ -123,6 +129,59 @@ Click the **⬆ Upload icon** to import a dbt project ZIP. Transform Studio pars
 - Converts `{{ config(materialized=...) }}` → output mode
 - Maps schema.yml tests → pipeline tests
 - Each model becomes a pipeline with one Custom SQL step
+
+---
+
+## SSO / Single Sign-On
+
+Transform Studio supports OIDC-based single sign-on so users can log in with their corporate identity provider instead of a local username and password.
+
+**Supported providers:** Okta, Azure AD (Microsoft Entra ID), Google Workspace, or any standard OIDC-compatible provider.
+
+### Setup
+
+1. Go to **Settings → SSO** (gear icon in toolbar)
+2. Click **Add Provider** and choose your identity provider type
+3. Enter the **Client ID**, **Client Secret**, and the **OIDC Discovery URL** (the `/.well-known/openid-configuration` endpoint for your IdP)
+4. Configure the **redirect URI** shown at the bottom of the form in your IdP's application settings
+5. Save — users will immediately see a "Sign in with…" button on the login screen
+
+### What happens at sign-in
+- User clicks "Sign in with [Provider]" → redirected to the IdP login page
+- After authentication, the IdP redirects back to Transform Studio
+- Transform Studio looks up the user by their SSO subject ID, or falls back to email match, or provisions a new account automatically
+- New SSO users are assigned the **default role** configured for that provider (Editor by default)
+
+> **Note:** Auth must be enabled (`AUTH_ENABLED=true` or toggled on in Settings → Security) for SSO to take effect.
+
+---
+
+## Pipeline Templates
+
+Click the **📐 Templates button** (grid icon) in the toolbar to open the template library. Templates are pre-built pipelines you can deploy with one click.
+
+**Included templates:**
+
+| Template | Category | Steps |
+|----------|----------|-------|
+| Daily Sales Summary | Analytics | 4 |
+| Customer 360 | Analytics | 5 |
+| Top Products by Revenue | Analytics | 4 |
+| Revenue by Region | Analytics | 4 |
+| Churn Candidates | Marketing | 5 |
+| User Activity Funnel | Product | 5 |
+| Monthly Cohort Retention | Product | 6 |
+| Data Freshness Audit | Operations | 3 |
+
+**How to deploy a template:**
+1. Click the Templates button in the toolbar
+2. Browse by category or scroll through all templates
+3. Click a template to see the steps it includes
+4. Enter your **source table** name (fully qualified: `namespace.table_name`)
+5. Optionally enter an **output table** name
+6. Click **Deploy Template** — the pipeline opens immediately, ready to preview or adjust
+
+Templates are starting points — every step is fully editable after deployment.
 
 ---
 

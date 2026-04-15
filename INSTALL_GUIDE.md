@@ -1,6 +1,6 @@
 # Dremio Transform Studio — Installation Guide
 
-**Version 1.8 | April 2026**
+**Version 1.9 | April 2026**
 
 ---
 
@@ -407,6 +407,33 @@ Add to your docker-compose or docker run command:
 - Set `ALLOWED_ORIGINS` to your domain (e.g. `https://transforms.mycompany.com`) when auth is enabled
 - These can be set as environment variables or toggled from the Security tab
 
+### Configuring SSO (Single Sign-On)
+
+Transform Studio supports OIDC-based SSO. When configured, users see "Sign in with [Provider]" buttons on the login screen instead of (or alongside) the username/password form.
+
+**Requirements:**
+- `AUTH_ENABLED=true` must be set (SSO requires authentication to be enabled)
+- Your identity provider must support OIDC (OpenID Connect)
+
+**Setup steps:**
+1. Open Transform Studio and log in as admin
+2. Go to **Settings → SSO** (gear icon → SSO tab)
+3. Click **Add Provider**, choose your provider type (Okta / Azure AD / Google / Custom)
+4. Enter the Client ID, Client Secret, and OIDC Discovery URL from your IdP
+5. Copy the **Redirect URI** shown in the form and register it in your IdP application settings
+6. Click **Add Provider** — SSO is immediately active
+
+**Redirect URI format:**
+```
+https://your-domain.com/api/auth/sso/{provider_name}/callback
+```
+For local testing: `http://localhost:8000/api/auth/sso/{provider_name}/callback`
+
+**Common discovery URLs:**
+- Okta: `https://{your-domain}.okta.com/oauth2/default/.well-known/openid-configuration`
+- Azure AD: `https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration`
+- Google: `https://accounts.google.com/.well-known/openid-configuration`
+
 ---
 
 ## Environment Variables Reference
@@ -488,6 +515,18 @@ A new fourth alert type monitors when source data goes stale. Checks the maximum
 
 ### Step Bisection on Failure
 When a pipeline execute fails, Transform Studio automatically runs a bisection search to identify which specific step caused the failure. The execute result message now includes "Failed at step N: [step name]", pinpointing the problem without manual trial and error.
+
+---
+
+## What's New in v1.9
+
+- **SSO / Single Sign-On** — OIDC integration for Okta, Azure AD, Google Workspace, and any standard OIDC provider. Configure in Settings → SSO. Users see "Sign in with…" buttons on the login screen.
+- **Pipeline Templates** — 8 pre-built pipeline templates accessible from the toolbar (📐 icon). Deploy with one click by specifying a source table.
+- **Pivot Transform** — True row-to-column pivot using conditional aggregation SQL. Added to the Reshape category (53 transforms total).
+- **Global Search** — Press ⌘K (Mac) or Ctrl+K to search across all pipeline names, step configurations, source tables, and step notes.
+- **Inline Step Notes** — Add a free-text note to any transform step for documentation. Notes are visible on the step card and included in global search.
+- **Rich Parameter Types** — Pipeline parameters now support boolean toggles, single-select dropdowns, multi-select checkboxes, and date pickers.
+- **Scheduled Retry Logic** — Scheduled pipelines can automatically retry on failure with exponential backoff (configurable 0–5 retries) before sending an alert.
 
 ---
 

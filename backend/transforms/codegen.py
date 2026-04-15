@@ -239,6 +239,22 @@ def _column_map_for_step(step_type: str, config: dict, input_cols: list) -> dict
         result[val_col] = [c for c in val_cols if c in col_set] or ["*"]
         return result
 
+    # ── Pivot ─────────────────────────────────────────────────────────────────
+    if step_type == "pivot":
+        import re as _re
+        group_cols = config.get("group_columns") or []
+        pivot_col = config.get("pivot_column", "")
+        value_col = config.get("value_column", "")
+        pivot_values_raw = config.get("pivot_values", "") or ""
+        prefix = config.get("output_prefix", "") or ""
+        agg_func = config.get("agg_function", "SUM") or "SUM"
+        result = {c: [c] for c in group_cols if c in col_set}
+        for val in [v.strip() for v in pivot_values_raw.split(",") if v.strip()]:
+            col_name = prefix + _re.sub(r"[^a-zA-Z0-9_]", "_", val).strip("_")
+            src = value_col if value_col and value_col in col_set else (pivot_col if pivot_col in col_set else "*")
+            result[col_name] = [src, pivot_col] if pivot_col in col_set else [src]
+        return result
+
     # ── Group aggregate ───────────────────────────────────────────────────────
     if step_type == "group_aggregate":
         group_by = config.get("group_by") or []

@@ -138,6 +138,51 @@ UNPIVOT = TransformType(
     ],
 )
 
+PIVOT = TransformType(
+    id="pivot",
+    name="Pivot (Wide)",
+    category="reshape",
+    description="Turn unique values in a column into new column headers, aggregating a value column for each. Great for turning row-per-metric data into a single wide row.",
+    icon="↔️",
+    params=[
+        TransformParam(
+            name="group_columns",
+            type="columns",
+            label="Group-by columns (row anchors)",
+        ),
+        TransformParam(
+            name="pivot_column",
+            type="column",
+            label="Pivot column (values become headers)",
+        ),
+        TransformParam(
+            name="pivot_values",
+            type="text",
+            label="Values to pivot (comma-separated)",
+            placeholder="e.g. Jan, Feb, Mar  or  mobile, desktop, tablet",
+        ),
+        TransformParam(
+            name="value_column",
+            type="column",
+            label="Value column to aggregate",
+        ),
+        TransformParam(
+            name="agg_function",
+            type="select",
+            label="Aggregation function",
+            options=["SUM", "COUNT", "AVG", "MAX", "MIN"],
+            default="SUM",
+        ),
+        TransformParam(
+            name="output_prefix",
+            type="text",
+            label="Column prefix (optional)",
+            required=False,
+            placeholder="e.g. rev_  →  rev_Jan, rev_Feb",
+        ),
+    ],
+)
+
 FLATTEN_JSON = TransformType(
     id="flatten_json",
     name="Extract JSON Fields",
@@ -230,6 +275,7 @@ ALL_TRANSFORMS = [
     ADD_COLUMN,
     REORDER_COLUMNS,
     UNPIVOT,
+    PIVOT,
     FLATTEN_JSON,
     JOIN,
     UNION,
@@ -398,6 +444,50 @@ def codegen_unpivot(
     return sql, new_cols
 
 
+def codegen_pivot(
+    config: dict, input_alias: str, columns: list[str] | None = None
+) -> tuple[str, list[str] | None]:
+    group_cols = config.get("group_columns", [])
+    pivot_col = config.get("pivot_column", "")
+    value_col = config.get("value_column", "")
+    agg_func = config.get("agg_function", "SUM") or "SUM"
+    pivot_values_raw = config.get("pivot_values", "")
+    prefix = config.get("output_prefix", "") or ""
+
+    if not group_cols or not pivot_col or not value_col or not pivot_values_raw:
+        return f"SELECT * FROM {input_alias}", None
+
+    pivot_values = [v.strip() for v in pivot_values_raw.split(",") if v.strip()]
+    if not pivot_values:
+        return f"SELECT * FROM {input_alias}", None
+
+    # Build a safe column name from each pivot value
+    def _safe_col(val: str) -> str:
+        import re as _re
+        safe = _re.sub(r"[^a-zA-Z0-9_]", "_", val).strip("_")
+        return f"{prefix}{safe}" if prefix else safe
+
+    group_select = ", ".join(group_cols)
+    agg_parts = []
+    new_pivot_cols = []
+    for val in pivot_values:
+        col_name = _safe_col(val)
+        escaped = val.replace("'", "''")
+        agg_parts.append(
+            f"{agg_func}(CASE WHEN {pivot_col} = '{escaped}' THEN {value_col} END) AS {col_name}"
+        )
+        new_pivot_cols.append(col_name)
+
+    agg_select = ", ".join(agg_parts)
+    sql = (
+        f"SELECT {group_select}, {agg_select}\n"
+        f"FROM {input_alias}\n"
+        f"GROUP BY {group_select}"
+    )
+    new_cols = list(group_cols) + new_pivot_cols
+    return sql, new_cols
+
+
 def codegen_flatten_json(
     config: dict, input_alias: str, columns: list[str] | None = None
 ) -> tuple[str, list[str] | None]:
@@ -498,6 +588,7 @@ CODEGEN_MAP: dict = {
     "add_column": codegen_add_column,
     "reorder_columns": codegen_reorder_columns,
     "unpivot": codegen_unpivot,
+    "pivot": codegen_pivot,
     "flatten_json": codegen_flatten_json,
     "join": codegen_join,
     "union": codegen_union,

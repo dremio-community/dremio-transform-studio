@@ -918,3 +918,17 @@ export async function confirmDbtImport(
   const res = await api.post('/api/dbt/import/confirm', { models, name_prefix: namePrefix ?? null })
   return res.data
 }
+
+// ── Global Search ─────────────────────────────────────────────────────────────
+
+export interface SearchResult {
+  pipeline_id: string
+  pipeline_name: string
+  match_field: 'name' | 'description' | 'source_table' | 'output_table' | 'step_label' | 'step_notes' | 'step_config'
+  match_context: string
+}
+
+export async function globalSearch(q: string): Promise<SearchResult[]> {
+  const res = await api.get('/api/search', { params: { q } })
+  return res.data
+}

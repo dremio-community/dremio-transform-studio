@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useState } from 'react'
-import { ChevronUp, ChevronDown, Trash2, Plus, GripVertical } from 'lucide-react'
+import { ChevronUp, ChevronDown, Trash2, Plus, GripVertical, MessageSquare } from 'lucide-react'
 import clsx from 'clsx'
 import type { TransformStep } from '../types'
 import { fetchTransforms } from '../api/client'
@@ -214,6 +214,12 @@ function StepCard({
         </div>
         {summary && (
           <p className="text-xs text-gray-500 truncate">{summary}</p>
+        )}
+        {step.notes && (
+          <p className="flex items-center gap-1 text-xs text-amber-600 truncate mt-0.5">
+            <MessageSquare size={10} className="shrink-0" />
+            <span className="truncate">{step.notes}</span>
+          </p>
         )}
       </div>
 

@@ -7,13 +7,21 @@ interface ParametersPanelProps {
   onChange: (params: PipelineParameter[]) => void
 }
 
-const PARAM_TYPES: PipelineParameter['type'][] = ['string', 'number', 'date']
+const PARAM_TYPES: { value: PipelineParameter['type']; label: string }[] = [
+  { value: 'string',       label: 'Text' },
+  { value: 'number',       label: 'Number' },
+  { value: 'date',         label: 'Date' },
+  { value: 'boolean',      label: 'Boolean (on/off)' },
+  { value: 'select',       label: 'Dropdown (single)' },
+  { value: 'multi_select', label: 'Multi-select' },
+]
 
 const emptyParam = (): PipelineParameter => ({
   name: '',
   type: 'string',
   default_value: '',
   description: '',
+  options: undefined,
 })
 
 export default function ParametersPanel({ parameters, onChange }: ParametersPanelProps) {
@@ -87,12 +95,19 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <code className="text-xs font-mono font-semibold text-dblue-600">{param.name}</code>
-                  <span className="text-xs text-surface-400 bg-surface-200 px-1.5 py-0.5 rounded">{param.type}</span>
+                  <span className="text-xs text-surface-400 bg-surface-200 px-1.5 py-0.5 rounded">
+                    {PARAM_TYPES.find(t => t.value === param.type)?.label ?? param.type}
+                  </span>
                 </div>
                 {param.description && (
                   <p className="text-xs text-surface-500 mt-0.5 truncate">{param.description}</p>
+                )}
+                {(param.type === 'select' || param.type === 'multi_select') && param.options && param.options.length > 0 && (
+                  <p className="text-xs text-surface-400 mt-0.5 truncate">
+                    Options: {param.options.join(', ')}
+                  </p>
                 )}
                 {param.default_value && (
                   <p className="text-xs text-surface-400 mt-0.5">
@@ -136,23 +151,62 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
             <label className="block text-xs font-medium text-surface-600 mb-1">Type</label>
             <select
               value={draft.type}
-              onChange={(e) => setDraft({ ...draft, type: e.target.value as PipelineParameter['type'] })}
+              onChange={(e) => setDraft({ ...draft, type: e.target.value as PipelineParameter['type'], options: undefined, default_value: '' })}
               className="w-full px-2.5 py-1.5 text-xs border border-surface-300 rounded focus:outline-none focus:ring-1 focus:ring-dblue-400"
             >
               {PARAM_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </select>
           </div>
+
+          {/* Options — only for select / multi_select */}
+          {(draft.type === 'select' || draft.type === 'multi_select') && (
+            <div>
+              <label className="block text-xs font-medium text-surface-600 mb-1">
+                Options <span className="text-red-500">*</span>
+                <span className="ml-1 text-surface-400 font-normal">(comma-separated)</span>
+              </label>
+              <input
+                type="text"
+                value={(draft.options ?? []).join(', ')}
+                onChange={(e) => setDraft({ ...draft, options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                placeholder="e.g. daily, weekly, monthly"
+                className="w-full px-2.5 py-1.5 text-xs border border-surface-300 rounded focus:outline-none focus:ring-1 focus:ring-dblue-400"
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-medium text-surface-600 mb-1">Default Value</label>
-            <input
-              type="text"
-              value={draft.default_value}
-              onChange={(e) => setDraft({ ...draft, default_value: e.target.value })}
-              placeholder="Optional default"
-              className="w-full px-2.5 py-1.5 text-xs border border-surface-300 rounded focus:outline-none focus:ring-1 focus:ring-dblue-400"
-            />
+            {draft.type === 'boolean' ? (
+              <select
+                value={draft.default_value}
+                onChange={(e) => setDraft({ ...draft, default_value: e.target.value })}
+                className="w-full px-2.5 py-1.5 text-xs border border-surface-300 rounded focus:outline-none focus:ring-1 focus:ring-dblue-400"
+              >
+                <option value="">No default</option>
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            ) : draft.type === 'select' && (draft.options ?? []).length > 0 ? (
+              <select
+                value={draft.default_value}
+                onChange={(e) => setDraft({ ...draft, default_value: e.target.value })}
+                className="w-full px-2.5 py-1.5 text-xs border border-surface-300 rounded focus:outline-none focus:ring-1 focus:ring-dblue-400"
+              >
+                <option value="">No default</option>
+                {(draft.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            ) : (
+              <input
+                type={draft.type === 'number' ? 'number' : draft.type === 'date' ? 'date' : 'text'}
+                value={draft.default_value}
+                onChange={(e) => setDraft({ ...draft, default_value: e.target.value })}
+                placeholder="Optional default"
+                className="w-full px-2.5 py-1.5 text-xs border border-surface-300 rounded focus:outline-none focus:ring-1 focus:ring-dblue-400"
+              />
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-surface-600 mb-1">Description</label>

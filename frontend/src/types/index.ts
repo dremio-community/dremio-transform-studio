@@ -1,8 +1,9 @@
 export interface PipelineParameter {
   name: string
-  type: 'string' | 'number' | 'date'
+  type: 'string' | 'number' | 'date' | 'boolean' | 'select' | 'multi_select'
   default_value: string
   description: string
+  options?: string[]  // for select / multi_select
 }
 
 export interface TransformParam {
@@ -113,6 +114,7 @@ export interface TransformStep {
   transform_type: string
   config: Record<string, unknown>
   label?: string
+  notes?: string
 }
 
 // ── Exposures ─────────────────────────────────────────────────────────────────

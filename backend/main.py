@@ -751,6 +751,72 @@ async def create_pipeline(data: PipelineCreate, current_user: dict = Depends(get
     return await store.create_pipeline(data, user_id=uid)
 
 
+@app.get("/api/search", tags=["pipelines"], summary="Global search across pipeline names, steps, tables")
+async def global_search(q: str = "", current_user: dict = Depends(get_current_user)):
+    """Search pipeline names, descriptions, source/output tables, and step configs."""
+    q = q.strip()
+    if len(q) < 2:
+        return []
+
+    uid = current_user["user_id"] if current_user else "default"
+    role = current_user.get("role", "editor") if current_user else "editor"
+    pipelines = await store.list_pipelines(user_id=uid, role=role)
+
+    ql = q.lower()
+    results = []
+
+    for pl in pipelines:
+        pid = pl.id
+        pname = pl.name or ""
+
+        def _hit(field: str, value: str, context: Optional[str] = None):
+            results.append({
+                "pipeline_id": pid,
+                "pipeline_name": pname,
+                "match_field": field,
+                "match_context": context or value,
+            })
+
+        # Pipeline-level fields
+        if ql in pname.lower():
+            _hit("name", pname)
+        if pl.description and ql in pl.description.lower():
+            snippet = pl.description[:120]
+            _hit("description", pl.description, snippet)
+        if pl.source_table and ql in pl.source_table.lower():
+            _hit("source_table", pl.source_table)
+        if pl.output_table and ql in pl.output_table.lower():
+            _hit("output_table", pl.output_table)
+
+        # Step-level search (label, notes, and config values)
+        for step in (pl.steps or []):
+            matched_step = False
+            label = step.label or step.transform_type
+            if ql in label.lower():
+                _hit("step_label", label, f"Step: {label}")
+                matched_step = True
+            if step.notes and ql in step.notes.lower():
+                snippet = step.notes[:120]
+                _hit("step_notes", step.notes, f"Step \"{label}\" note: {snippet}")
+                matched_step = True
+            if not matched_step:
+                # Search config values as a JSON string blob
+                config_str = _json_mod.dumps(step.config).lower()
+                if ql in config_str:
+                    _hit("step_config", config_str, f"Step \"{label}\" config match")
+
+    # Deduplicate pipeline-level hits (keep first match per pipeline+field)
+    seen = set()
+    deduped = []
+    for r in results:
+        key = (r["pipeline_id"], r["match_field"], r["match_context"][:40])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(r)
+
+    return deduped[:50]
+
+
 @app.get("/api/pipelines", response_model=List[Pipeline], tags=["pipelines"], summary="List all pipelines")
 async def list_pipelines(current_user: dict = Depends(get_current_user)):
     """Returns all pipelines the current user owns or has been granted access to."""

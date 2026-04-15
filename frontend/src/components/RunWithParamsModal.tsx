@@ -49,14 +49,89 @@ export default function RunWithParamsModal({ parameters, mode, onRun, onCancel }
               {param.description && (
                 <p className="text-xs text-surface-400 mb-1.5">{param.description}</p>
               )}
-              <input
-                type={param.type === 'number' ? 'number' : 'text'}
-                value={values[param.name] ?? ''}
-                onChange={(e) => setValues((v) => ({ ...v, [param.name]: e.target.value }))}
-                placeholder={param.default_value || `Enter ${param.name}…`}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dblue-400 font-mono"
-              />
-              {param.default_value && (
+
+              {/* Boolean toggle */}
+              {param.type === 'boolean' && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setValues(v => ({ ...v, [param.name]: values[param.name] === 'true' ? 'false' : 'true' }))}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${values[param.name] === 'true' ? 'bg-dblue-500' : 'bg-gray-200'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${values[param.name] === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                  <span className="text-sm text-gray-700">{values[param.name] === 'true' ? 'true' : 'false'}</span>
+                </div>
+              )}
+
+              {/* Single dropdown */}
+              {param.type === 'select' && (
+                <select
+                  value={values[param.name] ?? ''}
+                  onChange={(e) => setValues(v => ({ ...v, [param.name]: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dblue-400"
+                >
+                  <option value="">— select —</option>
+                  {(param.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              )}
+
+              {/* Multi-select checkboxes */}
+              {param.type === 'multi_select' && (
+                <div className="space-y-1.5 border border-gray-200 rounded-lg p-2.5">
+                  {(param.options ?? []).map(o => {
+                    const selected = (values[param.name] ?? '').split(',').map(s => s.trim()).filter(Boolean)
+                    const checked = selected.includes(o)
+                    return (
+                      <label key={o} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const next = checked ? selected.filter(s => s !== o) : [...selected, o]
+                            setValues(v => ({ ...v, [param.name]: next.join(', ') }))
+                          }}
+                          className="rounded border-gray-300 text-dblue-500"
+                        />
+                        <span className="text-sm text-gray-700">{o}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Date picker */}
+              {param.type === 'date' && (
+                <input
+                  type="date"
+                  value={values[param.name] ?? ''}
+                  onChange={(e) => setValues(v => ({ ...v, [param.name]: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dblue-400"
+                />
+              )}
+
+              {/* Number */}
+              {param.type === 'number' && (
+                <input
+                  type="number"
+                  value={values[param.name] ?? ''}
+                  onChange={(e) => setValues(v => ({ ...v, [param.name]: e.target.value }))}
+                  placeholder={param.default_value || `Enter ${param.name}…`}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dblue-400 font-mono"
+                />
+              )}
+
+              {/* Default: free text */}
+              {param.type === 'string' && (
+                <input
+                  type="text"
+                  value={values[param.name] ?? ''}
+                  onChange={(e) => setValues(v => ({ ...v, [param.name]: e.target.value }))}
+                  placeholder={param.default_value || `Enter ${param.name}…`}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dblue-400 font-mono"
+                />
+              )}
+
+              {param.default_value && param.type !== 'boolean' && (
                 <p className="text-xs text-surface-400 mt-1">
                   Default: <code className="font-mono">{param.default_value}</code>
                 </p>

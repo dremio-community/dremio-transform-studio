@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Trash2, Plus, X } from 'lucide-react'
+import { Trash2, Plus, X, MessageSquare } from 'lucide-react'
 import clsx from 'clsx'
 import type { TransformStep, TransformParam } from '../types'
 import { fetchTransform } from '../api/client'
@@ -359,6 +359,20 @@ export default function TransformConfig({ step, columns, onUpdate, onDelete, onO
           />
         </div>
 
+        {/* Step notes */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+            <MessageSquare size={11} /> Notes (optional)
+          </label>
+          <textarea
+            value={step.notes ?? ''}
+            placeholder="e.g. Removes test accounts — see JIRA-1234"
+            rows={2}
+            onChange={(e) => onUpdate({ notes: e.target.value || undefined })}
+            className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none text-gray-600 placeholder:text-gray-300"
+          />
+        </div>
+
         {/* SQL preview */}
         {currentSql ? (
           <div>
@@ -418,6 +432,20 @@ export default function TransformConfig({ step, columns, onUpdate, onDelete, onO
           placeholder={transformType.name}
           onChange={(e) => onUpdate({ label: e.target.value || undefined })}
           className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+        />
+      </div>
+
+      {/* Step notes */}
+      <div>
+        <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+          <MessageSquare size={11} /> Notes (optional)
+        </label>
+        <textarea
+          value={step.notes ?? ''}
+          placeholder="e.g. Removes test accounts — see JIRA-1234"
+          rows={2}
+          onChange={(e) => onUpdate({ notes: e.target.value || undefined })}
+          className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none text-gray-600 placeholder:text-gray-300"
         />
       </div>
 

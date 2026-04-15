@@ -81,8 +81,9 @@ import {
   setApprovalRequired,
   submitPipelineReview,
   fetchNamespaces,
+  globalSearch,
 } from './api/client'
-import type { PipelineRun, AuthUser } from './api/client'
+import type { PipelineRun, AuthUser, SearchResult } from './api/client'
 
 
 import CatalogBrowser from './components/CatalogBrowser'
@@ -135,6 +136,10 @@ export default function App() {
   const [showManageUsers, setShowManageUsers] = useState(false)
   const [showMyCredentials, setShowMyCredentials] = useState(false)
   const [showDbtImport, setShowDbtImport] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
   const [shareModalPipelineId, setShareModalPipelineId] = useState<string | null>(null)
 
   // ── State ─────────────────────────────────────────────────────────────────
@@ -253,6 +258,40 @@ export default function App() {
     window.addEventListener('ts:unauthorized', handler)
     return () => window.removeEventListener('ts:unauthorized', handler)
   }, [authEnabled])
+
+  // Global search — keyboard shortcut ⌘K / Ctrl+K
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowSearch(s => !s)
+        if (!showSearch) { setSearchQuery(''); setSearchResults([]) }
+      }
+      if (e.key === 'Escape') setShowSearch(false)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [showSearch])
+
+  const handleSearch = async (q: string) => {
+    setSearchQuery(q)
+    if (q.trim().length < 2) { setSearchResults([]); return }
+    setSearchLoading(true)
+    try {
+      const res = await globalSearch(q)
+      setSearchResults(res)
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  const handleSearchSelect = (result: SearchResult) => {
+    const p = pipelines?.find(pl => pl.id === result.pipeline_id)
+    if (p) { loadPipeline(p) }
+    setShowSearch(false)
+    setSearchQuery('')
+    setSearchResults([])
+  }
 
   const handleLogin = (user: { id: string; username: string; is_admin: boolean; role?: string }) => {
     setCurrentUser({
@@ -894,6 +933,14 @@ export default function App() {
             className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
           >
             <Sprout size={15} />
+          </button>
+        </Tooltip>
+        <Tooltip text="Global Search (⌘K)">
+          <button
+            onClick={() => { setShowSearch(true); setSearchQuery(''); setSearchResults([]) }}
+            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+          >
+            <Search size={15} />
           </button>
         </Tooltip>
         <Tooltip text="Export Documentation">
@@ -1790,6 +1837,75 @@ export default function App() {
       {/* My Dremio Credentials modal */}
       {showMyCredentials && (
         <MyCredentialsModal onClose={() => setShowMyCredentials(false)} />
+      )}
+
+      {/* Global Search palette */}
+      {showSearch && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/50" onClick={() => setShowSearch(false)}>
+          <div
+            className="bg-white rounded-xl shadow-2xl w-[560px] mx-4 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Search input */}
+            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-gray-100">
+              <Search size={16} className="text-gray-400 shrink-0" />
+              <input
+                autoFocus
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="Search pipelines, steps, tables…"
+                className="flex-1 text-sm text-gray-800 placeholder:text-gray-400 outline-none"
+              />
+              {searchLoading && <Loader2 size={14} className="text-gray-400 animate-spin shrink-0" />}
+              <kbd className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-mono">Esc</kbd>
+            </div>
+
+            {/* Results */}
+            <div className="max-h-80 overflow-y-auto">
+              {searchQuery.length >= 2 && searchResults.length === 0 && !searchLoading && (
+                <div className="text-center py-8 text-sm text-gray-400">No results for "{searchQuery}"</div>
+              )}
+              {searchQuery.length < 2 && (
+                <div className="text-center py-8 text-xs text-gray-400">Type at least 2 characters to search</div>
+              )}
+              {searchResults.map((r, i) => {
+                const fieldLabel: Record<string, string> = {
+                  name: 'Pipeline name',
+                  description: 'Description',
+                  source_table: 'Source table',
+                  output_table: 'Output table',
+                  step_label: 'Step',
+                  step_notes: 'Step note',
+                  step_config: 'Step config',
+                }
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleSearchSelect(r)}
+                    className="w-full text-left flex items-start gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="font-medium text-sm text-gray-800 truncate">{r.pipeline_name}</span>
+                        <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
+                          {fieldLabel[r.match_field] ?? r.match_field}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 truncate">{r.match_context}</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            {searchResults.length > 0 && (
+              <div className="px-4 py-2 border-t border-gray-100 text-xs text-gray-400">
+                {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} — click to open pipeline
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* dbt Import modal */}

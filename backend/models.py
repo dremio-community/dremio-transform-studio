@@ -5,9 +5,10 @@ from pydantic import BaseModel
 
 class PipelineParameter(BaseModel):
     name: str          # e.g. "start_date"
-    type: str          # "string", "number", "date"
+    type: str          # "string", "number", "date", "boolean", "select", "multi_select"
     default_value: str = ""
     description: str = ""
+    options: Optional[List[str]] = None  # for select / multi_select types
 
 
 class TransformParam(BaseModel):
@@ -34,6 +35,7 @@ class TransformStep(BaseModel):
     transform_type: str  # references TransformType.id
     config: dict  # user-configured values
     label: Optional[str] = None  # optional user label
+    notes: Optional[str] = None  # inline step comment / documentation
 
 
 # ── Pipeline Tests ────────────────────────────────────────────────────────────

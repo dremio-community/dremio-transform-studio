@@ -140,6 +140,7 @@
   <a class="toc-item" href="#dbt"><span class="toc-num">20</span> dbt Compatibility</a>
   <a class="toc-item" href="#seed"><span class="toc-num">21</span> Seed from CSV</a>
   <a class="toc-item" href="#settings"><span class="toc-num">22</span> Settings</a>
+  <a class="toc-item" href="#stopping"><span class="toc-num">23</span> Stopping the App</a>
   <a class="toc-item" href="#tips"><span class="toc-num">✦</span> Pro Tips</a>
 </nav>
 
@@ -693,6 +694,23 @@
         <tr><td><strong>SSO</strong></td><td>Add OIDC providers (Okta, Azure AD, Google Workspace, custom).</td></tr>
       </tbody>
     </table>
+  </section>
+
+  <!-- 23 STOPPING THE APP -->
+  <section class="section" id="stopping">
+    <div class="section-header">
+      <div class="step-badge">23</div>
+      <div><h2>Stopping the App</h2><p>The desktop installer includes a dedicated Quit button in the toolbar.</p></div>
+    </div>
+    <p>When running the <strong>desktop app</strong> (Mac .dmg or Windows .exe), the toolbar shows a <strong style="color:#f87171;">⏻ Quit</strong> button — the red power icon at the far right. Click it to gracefully shut down the embedded server and close the application.</p>
+    <div class="callout callout-info">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body"><strong>Desktop only:</strong> The Quit button does not appear when running via Docker. It is intentionally hidden for shared-server deployments so that no browser user can accidentally stop a server that others are using. Docker users stop the container with <code>docker compose down</code> from the terminal.</div>
+    </div>
+    <div class="callout callout-tip">
+      <div class="callout-icon">✅</div>
+      <div class="callout-body"><strong>No data loss on quit:</strong> All pipelines, schedules, and settings are stored in the SQLite database on disk — quitting or restarting the app never deletes your work.</div>
+    </div>
   </section>
 
   <!-- PRO TIPS -->

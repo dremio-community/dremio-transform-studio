@@ -2,7 +2,7 @@
 
 A visual, low-code SQL pipeline builder for Dremio. Browse your catalog, build transformation pipelines with 53 pre-built transforms, preview results, and write output tables — all without writing SQL manually.
 
-
+📖 **[Visual User Guide](https://htmlpreview.github.io/?https://github.com/dremio-community/dremio-transform-studio/blob/main/docs/VISUAL_GUIDE.html)** — step-by-step walkthrough with screenshots
 
 ---
 

@@ -1,6 +1,6 @@
 # Dremio Transform Studio — Installation Guide
 
-**Version 1.9 | April 2026**
+**Version 1.10 | April 2026**
 
 ---
 
@@ -515,6 +515,14 @@ A new fourth alert type monitors when source data goes stale. Checks the maximum
 
 ### Step Bisection on Failure
 When a pipeline execute fails, Transform Studio automatically runs a bisection search to identify which specific step caused the failure. The execute result message now includes "Failed at step N: [step name]", pinpointing the problem without manual trial and error.
+
+---
+
+## What's New in v1.10
+
+- **Pipeline Tags & Folders** — Tag pipelines with free-form labels and group them into named folders. The sidebar shows a folder tree and tag filter chips so you can quickly navigate large numbers of pipelines without scrolling through a flat list. Tags and folders are also included in global search.
+- **Audit Log** — Admins can view a full event log of every significant action: pipeline creates, saves, executes, deletes, shares, schedule runs, SLA breaches, user management changes, and settings changes. Filter by date range, user, action type, or resource name. Export to CSV. Events auto-prune after 90 days. Access via the user menu → Audit Log (admin only).
+- **SLA / Deadline Alerting** — Each scheduled pipeline can now have an SLA deadline (e.g. "must complete by 08:00 UTC"). If the pipeline hasn't completed successfully by that time, a notification is sent via email/Slack and the breach is logged in the audit log. Configure in the Schedule modal → SLA Deadline section.
 
 ---
 

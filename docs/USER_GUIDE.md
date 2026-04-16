@@ -1,6 +1,6 @@
 # Dremio Transform Studio — User Guide
 
-**Version 1.9 | April 2026**
+**Version 1.10 | April 2026**
 
 ---
 
@@ -175,6 +175,32 @@ Each step shows a summary line describing what it does (e.g. "Filter customer_id
 Each step has an optional **Notes** field — a free-text annotation you can use to document what the step does, link to a ticket, or explain why it exists. Notes appear on the step card in the pipeline builder (in amber text) and are included in global search results.
 
 To add a note: select a step → in the CONFIG panel, scroll to the **Notes** field → type your annotation.
+
+---
+
+## Pipeline Tags & Folders
+
+When you have many pipelines, tags and folders help you stay organized.
+
+### Folders
+
+Assign a pipeline to a **folder** by typing a folder name in the **Folder** field in the pipeline metadata row (below the source table selector in the center panel). Type a name or pick from the autocomplete list of existing folders.
+
+The left sidebar shows a **folder tree** above the pipeline list:
+- **All** — shows every pipeline
+- **[Folder name]** — filters to only pipelines in that folder
+- **Uncategorized** — pipelines with no folder assigned
+
+### Tags
+
+Tags are free-form labels you can attach to a pipeline (e.g. `finance`, `daily`, `needs-review`). Add them in the metadata row next to the Folder field:
+- Type a tag name and press **Enter** or **comma** to add it
+- Click the **×** on any tag chip to remove it
+- Press **Backspace** to remove the last tag
+
+Tag chips appear on each pipeline card in the sidebar. Click any tag chip in the sidebar to filter the pipeline list to only pipelines with that tag.
+
+Both folders and tags are **searchable** via the global search palette (⌘K / Ctrl+K).
 
 ---
 
@@ -361,6 +387,42 @@ Click the **Runs** tab in the right panel to see a log of all execution runs for
 
 ---
 
+## Audit Log
+
+> **Admin only.** The Audit Log is accessible from the **user menu → Audit Log** (ScrollText icon).
+
+The Audit Log records every significant action taken in Transform Studio, including:
+
+| Event type | What it captures |
+|-----------|-----------------|
+| Pipeline created / saved / deleted | Who, when, pipeline name |
+| Pipeline executed / previewed | Who triggered the run |
+| Schedule created / updated / run | Cron expression, outcome |
+| SLA breach | Which pipeline missed its deadline, last run status |
+| Pipeline shared / permissions changed | Who shared, with whom, access level |
+| User created / deleted / role changed | Admin actions on accounts |
+| Auth settings changed | Toggle auth on/off |
+| SSO configured / deleted | Provider name |
+| Settings changed | Which setting was modified |
+
+### Filtering
+
+Use the filter bar at the top to narrow results by:
+- **Date range** — from/to date pickers
+- **User** — dropdown of all users (including "scheduler" for automated runs)
+- **Action type** — dropdown of all 19 action categories
+- **Resource** — text search across pipeline/user names
+
+### Exporting
+
+Click **Export CSV** to download all matching audit log entries as a `.csv` file for compliance reporting or external analysis.
+
+### Retention
+
+Audit log entries are automatically pruned after **90 days**. The prune runs once per day in the background scheduler.
+
+---
+
 ## Scheduling
 
 To run a pipeline automatically on a schedule, click the **🕐 clock icon** in the top toolbar (only available when a pipeline is loaded).
@@ -387,6 +449,23 @@ Each schedule can be configured with a **retry count** (0–5 retries). When a s
 - Set retries to 0 (default) to send an alert immediately on the first failure
 
 Configure the retry count using the slider in the **Schedule** modal.
+
+### SLA / Deadline Alerting
+
+Each schedule can define an **SLA deadline** — a daily time by which the pipeline must complete successfully. If the pipeline has not run successfully by that time, Transform Studio sends a notification via email/Slack and logs an `sla_breach` event in the Audit Log.
+
+To configure an SLA:
+1. Open the **Schedule** modal (calendar-clock icon in the toolbar)
+2. Scroll to the **SLA Deadline** section at the bottom of the schedule card
+3. Toggle it on and set the deadline time (HH:MM UTC)
+4. Click **Update** to save
+
+When SLA is active, an amber **SLA HH:MM UTC** badge appears in the schedule status row for at-a-glance visibility.
+
+**How it works:**
+- The scheduler checks every minute whether any SLA-enabled schedule has passed its deadline without a successful run today
+- A notification is sent once per day per pipeline — it won't re-alert until the next calendar day or until the pipeline runs successfully (whichever comes first)
+- A successful run resets the SLA state, so the alert fires fresh the next day if needed
 
 ---
 

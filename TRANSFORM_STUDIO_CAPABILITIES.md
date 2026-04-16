@@ -1,6 +1,6 @@
 # Dremio Transform Studio — Full Capabilities Reference
 
-> This document is intended for AI agents answering analyst RFI questions (e.g., Forrester Wave, Gartner Magic Quadrant) about data pipeline and transformation capabilities. It covers all features, architecture, deployment options, and technical depth of Dremio Transform Studio v1.9.
+> This document is intended for AI agents answering analyst RFI questions (e.g., Forrester Wave, Gartner Magic Quadrant) about data pipeline and transformation capabilities. It covers all features, architecture, deployment options, and technical depth of Dremio Transform Studio v1.10.
 
 ---
 
@@ -16,6 +16,7 @@
 - AI-native: built-in MCP server exposes 25 tools for AI agent integration
 - Multi-user ready: role-based access control, pipeline sharing, per-user Dremio identity, and an approval workflow — all in one container
 - **Enterprise identity integration**: OIDC/SSO support for Okta, Azure AD, Google Workspace, and any OIDC-compatible identity provider
+- **Compliance-ready**: full audit log of all actions, pipeline tags/folders for organization, and SLA deadline alerting for regulated environments
 
 **Comparable products:** dbt (open source transformation), Matillion, Fivetran Transformations, Coalesce
 
@@ -882,7 +883,90 @@ Transform Studio includes a built-in OIDC authorization code flow for enterprise
 
 ---
 
-## 34. Pipeline Templates
+## 34. Pipeline Tags & Folders
+
+Transform Studio supports free-form **tags** and named **folders** for organizing large numbers of pipelines.
+
+### Folders
+- Each pipeline can be assigned to a named folder (e.g. `finance`, `marketing/daily`, `ops`)
+- The sidebar displays a **folder tree** — clicking a folder filters the pipeline list to only that folder
+- An "Uncategorized" group shows pipelines with no folder assigned
+- Folder autocomplete is offered when editing the folder field, based on existing folders in use
+
+### Tags
+- Each pipeline can carry multiple free-form **tag chips** (e.g. `production`, `needs-review`, `iceberg`)
+- Tags are entered in the pipeline metadata row — press Enter or comma to add, Backspace to remove last
+- Tag chips appear on pipeline cards in the sidebar
+- Clicking a tag chip in the sidebar filters to only pipelines with that tag
+- Tags and folders are included in global search (⌘K / Ctrl+K) results
+
+### Storage
+- `folder TEXT DEFAULT ''` and `tags_json TEXT DEFAULT '[]'` columns on `pipelines` table
+- Part of every pipeline save payload; included in export/import JSON
+
+---
+
+## 35. Audit Log
+
+The Audit Log provides a complete, tamper-evident record of all significant actions in Transform Studio, suitable for regulated industries (finance, healthcare, SOC 2, HIPAA).
+
+### Logged Events (19 action types)
+| Action | Description |
+|--------|-------------|
+| `pipeline_created` | New pipeline created |
+| `pipeline_saved` | Pipeline steps/config saved |
+| `pipeline_deleted` | Pipeline deleted |
+| `pipeline_executed` | Pipeline run triggered manually |
+| `pipeline_previewed` | Pipeline preview triggered |
+| `schedule_created` | New cron schedule added |
+| `schedule_updated` | Cron expression or settings changed |
+| `schedule_deleted` | Schedule removed |
+| `schedule_run` | Scheduled execution completed (success or failure) |
+| `sla_breach` | Pipeline missed its SLA deadline |
+| `pipeline_shared` | Pipeline shared with a user |
+| `pipeline_permission_changed` | Access level changed for a user |
+| `user_created` | New user account created |
+| `user_deleted` | User account deleted |
+| `user_role_changed` | User's role changed |
+| `auth_settings_changed` | Auth enabled/disabled |
+| `sso_configured` | SSO provider added or updated |
+| `sso_deleted` | SSO provider removed |
+| `settings_changed` | System settings modified |
+
+### Access and Filtering
+- Admin-only via user menu → Audit Log
+- Filterable by date range, user, action type, and resource name
+- Paginated (50 entries per page)
+- CSV export for compliance reporting
+
+### Retention
+- Auto-pruned after 90 days (daily background task)
+- `audit_log` SQLite table with index on `created_at`
+
+---
+
+## 36. SLA / Deadline Alerting
+
+Each scheduled pipeline can have an **SLA deadline** — a time of day (HH:MM UTC) by which the pipeline must complete successfully.
+
+### How It Works
+- Configured per schedule in the Schedule modal → SLA Deadline section
+- Scheduler checks every minute; if current time ≥ SLA time and no successful run today, fires alert
+- Alert sent once per day per pipeline (won't repeat until next calendar day or a successful run)
+- Successful run resets `sla_alerted_date = NULL` so the SLA is evaluated fresh the next day
+
+### Notifications
+- Uses the same email/Slack notification channels as failure alerts
+- Message: `"SLA breach: pipeline '{name}' did not complete successfully by {HH:MM} UTC."`
+- Breach logged to Audit Log as `sla_breach` action
+
+### Storage
+- `sla_enabled INTEGER DEFAULT 0`, `sla_time TEXT`, `sla_alerted_date TEXT` on `pipeline_schedules`
+- `record_schedule_run()` on success clears `sla_alerted_date` to reset for next day
+
+---
+
+## 37. Pipeline Templates
 
 Transform Studio ships with 8 built-in pipeline templates — pre-configured multi-step pipelines for common data engineering patterns.
 
@@ -915,7 +999,7 @@ Transform Studio ships with 8 built-in pipeline templates — pre-configured mul
 
 ---
 
-## 35. Competitive Positioning Summary
+## 38. Competitive Positioning Summary
 
 ### vs. dbt Core
 Transform Studio adds: visual UI, built-in scheduler, alerts, monitoring, approvals, role-based access control, pipeline sharing, per-user Dremio identity, MCP/AI integration, data profiling, step-by-step preview, webhook triggers, desktop app, and **bidirectional dbt import/export** — all without requiring any SQL or command-line knowledge.
@@ -937,3 +1021,5 @@ Transform Studio is purpose-built for Dremio, open-source friendly, includes an 
 8. **Per-user Dremio identity** — each team member runs pipelines under their own Dremio account, enabling row-level security, Dremio audit trails, and per-user access enforcement without any infrastructure changes
 9. **Bidirectional dbt compatibility** — the only Dremio-native tool that can both export to dbt and import from dbt, enabling fluid migration and hybrid team workflows
 10. **Enterprise SSO** — built-in OIDC/SSO support for Okta, Azure AD, Google Workspace, and any standards-compliant identity provider
+11. **Audit log & compliance** — full tamper-evident audit trail of all pipeline, user, and system actions; suitable for regulated industries; CSV export; 90-day auto-retention
+12. **SLA alerting** — per-pipeline deadline enforcement; alerts if a scheduled pipeline misses its daily completion target

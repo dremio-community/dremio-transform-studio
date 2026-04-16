@@ -2,6 +2,8 @@
 
 A visual, low-code SQL pipeline builder for Dremio. Browse your catalog, build transformation pipelines with 53 pre-built transforms, preview results, and write output tables — all without writing SQL manually.
 
+
+
 ---
 
 ## Quick Start with Docker
@@ -71,6 +73,7 @@ On first launch, go to **Settings (gear icon) → Connection** and enter your Dr
 - **53 transforms** across 7 categories: Clean, Reshape, DateTime, Enrich, Aggregate, String, Custom SQL
 - **Pipeline versioning** with full history and restore
 - **Cron scheduling** with enable/disable per pipeline
+- **SLA / deadline alerting** — alert if a pipeline hasn't completed by a configured time each day (e.g. "done by 8 AM")
 - **Visual lineage** — column-level DAG from source to output
 - **Pipeline tests** — 6 assertion types with optional failure row storage
 - **Incremental models** — append, merge, and microbatch strategies
@@ -86,6 +89,8 @@ On first launch, go to **Settings (gear icon) → Connection** and enter your Dr
 - **SSO / Single Sign-On** — OIDC-based SSO for Okta, Azure AD, Google Workspace, and any OIDC-compatible identity provider; configure via Settings → SSO; users see "Sign in with…" buttons on the login screen
 - **Pipeline templates** — 8 pre-built pipeline templates (Daily Sales Summary, Customer 360, Churn Candidates, User Activity Funnel, etc.); one click to deploy with your source table
 - **Retry logic** — scheduled pipelines automatically retry with exponential backoff (1 min, 2 min, 4 min…) before alerting; configurable per pipeline (0–5 retries)
+- **Pipeline tags & folders** — tag pipelines with free-form labels and group them into folders for easy navigation when managing large numbers of pipelines
+- **Audit log** — full admin-visible log of all create, save, execute, delete, share, schedule, and SLA-breach events with user, timestamp, IP, and details; CSV export; auto-pruned after 90 days
 - **Global search** — press ⌘K (Mac) or Ctrl+K to search all pipeline names, step configs, source tables, and notes
 - **Inline step notes** — add a free-text note to any transform step (visible on the step card and searchable)
 - **Rich parameter types** — parameters now support boolean toggles, single-select dropdown, multi-select checkboxes, and date picker — in addition to text and number

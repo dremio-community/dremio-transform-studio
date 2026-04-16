@@ -1,0 +1,202 @@
+name: Build Desktop Apps
+
+# Triggers:
+#   - Manually via Actions → "Run workflow"
+#   - Automatically when a tag like v1.10 is pushed
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+
+  # ────────────────────────────────────────────────────────────
+  # Windows — single .exe (onefile PyInstaller)
+  # ────────────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Install Python dependencies
+        run: pip install -r backend/requirements.txt pyinstaller
+
+      - name: Build Windows exe
+        run: pyinstaller --clean --noconfirm transform_studio.spec
+
+      - name: Rename output
+        run: mv dist/TransformStudio.exe dist/TransformStudio-windows.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TransformStudio-windows
+          path: dist/TransformStudio-windows.exe
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/TransformStudio-windows.exe
+
+  # ────────────────────────────────────────────────────────────
+  # Linux — .tar.gz + .deb (amd64)
+  # ────────────────────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Install Python dependencies
+        run: pip install -r backend/requirements.txt pyinstaller
+
+      - name: Build Linux binary
+        run: pyinstaller --clean --noconfirm transform_studio.spec
+
+      - name: Package tar.gz
+        run: |
+          cd dist
+          tar -czf TransformStudio-linux.tar.gz TransformStudio
+          cd ..
+
+      - name: Package .deb
+        run: |
+          DEB_ROOT="dist/deb/transform-studio"
+          DEST_DIR="$DEB_ROOT/opt/transform-studio"
+          BIN_DIR="$DEB_ROOT/usr/local/bin/transform-studio"
+          APPS_DIR="$DEB_ROOT/usr/share/applications"
+
+          rm -rf "$DEB_ROOT"
+          mkdir -p "$DEST_DIR" "$APPS_DIR" "$(dirname "$BIN_DIR")"
+
+          cp -r dist/TransformStudio/. "$DEST_DIR/"
+
+          cat > "$BIN_DIR" << 'LAUNCHER'
+          #!/bin/bash
+          exec /opt/transform-studio/TransformStudio "$@"
+          LAUNCHER
+          chmod +x "$BIN_DIR"
+
+          cat > "$APPS_DIR/transform-studio.desktop" << 'DESKTOP'
+          [Desktop Entry]
+          Name=Transform Studio
+          Comment=Dremio Transform Studio — low-code pipeline builder
+          Exec=/opt/transform-studio/TransformStudio
+          Icon=utilities-terminal
+          Terminal=false
+          Type=Application
+          Categories=Development;DataScience;
+          DESKTOP
+
+          mkdir -p "$DEB_ROOT/DEBIAN"
+          cat > "$DEB_ROOT/DEBIAN/control" << 'CONTROL'
+          Package: transform-studio
+          Version: 1.10.0
+          Section: devel
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Mark Shainman <mark@shainman.com>
+          Description: Dremio Transform Studio
+           Low-code SQL pipeline builder for Dremio.
+          CONTROL
+
+          dpkg-deb --build "$DEB_ROOT" dist/TransformStudio-linux.deb
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TransformStudio-linux
+          path: |
+            dist/TransformStudio-linux.tar.gz
+            dist/TransformStudio-linux.deb
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/TransformStudio-linux.tar.gz
+            dist/TransformStudio-linux.deb
+
+  # ────────────────────────────────────────────────────────────
+  # Mac — .dmg (Apple Silicon, arm64)
+  # ────────────────────────────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Install Python dependencies
+        run: pip install -r backend/requirements.txt pyinstaller
+
+      - name: Build Mac app bundle
+        run: pyinstaller --clean --noconfirm transform_studio.spec
+
+      - name: Create DMG
+        run: |
+          hdiutil create \
+            -volname "Transform Studio" \
+            -srcfolder dist/TransformStudio.app \
+            -ov -format UDZO \
+            dist/TransformStudio-mac.dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TransformStudio-mac
+          path: dist/TransformStudio-mac.dmg
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/TransformStudio-mac.dmg

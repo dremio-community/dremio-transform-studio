@@ -443,7 +443,7 @@ export async function fetchPipelineSchedules(pipelineId: string): Promise<Pipeli
 
 export async function createPipelineSchedule(
   pipelineId: string,
-  data: { cron_expression: string; enabled: boolean; max_retries?: number }
+  data: { cron_expression: string; enabled: boolean; max_retries?: number; sla_enabled?: boolean; sla_time?: string }
 ): Promise<PipelineSchedule> {
   const res = await api.post(`/api/pipelines/${pipelineId}/schedules`, data)
   return res.data
@@ -451,7 +451,7 @@ export async function createPipelineSchedule(
 
 export async function updateSchedule(
   scheduleId: string,
-  data: { cron_expression?: string; enabled?: boolean; max_retries?: number }
+  data: { cron_expression?: string; enabled?: boolean; max_retries?: number; sla_enabled?: boolean; sla_time?: string }
 ): Promise<PipelineSchedule> {
   const res = await api.put(`/api/schedules/${scheduleId}`, data)
   return res.data

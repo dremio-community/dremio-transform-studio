@@ -30,6 +30,7 @@ const ACTION_COLORS: Record<string, string> = {
   settings_changed: 'bg-gray-100 text-gray-600',
   pipeline_shared: 'bg-indigo-100 text-indigo-700',
   pipeline_permission_changed: 'bg-indigo-50 text-indigo-600',
+  sla_breach: 'bg-red-100 text-red-700',
 }
 
 export default function AuditLogPage({ onClose }: Props) {

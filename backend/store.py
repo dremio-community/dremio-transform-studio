@@ -221,6 +221,10 @@ class PipelineStore:
                 # Pipeline tags/folders
                 "ALTER TABLE pipelines ADD COLUMN folder TEXT DEFAULT ''",
                 "ALTER TABLE pipelines ADD COLUMN tags_json TEXT DEFAULT '[]'",
+                # SLA / deadline alerting (v1.10)
+                "ALTER TABLE pipeline_schedules ADD COLUMN sla_enabled INTEGER DEFAULT 0",
+                "ALTER TABLE pipeline_schedules ADD COLUMN sla_time TEXT",
+                "ALTER TABLE pipeline_schedules ADD COLUMN sla_alerted_date TEXT",
             ]:
                 try:
                     await db.execute(col_sql)
@@ -1211,11 +1215,14 @@ class PipelineStore:
         now = _now_iso()
         async with aiosqlite.connect(self._db_path) as db:
             max_retries = int(data.get("max_retries", 0) or 0)
+            sla_enabled = 1 if data.get("sla_enabled") else 0
+            sla_time = data.get("sla_time") or None
             await db.execute(
                 """
                 INSERT INTO pipeline_schedules
-                  (id, pipeline_id, cron_expression, enabled, max_retries, retry_count, retry_next_at, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?)
+                  (id, pipeline_id, cron_expression, enabled, max_retries, retry_count, retry_next_at,
+                   sla_enabled, sla_time, sla_alerted_date, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, NULL, ?, ?)
                 """,
                 (
                     sched_id,
@@ -1223,6 +1230,8 @@ class PipelineStore:
                     data["cron_expression"],
                     1 if data.get("enabled", True) else 0,
                     max_retries,
+                    sla_enabled,
+                    sla_time,
                     now,
                     now,
                 ),
@@ -1240,6 +1249,9 @@ class PipelineStore:
             "max_retries": max_retries,
             "retry_count": 0,
             "retry_next_at": None,
+            "sla_enabled": sla_enabled,
+            "sla_time": sla_time,
+            "sla_alerted_date": None,
             "created_at": now,
             "updated_at": now,
         }
@@ -1252,18 +1264,23 @@ class PipelineStore:
         cron = data.get("cron_expression", existing["cron_expression"])
         enabled = data.get("enabled", existing["enabled"])
         max_retries = int(data.get("max_retries", existing.get("max_retries", 0)) or 0)
+        sla_enabled = 1 if data.get("sla_enabled", existing.get("sla_enabled", 0)) else 0
+        # Allow explicit None to clear sla_time
+        sla_time = data["sla_time"] if "sla_time" in data else existing.get("sla_time")
         async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 """
                 UPDATE pipeline_schedules
-                SET cron_expression = ?, enabled = ?, max_retries = ?, updated_at = ?
+                SET cron_expression = ?, enabled = ?, max_retries = ?,
+                    sla_enabled = ?, sla_time = ?, updated_at = ?
                 WHERE id = ?
                 """,
-                (cron, 1 if enabled else 0, max_retries, now, id),
+                (cron, 1 if enabled else 0, max_retries, sla_enabled, sla_time, now, id),
             )
             await db.commit()
         return {**existing, "cron_expression": cron, "enabled": 1 if enabled else 0,
-                "max_retries": max_retries, "updated_at": now}
+                "max_retries": max_retries, "sla_enabled": sla_enabled,
+                "sla_time": sla_time, "updated_at": now}
 
     async def delete_schedule(self, id: str) -> bool:
         async with aiosqlite.connect(self._db_path) as db:
@@ -1278,19 +1295,63 @@ class PipelineStore:
         return True
 
     async def record_schedule_run(self, id: str, status: str, error: Optional[str] = None) -> None:
-        """Record completed run (success or final failure). Resets retry state."""
+        """Record completed run (success or final failure). Resets retry state.
+        On success, also clears sla_alerted_date so the SLA resets for the next day."""
         now = _now_iso()
         async with aiosqlite.connect(self._db_path) as db:
+            if status == "success":
+                await db.execute(
+                    """
+                    UPDATE pipeline_schedules
+                    SET last_run_at = ?, last_run_status = ?, last_run_error = ?,
+                        retry_count = 0, retry_next_at = NULL, sla_alerted_date = NULL
+                    WHERE id = ?
+                    """,
+                    (now, status, error, id),
+                )
+            else:
+                await db.execute(
+                    """
+                    UPDATE pipeline_schedules
+                    SET last_run_at = ?, last_run_status = ?, last_run_error = ?,
+                        retry_count = 0, retry_next_at = NULL
+                    WHERE id = ?
+                    """,
+                    (now, status, error, id),
+                )
+            await db.commit()
+
+    async def set_sla_alerted(self, id: str, date_str: str) -> None:
+        """Mark that an SLA alert has been sent for this schedule today."""
+        async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
-                """
-                UPDATE pipeline_schedules
-                SET last_run_at = ?, last_run_status = ?, last_run_error = ?,
-                    retry_count = 0, retry_next_at = NULL
-                WHERE id = ?
-                """,
-                (now, status, error, id),
+                "UPDATE pipeline_schedules SET sla_alerted_date = ? WHERE id = ?",
+                (date_str, id),
             )
             await db.commit()
+
+    async def get_sla_due_schedules(self) -> list[dict]:
+        """Return enabled schedules with SLA enabled where SLA time has passed today
+        and we haven't already sent an alert today."""
+        from datetime import datetime as _dt, timezone as _tz
+        now = _dt.now(_tz.utc)
+        today = now.isoformat()[:10]
+        current_time = now.strftime("%H:%M")
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                """
+                SELECT * FROM pipeline_schedules
+                WHERE enabled = 1
+                  AND sla_enabled = 1
+                  AND sla_time IS NOT NULL
+                  AND sla_time <= ?
+                  AND (sla_alerted_date IS NULL OR sla_alerted_date < ?)
+                """,
+                (current_time, today),
+            ) as cursor:
+                rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
 
     async def set_retry_state(self, id: str, retry_count: int, retry_next_at: str) -> None:
         """Set retry state after a transient failure — does not reset last_run fields."""

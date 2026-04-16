@@ -152,6 +152,48 @@ class PipelineScheduler:
             except Exception as e:
                 logger.warning(f"Bad DQ monitor cron {cron!r}: {e}")
 
+        # ── Check SLA deadlines ────────────────────────────────────────────
+        try:
+            sla_scheds = await store.get_sla_due_schedules()
+            today = now.isoformat()[:10]
+            for sched in sla_scheds:
+                # SLA passed — check whether the pipeline ran successfully today
+                last_run_at = sched.get("last_run_at") or ""
+                last_run_status = sched.get("last_run_status") or ""
+                ran_ok_today = (
+                    last_run_status == "success"
+                    and last_run_at[:10] == today
+                )
+                if not ran_ok_today:
+                    # SLA breached — send notification and mark alerted
+                    pipeline_id = sched.get("pipeline_id", "")
+                    sla_time = sched.get("sla_time", "")
+                    # Look up pipeline name
+                    try:
+                        pipeline = await store.get_pipeline(pipeline_id)
+                        p_name = pipeline.name if pipeline else pipeline_id
+                    except Exception:
+                        p_name = pipeline_id
+                    msg = (
+                        f"SLA breach: pipeline '{p_name}' did not complete successfully "
+                        f"by {sla_time} UTC."
+                    )
+                    logger.warning(msg)
+                    await send_failure_notification(p_name, msg)
+                    await store.set_sla_alerted(sched["id"], today)
+                    await store.write_audit_log(
+                        action="sla_breach",
+                        user_id=None,
+                        username="scheduler",
+                        resource_type="pipeline",
+                        resource_id=pipeline_id,
+                        resource_name=p_name,
+                        details={"sla_time": sla_time, "last_run_at": last_run_at, "last_run_status": last_run_status},
+                        ip_address=None,
+                    )
+        except Exception as e:
+            logger.error(f"SLA check error: {e}")
+
         # ── Check pipeline schedules (parallel execution) ──────────────────
         schedules = await store.list_schedules()
         due_scheds: list[dict] = []

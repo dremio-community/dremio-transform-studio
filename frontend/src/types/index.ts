@@ -382,6 +382,9 @@ export interface PipelineSchedule {
   max_retries: number
   retry_count: number
   retry_next_at?: string
+  sla_enabled: boolean
+  sla_time?: string
+  sla_alerted_date?: string
   created_at: string
   updated_at: string
 }

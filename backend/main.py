@@ -2647,11 +2647,17 @@ async def get_iceberg_table_schema(
 class ScheduleCreate(BaseModel):
     cron_expression: str
     enabled: bool = True
+    max_retries: Optional[int] = 0
+    sla_enabled: Optional[bool] = False
+    sla_time: Optional[str] = None  # HH:MM UTC
 
 
 class ScheduleUpdate(BaseModel):
     cron_expression: Optional[str] = None
     enabled: Optional[bool] = None
+    max_retries: Optional[int] = None
+    sla_enabled: Optional[bool] = None
+    sla_time: Optional[str] = None  # HH:MM UTC
 
 
 @app.get("/api/schedules", tags=["schedules"], summary="List all pipeline schedules")
@@ -2684,6 +2690,9 @@ async def create_pipeline_schedule(pipeline_id: str, body: ScheduleCreate, reque
         "pipeline_id": pipeline_id,
         "cron_expression": body.cron_expression,
         "enabled": body.enabled,
+        "max_retries": body.max_retries or 0,
+        "sla_enabled": body.sla_enabled or False,
+        "sla_time": body.sla_time,
     })
     await _audit.log_event(
         action="schedule_created", user=current_user,
@@ -2695,7 +2704,9 @@ async def create_pipeline_schedule(pipeline_id: str, body: ScheduleCreate, reque
 
 @app.put("/api/schedules/{schedule_id}")
 async def update_schedule(schedule_id: str, body: ScheduleUpdate, request: Request, current_user: dict = Depends(get_current_user)) -> dict:
-    data = {k: v for k, v in body.model_dump().items() if v is not None}
+    # Keep sla_enabled even when False (it's a valid value, not "not set")
+    # Only include sla_time if explicitly provided (not None) — store will keep existing if absent
+    data = {k: v for k, v in body.model_dump().items() if v is not None or k == "sla_enabled"}
     if "cron_expression" in data:
         from croniter import croniter
         if not croniter.is_valid(data["cron_expression"]):

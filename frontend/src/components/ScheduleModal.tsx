@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Clock, Loader2, Trash2, CheckCircle, XCircle, Play } from 'lucide-react'
+import { X, Clock, Loader2, Trash2, CheckCircle, XCircle, Play, AlarmClock } from 'lucide-react'
 import clsx from 'clsx'
 import {
   fetchPipelineSchedules,
@@ -61,9 +61,17 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
   const [enabledInput, setEnabledInput] = useState(true)
   const [maxRetriesInput, setMaxRetriesInput] = useState(0)
   const [cronError, setCronError] = useState<string | null>(null)
+  const [slaEnabled, setSlaEnabled] = useState(false)
+  const [slaTime, setSlaTime] = useState('08:00')
 
   const createMut = useMutation({
-    mutationFn: () => createPipelineSchedule(pipelineId, { cron_expression: cronInput.trim(), enabled: enabledInput, max_retries: maxRetriesInput }),
+    mutationFn: () => createPipelineSchedule(pipelineId, {
+      cron_expression: cronInput.trim(),
+      enabled: enabledInput,
+      max_retries: maxRetriesInput,
+      sla_enabled: slaEnabled,
+      sla_time: slaEnabled ? slaTime : undefined,
+    }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules', pipelineId] }),
   })
 
@@ -74,8 +82,15 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
   })
 
   const updateCronMut = useMutation({
-    mutationFn: ({ id, cron, maxRetries }: { id: string; cron: string; maxRetries: number }) =>
-      updateSchedule(id, { cron_expression: cron, max_retries: maxRetries }),
+    mutationFn: ({ id, cron, maxRetries, newSlaEnabled, newSlaTime }: {
+      id: string; cron: string; maxRetries: number; newSlaEnabled: boolean; newSlaTime: string
+    }) =>
+      updateSchedule(id, {
+        cron_expression: cron,
+        max_retries: maxRetries,
+        sla_enabled: newSlaEnabled,
+        sla_time: newSlaEnabled ? newSlaTime : undefined,
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules', pipelineId] }),
   })
 
@@ -100,6 +115,14 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
   }
 
   const existingSchedule: PipelineSchedule | undefined = schedules[0]
+
+  // Sync SLA state from existing schedule when it loads
+  useEffect(() => {
+    if (existingSchedule) {
+      setSlaEnabled(Boolean(existingSchedule.sla_enabled))
+      setSlaTime(existingSchedule.sla_time || '08:00')
+    }
+  }, [existingSchedule?.id])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -144,6 +167,12 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                       )} />
                       {existingSchedule.enabled ? 'Active' : 'Paused'}
                     </span>
+                    {existingSchedule.sla_enabled && existingSchedule.sla_time && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                        <AlarmClock size={10} />
+                        SLA {existingSchedule.sla_time} UTC
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => toggleMut.mutate({ id: existingSchedule.id, enabled: !existingSchedule.enabled })}
@@ -169,7 +198,13 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                       onClick={() => {
                         const val = cronInput || existingSchedule.cron_expression
                         if (!validateCron(val)) return
-                        updateCronMut.mutate({ id: existingSchedule.id, cron: val, maxRetries: maxRetriesInput || existingSchedule.max_retries })
+                        updateCronMut.mutate({
+                          id: existingSchedule.id,
+                          cron: val,
+                          maxRetries: maxRetriesInput || existingSchedule.max_retries,
+                          newSlaEnabled: slaEnabled,
+                          newSlaTime: slaTime,
+                        })
                       }}
                       disabled={updateCronMut.isPending}
                       className="px-3 py-1.5 text-xs font-medium bg-dblue-500 text-white rounded hover:bg-dblue-600 disabled:opacity-50"
@@ -258,6 +293,45 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                     </p>
                   )}
                 </div>
+
+                {/* SLA deadline */}
+                <div className="pt-1 border-t border-surface-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-surface-500">
+                      <AlarmClock size={12} />
+                      SLA Deadline
+                    </label>
+                    <div
+                      onClick={() => setSlaEnabled((v) => !v)}
+                      className={clsx(
+                        'w-8 h-4 rounded-full transition-colors relative cursor-pointer shrink-0',
+                        slaEnabled ? 'bg-dblue-500' : 'bg-surface-300'
+                      )}
+                    >
+                      <span className={clsx(
+                        'absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform',
+                        slaEnabled ? 'translate-x-4' : 'translate-x-0.5'
+                      )} />
+                    </div>
+                  </div>
+                  {slaEnabled && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-surface-500 shrink-0">Alert if not done by</span>
+                        <input
+                          type="time"
+                          value={slaTime}
+                          onChange={(e) => setSlaTime(e.target.value)}
+                          className="px-2 py-1 text-xs font-mono border border-surface-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500"
+                        />
+                        <span className="text-xs text-surface-400">UTC</span>
+                      </div>
+                      <p className="text-xs text-surface-400">
+                        Sends a notification if the pipeline hasn't completed successfully by this time each day.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Delete */}
@@ -344,6 +418,45 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                   <p className="text-xs text-surface-400 mt-1">
                     Exponential backoff: 1m → 2m → 4m → … before alerting
                   </p>
+                )}
+              </div>
+
+              {/* SLA Deadline */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-surface-500 uppercase tracking-wider">
+                    <AlarmClock size={12} />
+                    SLA Deadline
+                  </label>
+                  <div
+                    onClick={() => setSlaEnabled((v) => !v)}
+                    className={clsx(
+                      'w-8 h-4 rounded-full transition-colors relative cursor-pointer shrink-0',
+                      slaEnabled ? 'bg-dblue-500' : 'bg-surface-300'
+                    )}
+                  >
+                    <span className={clsx(
+                      'absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform',
+                      slaEnabled ? 'translate-x-4' : 'translate-x-0.5'
+                    )} />
+                  </div>
+                </div>
+                {slaEnabled && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-surface-500 shrink-0">Alert if not done by</span>
+                      <input
+                        type="time"
+                        value={slaTime}
+                        onChange={(e) => setSlaTime(e.target.value)}
+                        className="px-2 py-1 text-xs font-mono border border-surface-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500"
+                      />
+                      <span className="text-xs text-surface-400">UTC</span>
+                    </div>
+                    <p className="text-xs text-surface-400">
+                      Sends a notification if the pipeline hasn't completed successfully by this time each day.
+                    </p>
+                  </div>
                 )}
               </div>
 

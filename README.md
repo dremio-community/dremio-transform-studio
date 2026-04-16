@@ -48,6 +48,7 @@ Use backups to migrate between machines or recover from a bad state.
 | Platform | Download |
 |----------|----------|
 | **Mac** | [TransformStudio-mac.dmg](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-mac.dmg) — open and drag to Applications |
+| **Windows** | [TransformStudio-windows.exe](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-windows.exe) — double-click to run, no install needed |
 | **Linux (Mint / Ubuntu / Debian)** | [TransformStudio-linux.deb](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-linux.deb) — double-click to install, or `sudo dpkg -i TransformStudio-linux.deb` |
 | **Linux (any distro)** | [TransformStudio-linux.tar.gz](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-linux.tar.gz) — extract and run `./TransformStudio/TransformStudio` |
 
@@ -202,7 +203,7 @@ Templates are starting points — every step is fully editable after deployment.
 
 For shared team use with HTTPS:
 ```bash
-git clone https://github.com/dremio-community/dremio-community-connectors
+git clone https://github.com/dremio-community/dremio-transform-studio
 cd dremio-transform-studio
 ./deploy/setup_server.sh
 ```

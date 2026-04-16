@@ -6,1244 +6,980 @@
 <title>Dremio Transform Studio — Visual User Guide</title>
 <style>
   :root {
-    --navy: #0f172a;
-    --navy-800: #1e293b;
-    --navy-700: #334155;
-    --blue: #3b82f6;
-    --blue-light: #eff6ff;
-    --green: #10b981;
-    --green-light: #ecfdf5;
+    --navy: #0f1e36;
+    --navy-mid: #162844;
+    --blue: #1e6fcc;
+    --blue-light: #3b8fe8;
+    --teal: #00b4d8;
+    --green: #22c55e;
     --amber: #f59e0b;
-    --amber-light: #fffbeb;
     --red: #ef4444;
-    --surface: #f8fafc;
-    --border: #e2e8f0;
-    --text: #1e293b;
-    --muted: #64748b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: rgba(255,255,255,0.08);
+    --surface: rgba(255,255,255,0.05);
+    --surface-hover: rgba(255,255,255,0.09);
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
+  html { scroll-behavior: smooth; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--surface);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--navy);
     color: var(--text);
     line-height: 1.6;
+    font-size: 15px;
   }
 
-  /* ── Cover ── */
-  .cover {
-    background: var(--navy);
-    color: white;
-    padding: 64px 48px;
-    display: flex;
-    align-items: center;
-    gap: 32px;
+  /* ── Layout ── */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--navy-mid);
+    border-right: 1px solid var(--border);
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    overflow-y: auto;
+    padding: 24px 0;
+    z-index: 100;
   }
-  .cover-logo {
-    width: 64px; height: 64px;
-    background: var(--blue);
-    border-radius: 16px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 32px; flex-shrink: 0;
-  }
-  .cover h1 { font-size: 36px; font-weight: 700; }
-  .cover p { font-size: 16px; color: #94a3b8; margin-top: 8px; }
-  .cover-meta { display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
-  .cover-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: rgba(255,255,255,0.1); border-radius: 20px;
-    padding: 4px 12px; font-size: 13px; color: #cbd5e1;
-  }
+  .main { margin-left: 260px; max-width: 960px; padding: 40px 48px 80px; }
 
-  /* ── TOC ── */
-  .toc {
-    background: white;
+  /* ── Sidebar ── */
+  .sidebar-logo {
+    padding: 0 20px 24px;
     border-bottom: 1px solid var(--border);
-    padding: 24px 48px;
+    margin-bottom: 16px;
   }
-  .toc h2 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 12px; }
-  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
-  .toc a {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 10px; border-radius: 6px;
-    text-decoration: none; color: var(--text); font-size: 13px;
-    transition: background 0.15s;
-  }
-  .toc a:hover { background: var(--blue-light); color: var(--blue); }
-  .toc-num {
-    width: 20px; height: 20px; border-radius: 50%;
-    background: var(--navy); color: white;
-    font-size: 10px; font-weight: 700;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-
-  /* ── Main layout ── */
-  .content { max-width: 960px; margin: 0 auto; padding: 48px 24px; }
-
-  /* ── Section ── */
-  .section { margin-bottom: 64px; }
-  .section-header {
-    display: flex; align-items: center; gap: 16px;
-    margin-bottom: 24px; padding-bottom: 16px;
-    border-bottom: 2px solid var(--border);
-  }
-  .section-num {
-    width: 40px; height: 40px; border-radius: 50%;
-    background: var(--navy); color: white;
-    font-size: 16px; font-weight: 700;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .section-title { font-size: 24px; font-weight: 700; }
-  .section-subtitle { font-size: 14px; color: var(--muted); margin-top: 2px; }
-
-  /* ── Screenshot with annotations ── */
-  .screenshot-wrap {
-    position: relative;
-    background: var(--navy-800);
-    border-radius: 12px;
-    overflow: visible;
-    margin: 24px 0;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-  }
-  .screenshot-wrap img {
-    width: 100%;
+  .sidebar-logo h2 { font-size: 13px; font-weight: 700; color: var(--teal); letter-spacing: .08em; text-transform: uppercase; }
+  .sidebar-logo p { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .toc-item {
     display: block;
-    border-radius: 12px;
+    padding: 7px 20px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: all .15s;
+    border-left: 2px solid transparent;
   }
-  .screenshot-placeholder {
-    background: var(--navy-800);
+  .toc-item:hover { color: var(--text); background: var(--surface-hover); border-left-color: var(--blue-light); }
+  .toc-item.active { color: #fff; border-left-color: var(--teal); background: var(--surface); }
+  .toc-num { display: inline-block; width: 20px; font-size: 10px; color: var(--blue-light); font-weight: 700; }
+  .toc-section { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); padding: 16px 20px 4px; }
+
+  /* ── Page header ── */
+  .page-hero {
+    background: linear-gradient(135deg, var(--navy-mid) 0%, #0a2041 100%);
+    border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 48px;
+    padding: 40px 48px;
+    margin-bottom: 48px;
     text-align: center;
-    color: #475569;
-    font-size: 14px;
-    border: 2px dashed #334155;
-    margin: 24px 0;
   }
-  .screenshot-placeholder .ph-icon { font-size: 48px; margin-bottom: 12px; }
-  .screenshot-placeholder .ph-label { font-size: 16px; color: #64748b; }
+  .page-hero .badge { display: inline-block; background: var(--teal); color: var(--navy); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: .06em; margin-bottom: 16px; }
+  .page-hero h1 { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+  .page-hero p { font-size: 16px; color: var(--text-muted); max-width: 560px; margin: 0 auto; }
 
-  /* ── Callout bubbles ── */
-  .callouts { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 24px; }
-  .callout {
-    display: flex; align-items: flex-start; gap: 12px;
-    background: white; border: 1px solid var(--border);
-    border-radius: 8px; padding: 12px 16px;
-    font-size: 13px;
-  }
-  .callout-num {
-    width: 24px; height: 24px; border-radius: 50%;
-    font-size: 11px; font-weight: 700;
+  /* ── Sections ── */
+  .section { margin-bottom: 72px; }
+  .section-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .step-badge {
+    width: 40px; height: 40px; border-radius: 50%; background: var(--blue);
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; margin-top: 1px;
+    font-size: 16px; font-weight: 800; color: #fff; flex-shrink: 0;
   }
-  .callout-num.blue  { background: #dbeafe; color: #1d4ed8; }
-  .callout-num.green { background: #d1fae5; color: #065f46; }
-  .callout-num.amber { background: #fef3c7; color: #92400e; }
-  .callout-num.red   { background: #fee2e2; color: #991b1b; }
-  .callout-num.purple{ background: #ede9fe; color: #5b21b6; }
-  .callout strong { display: block; font-weight: 600; color: var(--text); }
-  .callout span { color: var(--muted); line-height: 1.5; }
+  .step-badge.gray { background: rgba(255,255,255,0.12); }
+  .section-header h2 { font-size: 22px; font-weight: 700; color: #fff; }
+  .section-header p { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
 
-  /* ── Info boxes ── */
-  .tip, .warning, .info {
-    display: flex; gap: 12px; padding: 14px 16px;
-    border-radius: 8px; font-size: 13px; margin: 16px 0;
+  /* ── Screenshots ── */
+  .screenshot-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 24px;
   }
-  .tip    { background: var(--green-light); border-left: 3px solid var(--green); }
-  .warning{ background: var(--amber-light); border-left: 3px solid var(--amber); }
-  .info   { background: var(--blue-light);  border-left: 3px solid var(--blue); }
-  .tip strong, .warning strong, .info strong { font-weight: 600; }
+  .screenshot-wrap img { width: 100%; display: block; }
+  .screenshot-caption { padding: 10px 16px; background: rgba(0,0,0,.2); font-size: 12px; color: var(--text-muted); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
 
-  /* ── Steps ── */
-  .steps { counter-reset: step; display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
-  .step {
-    display: flex; gap: 16px; align-items: flex-start;
-    background: white; border: 1px solid var(--border);
-    border-radius: 8px; padding: 14px 16px;
-  }
-  .step::before {
-    counter-increment: step;
-    content: counter(step);
-    width: 28px; height: 28px; border-radius: 50%;
-    background: var(--navy); color: white;
-    font-size: 12px; font-weight: 700;
+  /* ── Callouts ── */
+  .callout { border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; display: flex; gap: 12px; align-items: flex-start; }
+  .callout-tip { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25); }
+  .callout-info { background: rgba(30,111,204,.12); border: 1px solid rgba(30,111,204,.3); }
+  .callout-warn { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.25); }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout-tip .callout-icon { color: var(--green); }
+  .callout-info .callout-icon { color: var(--blue-light); }
+  .callout-warn .callout-icon { color: var(--amber); }
+  .callout-body { font-size: 13.5px; }
+  .callout-body strong { color: #fff; }
+
+  /* ── Steps list ── */
+  .steps-list { list-style: none; counter-reset: step-counter; }
+  .steps-list li { counter-increment: step-counter; display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start; }
+  .steps-list li::before {
+    content: counter(step-counter);
+    width: 26px; height: 26px; border-radius: 50%; background: var(--blue);
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
+    font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0; margin-top: 1px;
   }
-  .step-body strong { display: block; font-weight: 600; margin-bottom: 4px; }
-  .step-body span { color: var(--muted); font-size: 13px; }
+  .steps-list li p { font-size: 14px; color: var(--text); padding-top: 3px; }
+  .steps-list li p strong { color: #fff; }
+  .steps-list li p code { background: rgba(255,255,255,.1); border-radius: 4px; padding: 1px 6px; font-family: 'SF Mono', monospace; font-size: 12px; }
 
   /* ── Feature grid ── */
-  .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 16px 0; }
-  .feature-card {
-    background: white; border: 1px solid var(--border);
-    border-radius: 10px; padding: 16px;
-  }
-  .feature-card-icon { font-size: 24px; margin-bottom: 8px; }
-  .feature-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-  .feature-card p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .feature-card .icon { font-size: 20px; margin-bottom: 6px; }
+  .feature-card h4 { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .feature-card p { font-size: 12px; color: var(--text-muted); }
 
-  /* ── Inline code ── */
-  code {
-    background: #f1f5f9; border: 1px solid var(--border);
-    padding: 1px 6px; border-radius: 4px;
-    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
-  }
+  /* ── Table ── */
+  .data-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; }
+  .data-table th { text-align: left; padding: 8px 14px; background: rgba(255,255,255,.06); color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .data-table td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table td code { background: rgba(255,255,255,.08); border-radius: 4px; padding: 1px 6px; font-family: 'SF Mono', monospace; font-size: 11.5px; }
 
-  /* ── Keyboard shortcuts ── */
-  .kbd {
-    display: inline-block; background: white;
-    border: 1px solid var(--border); border-bottom-width: 2px;
-    border-radius: 4px; padding: 2px 8px;
-    font-size: 11px; font-family: monospace;
-    color: var(--text);
-  }
+  /* ── Pills ── */
+  .pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 700; }
+  .pill-blue { background: rgba(30,111,204,.25); color: #7eb8f7; border: 1px solid rgba(30,111,204,.4); }
+  .pill-green { background: rgba(34,197,94,.15); color: #4ade80; border: 1px solid rgba(34,197,94,.3); }
+  .pill-amber { background: rgba(245,158,11,.15); color: #fbbf24; border: 1px solid rgba(245,158,11,.3); }
+  .pill-teal { background: rgba(0,180,216,.15); color: #22d3ee; border: 1px solid rgba(0,180,216,.3); }
+  .pill-red { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.3); }
 
-  /* ── Toolbar diagram ── */
-  .toolbar-diagram {
-    background: var(--navy);
-    border-radius: 10px;
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin: 16px 0;
-    font-size: 12px;
-  }
-  .tb-item {
-    display: flex; align-items: center; gap: 6px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 6px; padding: 6px 10px;
-    color: #e2e8f0;
-  }
-  .tb-item.active { background: var(--blue); color: white; }
-  .tb-sep { width: 1px; height: 24px; background: rgba(255,255,255,0.15); margin: 0 4px; }
-  .tb-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+  /* ── Body text ── */
+  p { margin-bottom: 14px; }
+  h3 { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 10px; margin-top: 24px; }
+  ul { margin-left: 20px; margin-bottom: 14px; }
+  ul li { margin-bottom: 5px; font-size: 14px; color: var(--text); }
+  code { background: rgba(255,255,255,.1); border-radius: 4px; padding: 1px 6px; font-family: 'SF Mono', monospace; font-size: 12px; }
 
-  /* ── Two-col layout ── */
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 16px 0; }
-  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
-
-  /* ── Icon strip diagram ── */
-  .icon-strip-diagram {
-    background: var(--navy-800);
-    border-radius: 10px;
-    padding: 16px;
-    margin: 16px 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 24px 20px 60px; }
+    .two-col, .three-col { grid-template-columns: 1fr; }
   }
-  .isd-row {
-    display: flex;
-    background: rgba(255,255,255,0.04);
-    border-radius: 7px;
-    overflow: hidden;
-  }
-  .isd-tab {
-    flex: 1; text-align: center;
-    padding: 8px 4px;
-    font-size: 11px; font-weight: 700;
-    letter-spacing: 0.06em; color: #64748b;
-    border-bottom: 2px solid transparent;
-  }
-  .isd-tab.active { color: #60a5fa; border-bottom-color: #60a5fa; background: rgba(96,165,250,0.08); }
-  .isd-icon-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    background: rgba(255,255,255,0.03);
-    border-radius: 7px;
-    padding: 6px 8px;
-  }
-  .isd-icon-btn {
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
-    width: 40px; padding: 6px 4px; border-radius: 7px;
-    font-size: 16px; color: #64748b;
-  }
-  .isd-icon-btn span { font-size: 9px; font-weight: 600; letter-spacing: 0.04em; color: #475569; }
-  .isd-icon-btn.active { background: rgba(96,165,250,0.12); color: #60a5fa; }
-  .isd-icon-btn.active span { color: #60a5fa; }
-
-  /* ── Health card diagram ── */
-  .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
-  .health-card {
-    background: white; border: 1px solid var(--border);
-    border-radius: 10px; padding: 14px; position: relative;
-    overflow: hidden;
-  }
-  .health-card::before {
-    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
-  }
-  .health-card.healthy::before { background: #10b981; }
-  .health-card.degraded::before { background: #f59e0b; }
-  .health-card.failing::before { background: #ef4444; }
-  .health-card.never::before { background: #94a3b8; }
-  .health-card h5 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-  .health-card p { font-size: 12px; color: var(--muted); }
-  .health-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
-    padding: 2px 8px; border-radius: 20px; margin-bottom: 8px;
-    text-transform: uppercase;
-  }
-  .health-badge.healthy { background: #d1fae5; color: #065f46; }
-  .health-badge.degraded { background: #fef3c7; color: #92400e; }
-  .health-badge.failing { background: #fee2e2; color: #991b1b; }
-  .health-badge.never { background: #f1f5f9; color: #475569; }
-
-  /* ── Footer ── */
-  footer {
-    background: var(--navy);
-    color: #64748b;
-    text-align: center;
-    padding: 32px;
-    font-size: 13px;
-    margin-top: 64px;
-  }
-  footer strong { color: #94a3b8; }
 </style>
 </head>
 <body>
+<div class="app">
 
-<!-- ══════════ COVER ══════════ -->
-<div class="cover">
-  <div class="cover-logo">⚡</div>
-  <div>
+<!-- ── Sidebar TOC ── -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h2>Transform Studio</h2>
+    <p>Visual User Guide &nbsp;·&nbsp; v1.10</p>
+  </div>
+  <span class="toc-section">Getting Started</span>
+  <a class="toc-item" href="#connect"><span class="toc-num">01</span> Connect to Dremio</a>
+  <a class="toc-item" href="#layout"><span class="toc-num">02</span> Main Layout</a>
+  <a class="toc-item" href="#pipeline"><span class="toc-num">03</span> Create a Pipeline</a>
+  <a class="toc-item" href="#transforms"><span class="toc-num">04</span> Add Transforms</a>
+  <a class="toc-item" href="#configure"><span class="toc-num">05</span> Configure a Step</a>
+  <a class="toc-item" href="#custom-sql"><span class="toc-num">06</span> Custom SQL</a>
+  <span class="toc-section">Running Pipelines</span>
+  <a class="toc-item" href="#preview"><span class="toc-num">07</span> Preview Results</a>
+  <a class="toc-item" href="#execute"><span class="toc-num">08</span> Execute &amp; Output</a>
+  <a class="toc-item" href="#lineage"><span class="toc-num">09</span> Visual Lineage</a>
+  <a class="toc-item" href="#schedule"><span class="toc-num">10</span> Schedule</a>
+  <span class="toc-section">Monitoring</span>
+  <a class="toc-item" href="#history"><span class="toc-num">11</span> History &amp; Runs</a>
+  <a class="toc-item" href="#health"><span class="toc-num">12</span> Health Dashboard</a>
+  <a class="toc-item" href="#alerts"><span class="toc-num">13</span> Alerts</a>
+  <a class="toc-item" href="#dq-hub"><span class="toc-num">14</span> Data Quality Hub</a>
+  <span class="toc-section">Advanced</span>
+  <a class="toc-item" href="#dag"><span class="toc-num">15</span> Pipeline DAG</a>
+  <a class="toc-item" href="#templates"><span class="toc-num">16</span> Templates</a>
+  <a class="toc-item" href="#dbt"><span class="toc-num">17</span> dbt Compatibility</a>
+  <a class="toc-item" href="#seed"><span class="toc-num">18</span> Seed from CSV</a>
+  <a class="toc-item" href="#tips"><span class="toc-num">✦</span> Pro Tips</a>
+</nav>
+
+<!-- ── Main content ── -->
+<main class="main">
+
+  <div class="page-hero">
+    <div class="badge">VISUAL USER GUIDE</div>
     <h1>Dremio Transform Studio</h1>
-    <p>Visual User Guide — v1.8</p>
-    <div class="cover-meta">
-      <span class="cover-badge">🗓 April 2026</span>
-      <span class="cover-badge">⚡ 52 Transforms</span>
-      <span class="cover-badge">☁️ Dremio Cloud + Self-hosted</span>
-      <span class="cover-badge">🖥 Desktop + Docker</span>
-      <span class="cover-badge">📊 Health Dashboard</span>
-      <span class="cover-badge">✅ Approval Workflow</span>
-      <span class="cover-badge">👥 Multi-User Roles &amp; Sharing</span>
-      <span class="cover-badge">📦 dbt Import &amp; Export</span>
-    </div>
+    <p>Step-by-step walkthrough with screenshots — from connecting to Dremio through building, scheduling, and monitoring production pipelines.</p>
   </div>
+
+  <!-- ══════════════════════════════════════════
+       01  CONNECT
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="connect">
+    <div class="section-header">
+      <div class="step-badge">1</div>
+      <div>
+        <h2>Connect to Dremio</h2>
+        <p>Tell Transform Studio where your Dremio instance lives and how to authenticate.</p>
+      </div>
+    </div>
+
+    <p>On first launch you'll see the main layout but the catalog tree will be empty. Click the <strong>gear icon (⚙)</strong> in the top toolbar to open <strong>Settings → Connection</strong>.</p>
+
+    <div class="two-col">
+      <div class="screenshot-wrap">
+        <img src="screenshots/01-toolbar-connection-icon.png" alt="Toolbar with gear icon highlighted">
+        <div class="screenshot-caption">The gear icon opens Settings. The connection status dot turns green when connected.</div>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="screenshots/02-connection-settings.png" alt="Connection settings modal">
+        <div class="screenshot-caption">Connection Settings — enter your host, port, and credentials here.</div>
+      </div>
+    </div>
+
+    <table class="data-table">
+      <thead><tr><th>Deployment</th><th>Auth Type</th><th>Fields</th></tr></thead>
+      <tbody>
+        <tr><td>Self-hosted</td><td>Password</td><td><code>host</code>, <code>port</code> (9047), <code>username</code>, <code>password</code></td></tr>
+        <tr><td>Dremio Cloud</td><td>PAT</td><td><code>api.dremio.cloud</code>, Personal Access Token, Project ID</td></tr>
+      </tbody>
+    </table>
+
+    <ol class="steps-list">
+      <li><p>Click the <strong>gear icon ⚙</strong> in the top-right toolbar.</p></li>
+      <li><p>Go to the <strong>Connection</strong> tab.</p></li>
+      <li><p>Fill in your host/port (self-hosted) or set auth type to <strong>PAT</strong> and enter your token + project ID (Dremio Cloud).</p></li>
+      <li><p>Click <strong>Test Connection</strong> — you should see a green success message.</p></li>
+      <li><p>Click <strong>Save</strong>. The catalog tree will populate on the left.</p></li>
+    </ol>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body"><strong>Per-user credentials:</strong> When multi-user auth is enabled, each user can also store their own Dremio PAT under <strong>User menu → My Dremio Credentials</strong> so queries run under their own Dremio identity.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       02  LAYOUT
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="layout">
+    <div class="section-header">
+      <div class="step-badge">2</div>
+      <div>
+        <h2>Main Layout Overview</h2>
+        <p>Three-panel workspace — catalog on the left, pipeline in the center, controls on the right.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/03-main-layout.png" alt="Main layout overview">
+      <div class="screenshot-caption">The full Transform Studio workspace. Left: Dremio catalog tree. Center: pipeline step builder. Right: transform library or step config. Bottom: preview results.</div>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">📂</div>
+        <h4>Left Panel — Catalog</h4>
+        <p>Browse Dremio namespaces and tables. Click a table to select it as pipeline source.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔧</div>
+        <h4>Center — Pipeline Builder</h4>
+        <p>Drag-and-drop step list. Each card shows the transform type and key config at a glance.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">➕</div>
+        <h4>Right — Transform Library</h4>
+        <p>53 transforms in 7 categories. Click any card to add it to the pipeline.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📊</div>
+        <h4>Bottom — Preview Table</h4>
+        <p>Live query results after clicking Preview. Switch to the SQL tab to see generated code.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔄</div>
+        <h4>Top Toolbar</h4>
+        <p>Save, Execute, Schedule, Lineage, DAG, Health, Alerts, DQ Hub, Templates, dbt, Settings.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📋</div>
+        <h4>Pipeline List (sidebar)</h4>
+        <p>All your saved pipelines. Click to switch; press ⌘K to search by name or step.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       03  CREATE PIPELINE
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="pipeline">
+    <div class="section-header">
+      <div class="step-badge">3</div>
+      <div>
+        <h2>Create a Pipeline &amp; Select a Source Table</h2>
+        <p>Every pipeline starts with picking a source table from the catalog.</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="screenshot-wrap">
+        <img src="screenshots/03-pipeline-with-source.png" alt="Pipeline with source table selected">
+        <div class="screenshot-caption">A new pipeline with a source table set. The source node appears at the top of the step list.</div>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="screenshots/04-rename-pipeline.png" alt="Rename pipeline">
+        <div class="screenshot-caption">Click the pipeline name at the top of the center panel to rename it inline.</div>
+      </div>
+    </div>
+
+    <ol class="steps-list">
+      <li><p>Click <strong>+ New Pipeline</strong> in the left sidebar (below the pipeline list).</p></li>
+      <li><p>In the <strong>left catalog tree</strong>, expand a namespace and click any table name. It becomes the pipeline's source.</p></li>
+      <li><p>The pipeline shows a <span class="pill pill-blue">Source</span> node with the table name.</p></li>
+      <li><p>Click the pipeline name at the top to rename it (e.g. <code>daily_sales_summary</code>).</p></li>
+    </ol>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body"><strong>Fully-qualified table names:</strong> Use <code>namespace.table_name</code> format (e.g. <code>Samples."samples.dremio.com"."NYC-taxi-trips"</code>). You can also type a name directly in the source field — useful for tables that are deep in the catalog.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       04  ADD TRANSFORMS
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="transforms">
+    <div class="section-header">
+      <div class="step-badge">4</div>
+      <div>
+        <h2>Add Transform Steps</h2>
+        <p>Browse 53 pre-built transforms and add them to your pipeline in seconds.</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="screenshot-wrap">
+        <img src="screenshots/04-transform-library.png" alt="Transform library panel">
+        <div class="screenshot-caption">Transform Library — 53 transforms in 7 categories. Click any card to add it instantly.</div>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="screenshots/21-pipeline-steps.png" alt="Pipeline with multiple steps">
+        <div class="screenshot-caption">A pipeline with multiple steps added. Drag the grip handle (⠿) to reorder.</div>
+      </div>
+    </div>
+
+    <h3>Transform Categories</h3>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">🧹</div>
+        <h4>Clean (14)</h4>
+        <p>Remove duplicates, fill nulls, cast types, trim, validate regex, filter rows…</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔀</div>
+        <h4>Reshape (9)</h4>
+        <p>Join, union, split columns, combine, pivot, unpivot, flatten JSON…</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📅</div>
+        <h4>DateTime (5)</h4>
+        <p>Parse dates, extract parts, truncate, diff, add intervals…</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">✨</div>
+        <h4>Enrich (10)</h4>
+        <p>Lookup join, map values, bin, row numbers, conditional columns, lag/lead…</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📊</div>
+        <h4>Aggregate (5)</h4>
+        <p>Group &amp; aggregate, top-N per group, rolling window, sample rows…</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔤</div>
+        <h4>String (8)</h4>
+        <p>Extract regex, pad, substring, hash, concat literal, surrogate key…</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">💻</div>
+        <h4>Custom SQL (1)</h4>
+        <p>Full SQL editor with <code>{input}</code> placeholder and template library.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/09-transform-library-custom.png" alt="Custom SQL in transform library">
+      <div class="screenshot-caption">The Custom SQL transform — opens a full-screen editor. Use <code>{input}</code> where you want the upstream CTE to be substituted.</div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body"><strong>Reorder steps:</strong> Drag the grip handle (⠿) on the left of each step card to move it up or down. You can also use the ↑↓ arrow buttons on the right of each card.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       05  CONFIGURE
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="configure">
+    <div class="section-header">
+      <div class="step-badge">5</div>
+      <div>
+        <h2>Configure a Transform Step</h2>
+        <p>Click any step card to open its configuration form in the right panel.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/06-configure-step.png" alt="Step configuration panel">
+      <div class="screenshot-caption">Configuration panel for a selected step. Column dropdowns are auto-populated from your Dremio table schema.</div>
+    </div>
+
+    <p>When you click a step card in the center panel, the right panel switches from the Transform Library to the <strong>Step Config</strong> view. Each transform shows only the fields relevant to it — column selectors, dropdowns, text inputs, or toggles.</p>
+
+    <ul>
+      <li>Column dropdowns are automatically populated from your table schema.</li>
+      <li>Fields with <code>{{param}}</code> syntax allow <strong>pipeline parameters</strong> — pass different values at runtime or via webhook.</li>
+      <li>Click the <strong>📝 note icon</strong> on any step to add a free-text annotation visible in the step card and searchable via ⌘K.</li>
+      <li>Changes are applied immediately — click <strong>Preview</strong> to see the effect.</li>
+    </ul>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body"><strong>Data Profile:</strong> Click the chart icon next to any column name in the config panel to see a quick profile — null %, distinct count, min/max. Powered by a cached Dremio query (1-hour TTL).</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       06  CUSTOM SQL
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="custom-sql">
+    <div class="section-header">
+      <div class="step-badge">6</div>
+      <div>
+        <h2>Custom SQL Step</h2>
+        <p>Drop into a full SQL editor when the visual transforms aren't enough.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/10-custom-sql-editor.png" alt="Custom SQL editor">
+      <div class="screenshot-caption">Full-screen Custom SQL editor. Write any Dremio-compatible SQL using <code>{input}</code> to reference the upstream step.</div>
+    </div>
+
+    <p>The <strong>Custom SQL</strong> transform gives you a full-screen Monaco-style SQL editor. This is useful for complex window functions, multi-table lookups, or anything else not covered by the visual transforms.</p>
+
+    <h3>Key concepts</h3>
+    <ul>
+      <li><code>{input}</code> — placeholder that gets replaced with the CTE alias for the previous step's output. Always reference it in your <code>FROM</code> clause.</li>
+      <li><strong>Template Library</strong> — save frequently-used SQL snippets and load them into any pipeline's Custom SQL step. Snippets are searchable by name.</li>
+      <li>The SQL you write is embedded as a CTE in the final generated query, so it composes cleanly with other steps.</li>
+    </ul>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div class="callout-body"><strong>Dremio SQL notes:</strong> Dremio (Calcite) does not support <code>SELECT * EXCEPT</code>. Avoid seeded <code>RAND(n)</code> — use <code>RAND()</code> only. Use <code>lax</code> mode for JSON paths: <code>JSON_VALUE(col, 'lax $.field')</code>.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       07  PREVIEW
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="preview">
+    <div class="section-header">
+      <div class="step-badge">7</div>
+      <div>
+        <h2>Preview Results</h2>
+        <p>See live query results before committing to write anything.</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="screenshot-wrap">
+        <img src="screenshots/05-preview-results.png" alt="Preview results table">
+        <div class="screenshot-caption">Preview results — live data returned from Dremio, shown in a scrollable grid.</div>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="screenshots/11-preview-results.png" alt="Preview with row count">
+        <div class="screenshot-caption">Preview shows row count, column types, and all returned values. Switch between Data and SQL tabs.</div>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/12-sql-view.png" alt="Generated SQL view">
+      <div class="screenshot-caption">SQL tab — the exact SQL that Transform Studio compiled from your steps. Great for debugging and learning.</div>
+    </div>
+
+    <ol class="steps-list">
+      <li><p>Click the <strong>Preview</strong> button in the toolbar (or the blue ▶ button at the bottom of the step list).</p></li>
+      <li><p>Transform Studio compiles your pipeline to a CTE chain and sends it to Dremio.</p></li>
+      <li><p>Results appear in the <strong>bottom panel</strong> — scrollable grid with column headers and types.</p></li>
+      <li><p>Switch to the <strong>SQL tab</strong> to inspect the generated code.</p></li>
+    </ol>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body"><strong>Preview is read-only:</strong> It runs a <code>SELECT</code> — no data is written until you click Execute. Preview as many times as you like without any risk.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       08  EXECUTE
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="execute">
+    <div class="section-header">
+      <div class="step-badge">8</div>
+      <div>
+        <h2>Set Output Mode &amp; Execute</h2>
+        <p>Choose how to materialize your pipeline, then execute to write data to Dremio.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/13-output-mode.png" alt="Output mode selection">
+      <div class="screenshot-caption">Output mode selector — choose between Preview, CTAS, Insert, View, Incremental, and SCD Type 2.</div>
+    </div>
+
+    <table class="data-table">
+      <thead><tr><th>Output Mode</th><th>What it does</th><th>Best for</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill pill-blue">Preview</span></td><td>SELECT only, nothing written</td><td>Development / exploration</td></tr>
+        <tr><td><span class="pill pill-green">CTAS</span></td><td>CREATE TABLE AS SELECT — creates or replaces a Dremio table</td><td>Batch tables, snapshots</td></tr>
+        <tr><td><span class="pill pill-teal">Insert</span></td><td>INSERT INTO an existing table</td><td>Append new rows</td></tr>
+        <tr><td><span class="pill pill-amber">View</span></td><td>CREATE OR REPLACE VDS — a virtual dataset (no data copy)</td><td>Live, always-current views</td></tr>
+        <tr><td><span class="pill pill-teal">Incremental</span></td><td>Append or merge only new rows since last run</td><td>Large tables, daily loads</td></tr>
+      </tbody>
+    </table>
+
+    <ol class="steps-list">
+      <li><p>Set the <strong>Output Table</strong> name (fully-qualified, e.g. <code>MySpace.daily_sales</code>).</p></li>
+      <li><p>Choose the <strong>Output Mode</strong> from the dropdown.</p></li>
+      <li><p>Click <strong>Execute</strong> in the toolbar.</p></li>
+      <li><p>Transform Studio writes the data and reports row count on success.</p></li>
+      <li><p>Any configured <strong>Pipeline Tests</strong> run automatically after a successful execute.</p></li>
+    </ol>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body"><strong>Pipeline Tests:</strong> Use the Tests tab in the right panel to define assertions — <code>not_null</code>, <code>unique</code>, <code>row_count_between</code>, <code>accepted_values</code>, <code>relationships</code>, or <code>custom_sql</code>. Tests with severity <em>error</em> block the pipeline from being marked successful.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       09  LINEAGE
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="lineage">
+    <div class="section-header">
+      <div class="step-badge">9</div>
+      <div>
+        <h2>Visual Lineage</h2>
+        <p>See a column-level DAG from source through every transform step to the output.</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="screenshot-wrap">
+        <img src="screenshots/06-lineage-view.png" alt="Lineage view">
+        <div class="screenshot-caption">Visual lineage — step-by-step DAG showing which columns flow through each transform.</div>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="screenshots/20-lineage-view.png" alt="Column lineage detail">
+        <div class="screenshot-caption">Column-level lineage — expand any step to see exactly which output columns come from which input columns.</div>
+      </div>
+    </div>
+
+    <p>Click the <strong>Lineage</strong> button (GitFork icon) in the toolbar to switch the center panel from the step list to the lineage DAG. Each node represents a step, and edges show data flow. Expand any step to see the column-to-column mappings.</p>
+
+    <ul>
+      <li>Computed from pipeline configuration — no run required.</li>
+      <li>Column-level detail for all 53 transform types.</li>
+      <li>Useful for data governance and impact analysis.</li>
+    </ul>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       10  SCHEDULE
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="schedule">
+    <div class="section-header">
+      <div class="step-badge">10</div>
+      <div>
+        <h2>Schedule a Pipeline</h2>
+        <p>Run pipelines on a cron schedule with optional SLA deadline alerting.</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="screenshot-wrap">
+        <img src="screenshots/08-schedule-modal.png" alt="Schedule modal">
+        <div class="screenshot-caption">Schedule modal — enter a cron expression or choose a preset. Enable/disable without deleting.</div>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="screenshots/19-schedule-modal.png" alt="Schedule modal with SLA">
+        <div class="screenshot-caption">SLA Deadline section — set a time by which the pipeline must have completed or an alert fires.</div>
+      </div>
+    </div>
+
+    <ol class="steps-list">
+      <li><p>Click the <strong>CalendarClock icon</strong> in the toolbar (tooltip: "Schedule Pipeline").</p></li>
+      <li><p>Enter a <strong>cron expression</strong> (e.g. <code>0 6 * * *</code> for 6 AM daily) or pick a preset.</p></li>
+      <li><p>Optionally set <strong>Max Retries</strong> (0–5) with exponential backoff (1 min, 2 min, 4 min…).</p></li>
+      <li><p>Toggle <strong>SLA Deadline</strong> on and set a time (e.g. <code>08:00</code> UTC). If the pipeline hasn't completed successfully by that time, an alert fires via email or Slack.</p></li>
+      <li><p>Click <strong>Save Schedule</strong>. The schedule activates immediately.</p></li>
+    </ol>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-body"><strong>SLA alerting fires once per day</strong> per pipeline, at most. A successful run resets the SLA flag so the next day starts clean. SLA breaches are also written to the Audit Log.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       11  HISTORY
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="history">
+    <div class="section-header">
+      <div class="step-badge">11</div>
+      <div>
+        <h2>Version History &amp; Run Log</h2>
+        <p>Every save creates a version. Every execution creates a run record.</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="screenshot-wrap">
+        <img src="screenshots/07-version-history.png" alt="Version history panel">
+        <div class="screenshot-caption">Version History tab — every save creates a named version. Click Restore to revert to any previous state.</div>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="screenshots/08-runs-tab.png" alt="Runs tab">
+        <div class="screenshot-caption">Runs tab — shows all executions with status, row count, duration, and any error messages.</div>
+      </div>
+    </div>
+
+    <h3>Version History</h3>
+    <p>Click the <strong>History</strong> button in the right panel tabs. Every time you save a pipeline, a new version is created with a timestamp. Click <strong>Restore</strong> on any version to revert the pipeline steps to that state.</p>
+
+    <h3>Run Log</h3>
+    <p>The <strong>Runs</strong> tab shows all historical executions for the current pipeline: status (✅ success / ❌ failed), row count, start time, duration, and error details if any. A global run log across all pipelines is available from the Health Dashboard.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       12  HEALTH
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="health">
+    <div class="section-header">
+      <div class="step-badge">12</div>
+      <div>
+        <h2>Pipeline Health Dashboard</h2>
+        <p>A bird's-eye view of all pipeline statuses, recent runs, and failures.</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="screenshot-wrap">
+        <img src="screenshots/09-health-dashboard.png" alt="Health dashboard">
+        <div class="screenshot-caption">Health Dashboard — stat cards at the top, pipeline status grid below. Click any row to jump to that pipeline.</div>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="screenshots/14-health-dashboard.png" alt="Health dashboard detailed">
+        <div class="screenshot-caption">Each pipeline shows last run status, time, row count, and schedule state. Filter by status or search by name.</div>
+      </div>
+    </div>
+
+    <p>Click the <strong>Health</strong> button (heart icon) in the toolbar. The dashboard shows:</p>
+    <ul>
+      <li>Total pipelines, scheduled pipelines, recent successes and failures.</li>
+      <li>Per-pipeline last-run status, row count, last execution time.</li>
+      <li>Global run history log at the bottom — all pipelines, newest first.</li>
+    </ul>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/10-approval-reviews.png" alt="Approval reviews panel">
+      <div class="screenshot-caption">Approval / Reviews panel — Viewer-role users submit pipelines for review; Admins approve or reject from here.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       13  ALERTS
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="alerts">
+    <div class="section-header">
+      <div class="step-badge">13</div>
+      <div>
+        <h2>Alerts</h2>
+        <p>Custom SQL checks, pipeline health monitors, and data quality alerts — all on a schedule.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/15-new-alert.png" alt="New alert creation">
+      <div class="screenshot-caption">Create Alert modal — choose the alert type, write the condition, set a schedule, and pick where to send notifications.</div>
+    </div>
+
+    <p>Click the <strong>Alerts</strong> button (bell icon) in the toolbar to open the alerts page. Click <strong>+ New Alert</strong> to create one.</p>
+
+    <table class="data-table">
+      <thead><tr><th>Alert Type</th><th>How it works</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Custom SQL</strong></td><td>Runs a SQL query against Dremio; fires if any rows are returned (e.g. <code>SELECT 1 FROM orders WHERE status = 'error'</code>).</td></tr>
+        <tr><td><strong>Pipeline Health</strong></td><td>Fires if a specific pipeline failed in its last N runs.</td></tr>
+        <tr><td><strong>Data Quality</strong></td><td>Fires if a DQ monitor's score drops below its configured threshold.</td></tr>
+        <tr><td><strong>Source Freshness</strong></td><td>Fires if <code>MAX(timestamp_col)</code> of a table is older than a configured threshold.</td></tr>
+      </tbody>
+    </table>
+
+    <p>Notifications go to email and/or Slack (configured in <strong>Settings → Notifications</strong>). You can also click <strong>Run Now</strong> on any alert to test it immediately.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       14  DQ HUB
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="dq-hub">
+    <div class="section-header">
+      <div class="step-badge">14</div>
+      <div>
+        <h2>Data Quality Hub</h2>
+        <p>Dedicated DQ workspace with monitors, scoring, scheduling, and 14 built-in rules.</p>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="screenshot-wrap">
+        <img src="screenshots/22-dq-hub.png" alt="Data Quality Hub overview">
+        <div class="screenshot-caption">DQ Hub overview — score rings per monitor, summary stats, and last scan times.</div>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="screenshots/23-dq-new-monitor.png" alt="New DQ monitor wizard">
+        <div class="screenshot-caption">3-step monitor creation wizard: pick a table → configure rules → set schedule and alert threshold.</div>
+      </div>
+    </div>
+
+    <p>Click the <strong>DQ Hub</strong> button (shield icon, <span class="pill pill-blue">DQ Hub</span>) in the toolbar. DQ Hub has four sections:</p>
+
+    <ul>
+      <li><strong>Overview:</strong> Stat cards + monitor health grid with animated score rings.</li>
+      <li><strong>Monitors:</strong> List of all DQ monitors with score, last-run time, and run/edit controls.</li>
+      <li><strong>History:</strong> Cross-monitor scan log — all scans newest first with per-rule results.</li>
+      <li><strong>Rule Catalog:</strong> All 14 built-in rule types with descriptions and an "Add to monitor" shortcut.</li>
+    </ul>
+
+    <h3>14 Built-in DQ Rules</h3>
+    <div class="feature-grid">
+      <div class="feature-card"><h4>Completeness</h4><p>Null check, completeness rate threshold</p></div>
+      <div class="feature-card"><h4>Validity</h4><p>Regex pattern match, accepted values, range check</p></div>
+      <div class="feature-card"><h4>Uniqueness</h4><p>Duplicate check, unique ratio threshold</p></div>
+      <div class="feature-card"><h4>Accuracy</h4><p>Custom SQL assertion, referential integrity</p></div>
+      <div class="feature-card"><h4>Timeliness</h4><p>Source freshness — max timestamp age</p></div>
+      <div class="feature-card"><h4>Consistency</h4><p>Row count threshold, cross-table count match</p></div>
+    </div>
+
+    <p>DQ scores are a weighted average of rule pass rates (0–100%). <span class="pill pill-green">≥ 90%</span> green, <span class="pill pill-amber">70–89%</span> amber, <span class="pill pill-red">&lt; 70%</span> red. Monitors can alert via email/Slack when score drops below a configurable threshold.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       15  DAG
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="dag">
+    <div class="section-header">
+      <div class="step-badge">15</div>
+      <div>
+        <h2>Cross-Pipeline DAG</h2>
+        <p>Visualize and manage dependencies between pipelines.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/16-pipeline-dag.png" alt="Cross-pipeline DAG view">
+      <div class="screenshot-caption">Cross-pipeline DAG — nodes are pipelines, edges are upstream dependencies. Click any node to open that pipeline.</div>
+    </div>
+
+    <p>Click the <strong>DAG</strong> button (GitBranch icon) in the toolbar. The full-screen SVG view shows all pipelines and their dependencies as a directed graph.</p>
+
+    <ul>
+      <li>Add dependencies from the <strong>Dependencies</strong> tab in the right panel of any pipeline.</li>
+      <li>Cycle detection highlights circular dependencies in red.</li>
+      <li>Use the <strong>Run with Dependencies</strong> button (GitMerge icon) to run the full upstream chain in topological order — skips downstream pipelines if an upstream one fails.</li>
+      <li>The execution order (topological sort) is shown in the tooltip of each node.</li>
+    </ul>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       16  TEMPLATES
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="templates">
+    <div class="section-header">
+      <div class="step-badge">16</div>
+      <div>
+        <h2>Pipeline Templates</h2>
+        <p>Deploy a fully-configured pipeline from a pre-built template in one click.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/24-templates.png" alt="Pipeline templates library">
+      <div class="screenshot-caption">Template library — 8 pre-built pipelines. Click a template, set your source table, and deploy.</div>
+    </div>
+
+    <p>Click the <strong>Templates</strong> button (grid icon) in the toolbar. Choose a template, review its steps, enter your source table name, and click <strong>Deploy Template</strong>. The pipeline opens immediately, ready to preview or adjust.</p>
+
+    <table class="data-table">
+      <thead><tr><th>Template</th><th>Category</th><th>Steps</th></tr></thead>
+      <tbody>
+        <tr><td>Daily Sales Summary</td><td>Analytics</td><td>4</td></tr>
+        <tr><td>Customer 360</td><td>Analytics</td><td>5</td></tr>
+        <tr><td>Top Products by Revenue</td><td>Analytics</td><td>4</td></tr>
+        <tr><td>Revenue by Region</td><td>Analytics</td><td>4</td></tr>
+        <tr><td>Churn Candidates</td><td>Marketing</td><td>5</td></tr>
+        <tr><td>User Activity Funnel</td><td>Product</td><td>5</td></tr>
+        <tr><td>Monthly Cohort Retention</td><td>Product</td><td>6</td></tr>
+        <tr><td>Data Freshness Audit</td><td>Operations</td><td>3</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       17  DBT
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="dbt">
+    <div class="section-header">
+      <div class="step-badge">17</div>
+      <div>
+        <h2>dbt Compatibility</h2>
+        <p>Export your pipelines as a dbt project, or import any dbt project into Transform Studio.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/18-dbt-import.png" alt="dbt import modal">
+      <div class="screenshot-caption">dbt Import modal — drop a dbt project ZIP, preview the models to import, then confirm. No dbt installation required.</div>
+    </div>
+
+    <div class="two-col">
+      <div class="feature-card">
+        <div class="icon">📦</div>
+        <h4>Export to dbt</h4>
+        <p>Click the <strong>Package icon</strong> in the toolbar. Downloads a standard dbt project ZIP with one <code>.sql</code> model per pipeline, <code>sources.yml</code>, <code>schema.yml</code>, and <code>dbt_project.yml</code>. Run with <code>dbt run</code> after editing <code>profiles.yml</code>.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">⬆️</div>
+        <h4>Import from dbt</h4>
+        <p>Click the <strong>Upload icon</strong>. Drop your dbt project ZIP. Transform Studio parses Jinja, resolves <code>&#123;&#123; ref() &#125;&#125;</code> to pipeline dependencies, maps materializations, and converts schema.yml tests to pipeline tests.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       18  SEED
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="seed">
+    <div class="section-header">
+      <div class="step-badge">18</div>
+      <div>
+        <h2>Seed a Table from CSV</h2>
+        <p>Upload a CSV file directly to Dremio as a new table — no SQL required.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-wrap">
+      <img src="screenshots/17-seed-csv.png" alt="Seed CSV upload">
+      <div class="screenshot-caption">Seed CSV modal — drag and drop a CSV file. Transform Studio infers column types and creates the Dremio table automatically.</div>
+    </div>
+
+    <ol class="steps-list">
+      <li><p>Click the <strong>Upload CSV</strong> button (table icon) in the toolbar.</p></li>
+      <li><p>Drag and drop a <code>.csv</code> file (up to 5,000 rows).</p></li>
+      <li><p>Transform Studio shows a preview with inferred column types. Adjust if needed.</p></li>
+      <li><p>Enter the destination table name (must be an Iceberg source or Space, not a Hive/Parquet source).</p></li>
+      <li><p>Click <strong>Create Table</strong>. The table appears in the catalog tree immediately.</p></li>
+    </ol>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div class="callout-body"><strong>Destination requirement:</strong> The target namespace must be an Iceberg source or a Dremio Space (e.g. <code>MySpace</code>). Seeding into <code>@username</code> home spaces creates a VDS, not a physical table.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       PRO TIPS
+  ═══════════════════════════════════════════ -->
+  <section class="section" id="tips">
+    <div class="section-header">
+      <div class="step-badge gray">✦</div>
+      <div>
+        <h2>Pro Tips</h2>
+        <p>Power-user features that save time once you're comfortable with the basics.</p>
+      </div>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">🔍</div>
+        <h4>Global Search ⌘K</h4>
+        <p>Press <strong>⌘K</strong> (Mac) or <strong>Ctrl+K</strong> to search all pipeline names, step configs, source tables, and notes instantly.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🏷️</div>
+        <h4>Tags &amp; Folders</h4>
+        <p>Tag pipelines with free-form labels and group them into folders. Filter the sidebar by tag to find related pipelines fast.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📋</div>
+        <h4>Audit Log</h4>
+        <p>Admins can see a full log of every create, save, execute, delete, share, schedule, and SLA breach — with user, timestamp, IP, and details. CSV export available.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔗</div>
+        <h4>Webhooks</h4>
+        <p>Each pipeline has a unique webhook URL. POST to it from any system (Airflow, CI/CD, etc.) to trigger a run. Pass <code>param_values</code> in the body for parameterized pipelines.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🤖</div>
+        <h4>MCP Server</h4>
+        <p>Built-in MCP server at <code>/mcp/sse</code> with 22 tools. Connect any AI agent (Claude, Cursor, etc.) to run, list, schedule, and inspect pipelines via natural language.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📁</div>
+        <h4>Export Documentation</h4>
+        <p>Click the doc-export button to download a self-contained HTML file documenting all your pipelines — steps, parameters, schedules, tests — shareable without any login.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🧪</div>
+        <h4>Pipeline Tests</h4>
+        <p>Use the Tests tab to add assertions that run after every execute. Store failing rows to a Dremio table for investigation. Block deploys on test failures.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔐</div>
+        <h4>SSO / Multi-User</h4>
+        <p>Enable auth via Settings → Security. Add Okta, Azure AD, or Google SSO. Assign Admin / Editor / Viewer roles. Share individual pipelines with specific users.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body"><strong>Backup your data:</strong> Go to <strong>Settings → Storage → Download Backup</strong> to save your full database as a <code>.db</code> file. Use <strong>Restore from Backup</strong> to migrate between machines or recover from issues.</div>
+    </div>
+
+    <div style="margin-top:48px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 13px;">
+      <p>Dremio Transform Studio &nbsp;·&nbsp; v1.10 &nbsp;·&nbsp; <a href="https://github.com/dremio-community/dremio-transform-studio" style="color: var(--blue-light);">github.com/dremio-community/dremio-transform-studio</a></p>
+    </div>
+  </section>
+
+</main>
 </div>
 
-<!-- ══════════ TOC ══════════ -->
-<div class="toc">
-  <h2>Contents</h2>
-  <div class="toc-grid">
-    <a href="#s1"><span class="toc-num">1</span> Interface Overview</a>
-    <a href="#s2"><span class="toc-num">2</span> Connecting to Dremio</a>
-    <a href="#s3"><span class="toc-num">3</span> Creating a Pipeline</a>
-    <a href="#s4"><span class="toc-num">4</span> Adding Transforms</a>
-    <a href="#s5"><span class="toc-num">5</span> Preview &amp; Execute</a>
-    <a href="#s6"><span class="toc-num">6</span> Lineage View</a>
-    <a href="#s7"><span class="toc-num">7</span> Pipeline Tests</a>
-    <a href="#s8"><span class="toc-num">8</span> Scheduling</a>
-    <a href="#s9"><span class="toc-num">9</span> Incremental Models</a>
-    <a href="#s10"><span class="toc-num">10</span> Advanced Features</a>
-    <a href="#s11"><span class="toc-num">11</span> Pipeline Health Dashboard</a>
-    <a href="#s12"><span class="toc-num">12</span> Approval Workflow</a>
-    <a href="#s13"><span class="toc-num">13</span> Multi-User Roles &amp; Sharing</a>
-    <a href="#s14"><span class="toc-num">14</span> dbt Import &amp; Export</a>
-  </div>
-</div>
-
-<div class="content">
-
-<!-- ══════════ SECTION 1 — INTERFACE OVERVIEW ══════════ -->
-<div class="section" id="s1">
-  <div class="section-header">
-    <div class="section-num">1</div>
-    <div>
-      <div class="section-title">Interface Overview</div>
-      <div class="section-subtitle">Understanding the four-panel layout</div>
-    </div>
-  </div>
-
-  <div style="position:relative;margin:24px 0;">
-    <img src="screenshots/01-main-layout.png" alt="Transform Studio main interface"
-         style="width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.15);display:block;"
-         onerror="this.style.display='none';document.getElementById('ph-s1').style.display='block'">
-    <!-- A: Pipeline List (left sidebar top) -->
-    <div style="position:absolute;top:22%;left:4%;width:26px;height:26px;border-radius:50%;background:#1d4ed8;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:2px solid white;">A</div>
-    <!-- B: Catalog Browser (left sidebar bottom) -->
-    <div style="position:absolute;top:62%;left:4%;width:26px;height:26px;border-radius:50%;background:#059669;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:2px solid white;">B</div>
-    <!-- C: Pipeline Builder (center) -->
-    <div style="position:absolute;top:48%;left:46%;width:26px;height:26px;border-radius:50%;background:#d97706;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:2px solid white;">C</div>
-    <!-- D: Config Panel (right) -->
-    <div style="position:absolute;top:28%;left:82%;width:26px;height:26px;border-radius:50%;background:#dc2626;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:2px solid white;">D</div>
-    <!-- E: Toolbar (top bar) -->
-    <div style="position:absolute;top:3%;left:48%;width:26px;height:26px;border-radius:50%;background:#7c3aed;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4);border:2px solid white;">E</div>
-  </div>
-  <div id="ph-s1" class="screenshot-placeholder" style="display:none">
-    <div class="ph-icon">🖥</div>
-    <div class="ph-label">Main interface screenshot</div>
-  </div>
-
-  <div class="callouts">
-    <div class="callout">
-      <div class="callout-num blue">A</div>
-      <div><strong>Pipeline List (left panel)</strong><span>All your saved pipelines. Click any pipeline to open it. Use <strong>+ New</strong> to create one. Search appears automatically when you have 5+ pipelines.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num green">B</div>
-      <div><strong>Catalog Browser (left panel, below pipelines)</strong><span>Browse your Dremio namespaces and tables. Toggle between <strong>Dremio</strong> and <strong>Iceberg</strong> catalogs. Click any table to set it as the pipeline source.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num amber">C</div>
-      <div><strong>Pipeline Builder (center)</strong><span>Your transform steps appear here as cards, top to bottom. Drag the grip handle on the left to reorder steps. Click a step to configure it.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num red">D</div>
-      <div><strong>Configuration Panel (right)</strong><span>Primary tabs: <strong>ADD</strong> (browse transforms), <strong>CONFIG</strong> (configure the selected step), <strong>HISTORY</strong> (version history), <strong>RUNS</strong> (execution log). Below those, an icon strip gives quick access to: <strong>Params · Tests · Deps · Webhook · Hooks · Expose · Reviews</strong> — hover any icon to see its tooltip.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num purple">E</div>
-      <div><strong>Toolbar (top)</strong><span>Pipeline name (editable), environment switcher, action buttons. <strong>Preview</strong> runs a SELECT without writing data. <strong>Execute</strong> writes the output table.</span></div>
-    </div>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Toolbar Quick Reference</h3>
-  <div class="toolbar-diagram">
-    <span class="tb-item">📊 Dashboard</span>
-    <span class="tb-item">🔔 Alerts</span>
-    <span class="tb-item">⚡ Run w/ Deps</span>
-    <span class="tb-item">🔧 Settings</span>
-    <span class="tb-item">📄 Docs</span>
-    <span class="tb-item">⚙️ Connection</span>
-    <span class="tb-sep"></span>
-    <span class="tb-item active">Default ▾</span>
-    <span class="tb-sep"></span>
-    <span class="tb-item">⬇ Import</span>
-    <span class="tb-item">⬆ Export</span>
-    <span class="tb-sep"></span>
-    <span class="tb-item">View SQL</span>
-    <span class="tb-item active" style="background:#22c55e">▶ Preview</span>
-    <span class="tb-item active" style="background:#3b82f6">⚡ Execute</span>
-    <span class="tb-item">💾 Save</span>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Right Panel Tab Layout</h3>
-  <div class="icon-strip-diagram">
-    <div class="isd-row">
-      <div class="isd-tab">ADD</div>
-      <div class="isd-tab active">CONFIG</div>
-      <div class="isd-tab">HISTORY</div>
-      <div class="isd-tab">RUNS</div>
-    </div>
-    <div class="isd-icon-row">
-      <div class="isd-icon-btn active"><span>⚙</span><span>Params</span></div>
-      <div class="isd-icon-btn"><span>🧪</span><span>Tests</span></div>
-      <div class="isd-icon-btn"><span>⑂</span><span>Deps</span></div>
-      <div class="isd-icon-btn"><span>🔗</span><span>Webhook</span></div>
-      <div class="isd-icon-btn"><span>⚡</span><span>Hooks</span></div>
-      <div class="isd-icon-btn"><span>📡</span><span>Expose</span></div>
-      <div class="isd-icon-btn"><span>✔</span><span>Reviews</span></div>
-    </div>
-  </div>
-  <p style="font-size:13px;color:var(--muted);margin-bottom:16px">The primary row (ADD / CONFIG / HISTORY / RUNS) stays visible at all times. The icon strip below gives one-click access to pipeline settings panels — hover any icon to see its full name.</p>
-
-  <div class="tip">
-    <div>💡</div>
-    <div><strong>Tip:</strong> Hover over any toolbar or panel icon to see a tooltip describing what it does.</div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 2 — CONNECTING ══════════ -->
-<div class="section" id="s2">
-  <div class="section-header">
-    <div class="section-num">2</div>
-    <div>
-      <div class="section-title">Connecting to Dremio</div>
-      <div class="section-subtitle">Setting up your Dremio Cloud or self-hosted connection</div>
-    </div>
-  </div>
-
-  <img src="screenshots/02-connection-settings.png" alt="Connection settings modal"
-       style="width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.15);margin:24px 0;"
-       onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-  <div class="screenshot-placeholder" style="display:none">
-    <div class="ph-icon">🔌</div>
-    <div class="ph-label">Connection Settings modal screenshot</div>
-  </div>
-
-  <div class="steps">
-    <div class="step"><div class="step-body"><strong>Open Settings</strong><span>Click the ⚙️ icon in the top toolbar to open the Settings modal.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Choose a preset</strong><span>Click <strong>Dremio Cloud (US)</strong>, <strong>Dremio Cloud (EU)</strong>, or <strong>Self-hosted</strong> to pre-fill the host, port, SSL, and auth type.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Enter credentials</strong><span>For Dremio Cloud: paste your <strong>Personal Access Token (PAT)</strong> and your <strong>Project ID</strong> (found in your Cloud URL). For self-hosted: enter username and password.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Test &amp; Save</strong><span>Click <strong>Test Connection</strong> to verify, then <strong>Save &amp; Connect</strong>. The catalog browser refreshes automatically — no page reload needed.</span></div></div>
-  </div>
-
-  <div class="two-col">
-    <div>
-      <h4 style="font-size:14px;font-weight:600;margin-bottom:8px">📍 Finding your Project ID</h4>
-      <p style="font-size:13px;color:var(--muted)">In Dremio Cloud, look at your browser URL:<br>
-      <code>app.dremio.cloud/project/<strong>YOUR-ID-HERE</strong>/…</code><br><br>
-      Copy the UUID portion and paste it into the Project ID field.</p>
-    </div>
-    <div>
-      <h4 style="font-size:14px;font-weight:600;margin-bottom:8px">🔑 Creating a PAT</h4>
-      <p style="font-size:13px;color:var(--muted)">In Dremio Cloud:<br>
-      <strong>Account menu → Personal Access Tokens → New Token</strong><br><br>
-      Give it a name, set an expiry, and copy the token value. It's only shown once.</p>
-    </div>
-  </div>
-
-  <div class="info">
-    <div>ℹ️</div>
-    <div><strong>Credentials are persisted.</strong> Your connection settings (including the PAT) are saved to the local SQLite database and restored automatically on every restart. You only need to enter them once.</div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 3 — CREATING A PIPELINE ══════════ -->
-<div class="section" id="s3">
-  <div class="section-header">
-    <div class="section-num">3</div>
-    <div>
-      <div class="section-title">Creating a Pipeline</div>
-      <div class="section-subtitle">From blank canvas to your first transform</div>
-    </div>
-  </div>
-
-  <img src="screenshots/03-pipeline-with-source.png" alt="Pipeline with source table selected"
-       style="width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.15);margin:24px 0;"
-       onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-  <div class="screenshot-placeholder" style="display:none">
-    <div class="ph-icon">🏗️</div>
-    <div class="ph-label">Pipeline builder with source table selected</div>
-  </div>
-
-  <div class="steps">
-    <div class="step"><div class="step-body"><strong>Create a new pipeline</strong><span>Click <strong>+ New Pipeline</strong> in the top toolbar, or <strong>+ New</strong> in the pipeline list sidebar.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Select a source table</strong><span>In the left panel, expand a namespace in the Catalog Browser and click any table. The center panel updates to show the source as the starting node.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Name your pipeline</strong><span>Click the pipeline name in the toolbar (default: "Untitled Pipeline") to rename it. Press Enter to confirm.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Set the output</strong><span>In the CONFIG tab on the right, select your <strong>Output namespace</strong> (Dremio space or folder, including nested subfolders) from the dropdown, then type the table name. The full path is shown as a preview below the field. Also set your <strong>Output mode</strong> (Preview, CTAS, Insert, View, Incremental).</span></div></div>
-    <div class="step"><div class="step-body"><strong>Save</strong><span>Click <strong>Save</strong> in the toolbar. Every save creates a new version — you can restore any prior version from the HISTORY tab. If another pipeline already has the same name, a warning dialog appears — you can rename it or save anyway.</span></div></div>
-  </div>
-
-  <div class="tip">
-    <div>💡</div>
-    <div><strong>Tip:</strong> Use <strong>Duplicate</strong> (right-click a pipeline in the list) to clone an existing pipeline as a starting point for a new one.</div>
-  </div>
-
-  <div class="info">
-    <div>ℹ️</div>
-    <div><strong>Unsaved changes indicator:</strong> A yellow dot appears next to the pipeline name in the list when you have unsaved changes. It disappears after saving.</div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 4 — ADDING TRANSFORMS ══════════ -->
-<div class="section" id="s4">
-  <div class="section-header">
-    <div class="section-num">4</div>
-    <div>
-      <div class="section-title">Adding Transform Steps</div>
-      <div class="section-subtitle">Building your data pipeline visually</div>
-    </div>
-  </div>
-
-  <img src="screenshots/03-pipeline-with-source.png" alt="Transform library panel"
-       style="width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.15);margin:24px 0;"
-       onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-  <div class="screenshot-placeholder" style="display:none">
-    <div class="ph-icon">🔧</div>
-    <div class="ph-label">Transform library and configured step</div>
-  </div>
-
-  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Click the <strong>ADD</strong> tab on the right panel to browse all 52 available transforms organized into 7 categories.</p>
-
-  <div class="feature-grid">
-    <div class="feature-card">
-      <div class="feature-card-icon">🧹</div>
-      <h4>Clean (14)</h4>
-      <p>Remove duplicates, fill nulls, trim whitespace, validate regex, cast types, filter rows, clip values, standardize case.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">🔄</div>
-      <h4>Reshape (9)</h4>
-      <p>Join tables, union, split/combine columns, add columns, reorder, unpivot, flatten JSON.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">📅</div>
-      <h4>DateTime (5)</h4>
-      <p>Parse dates, extract parts (year/month/day), truncate, calculate date differences, add/subtract intervals.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">✨</div>
-      <h4>Enrich (10)</h4>
-      <p>Lookup joins, map values, bin/bucket values, row numbers, running totals, conditional columns, lag/lead, percent of total.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">📊</div>
-      <h4>Aggregate (5)</h4>
-      <p>Group &amp; aggregate, top-N per group, rolling windows, sample rows, SCD Type 1 upsert.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">🔤</div>
-      <h4>String (8)</h4>
-      <p>Extract with regex, pad, substring, length, upper/lower, concatenate, hash columns, generate surrogate keys.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">💻</div>
-      <h4>Custom SQL (1)</h4>
-      <p>Full-screen SQL editor with <code>{input}</code> placeholder. Save snippets to the template library for reuse.</p>
-    </div>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Working with Steps</h3>
-  <div class="callouts">
-    <div class="callout">
-      <div class="callout-num blue">↕</div>
-      <div><strong>Reorder steps</strong><span>Drag the grip handle (⋮⋮) on the left side of any step card up or down to reorder. Or use the ↑↓ arrow buttons.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num red">🗑</div>
-      <div><strong>Delete a step</strong><span>Click the ✕ button on the right side of the step card. The pipeline automatically recomputes downstream columns.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num green">👁</div>
-      <div><strong>Preview mid-pipeline</strong><span>Click any step card to select it, then click <strong>Preview</strong>. The preview shows results up to and including that step, not the full pipeline.</span></div>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 5 — PREVIEW & EXECUTE ══════════ -->
-<div class="section" id="s5">
-  <div class="section-header">
-    <div class="section-num">5</div>
-    <div>
-      <div class="section-title">Preview &amp; Execute</div>
-      <div class="section-subtitle">Running your pipeline and writing output</div>
-    </div>
-  </div>
-
-  <img src="screenshots/05-preview-results.png" alt="Preview results panel"
-       style="width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.15);margin:24px 0;"
-       onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-  <div class="screenshot-placeholder" style="display:none">
-    <div class="ph-icon">👁️</div>
-    <div class="ph-label">Preview results with data grid</div>
-  </div>
-
-  <div class="two-col">
-    <div style="background:var(--green-light);border:1px solid #a7f3d0;border-radius:10px;padding:16px;">
-      <h4 style="font-size:14px;font-weight:600;color:#065f46;margin-bottom:8px">▶ Preview</h4>
-      <p style="font-size:13px;color:#064e3b;line-height:1.6">Runs a <code>SELECT</code> against Dremio and shows the first 1,000 rows in the bottom panel. <strong>Does not write any data.</strong> Fast and safe to run at any time. Results appear in the SQL / Preview tab at the bottom.</p>
-    </div>
-    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;">
-      <h4 style="font-size:14px;font-weight:600;color:#1e40af;margin-bottom:8px">⚡ Execute</h4>
-      <p style="font-size:13px;color:#1e3a8a;line-height:1.6">Writes the pipeline output to Dremio. Behavior depends on the output mode: <strong>CTAS</strong> creates/replaces a table, <strong>Insert</strong> appends rows, <strong>View</strong> creates a virtual view, <strong>Incremental</strong> merges or appends changes.</p>
-    </div>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Output Modes</h3>
-  <div class="callouts">
-    <div class="callout">
-      <div class="callout-num blue">P</div>
-      <div><strong>Preview mode</strong><span>No output table is written. Use this while iterating on your pipeline logic.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num green">C</div>
-      <div><strong>CTAS (Create Table As Select)</strong><span>Creates or replaces a table with the full pipeline output. Best for most use cases.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num amber">I</div>
-      <div><strong>Insert</strong><span>Appends new rows to an existing table. No deduplication.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num purple">V</div>
-      <div><strong>View</strong><span>Creates a Dremio virtual view. Queries run on the fly — no data is copied.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num red">⟳</div>
-      <div><strong>Incremental</strong><span>Smart updates: <strong>Merge</strong> upserts changed rows (Iceberg), <strong>Append</strong> adds only new rows by timestamp, <strong>Microbatch</strong> processes data in time-window chunks.</span></div>
-    </div>
-  </div>
-
-  <div class="warning">
-    <div>⚠️</div>
-    <div><strong>Pre/Post hooks:</strong> If your pipeline has pre-hook SQL configured, it runs before Execute. A pre-hook failure will abort the execution. Post-hook failures surface as warnings but don't mark the run as failed.</div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 6 — LINEAGE VIEW ══════════ -->
-<div class="section" id="s6">
-  <div class="section-header">
-    <div class="section-num">6</div>
-    <div>
-      <div class="section-title">Lineage View</div>
-      <div class="section-subtitle">Visual DAG showing data flow through your pipeline</div>
-    </div>
-  </div>
-
-  <img src="screenshots/06-lineage-view.png" alt="Pipeline lineage DAG"
-       style="width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.15);margin:24px 0;"
-       onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-  <div class="screenshot-placeholder" style="display:none">
-    <div class="ph-icon">🔀</div>
-    <div class="ph-label">Lineage DAG view screenshot</div>
-  </div>
-
-  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Click the <strong>branch/lineage icon</strong> (↗ arrows) in the toolbar to switch from the step list to the visual DAG view.</p>
-
-  <div class="callouts">
-    <div class="callout">
-      <div class="callout-num blue">📦</div>
-      <div><strong>Source node (blue)</strong><span>Your input table from Dremio. Shows the full namespace path.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num amber">🔧</div>
-      <div><strong>Transform step nodes (amber)</strong><span>Each step in your pipeline. Steps are connected in order, top to bottom. Click any node to select and configure that step.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num green">📤</div>
-      <div><strong>Output node (green)</strong><span>The destination table or view. Shows the output mode badge (CTAS / INSERT / VIEW / INCREMENTAL).</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num purple">🔍</div>
-      <div><strong>Column-level lineage</strong><span>Click <strong>Column Lineage</strong> below the output node to expand per-step column mappings — shows which source columns contribute to each output column.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num red">📊</div>
-      <div><strong>Exposures (indigo)</strong><span>Downstream BI tools that consume this pipeline's output. Add them in the <strong>EXPOSE</strong> tab. They appear as indigo cards below the output node.</span></div>
-    </div>
-  </div>
-
-  <div class="tip">
-    <div>💡</div>
-    <div><strong>Cross-pipeline DAG:</strong> Click the pipeline graph icon (⬡) in the top toolbar to see how all your pipelines connect to each other — showing upstream dependencies and downstream consumers across your entire workspace.</div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 7 — PIPELINE TESTS ══════════ -->
-<div class="section" id="s7">
-  <div class="section-header">
-    <div class="section-num">7</div>
-    <div>
-      <div class="section-title">Pipeline Tests</div>
-      <div class="section-subtitle">Data quality assertions that run after every execution</div>
-    </div>
-  </div>
-
-  <img src="screenshots/07-tests-panel.png" alt="Tests panel"
-       style="width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.15);margin:24px 0;"
-       onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-  <div class="screenshot-placeholder" style="display:none">
-    <div class="ph-icon">✅</div>
-    <div class="ph-label">Tests panel with defined tests</div>
-  </div>
-
-  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Click the <strong>🧪 Tests</strong> icon in the right panel icon strip to define data quality checks. Tests run automatically after every successful Execute.</p>
-
-  <div class="feature-grid">
-    <div class="feature-card">
-      <div class="feature-card-icon">🚫</div>
-      <h4>not_null</h4>
-      <p>Fails if any row has a NULL in the specified column.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">🔑</div>
-      <h4>unique</h4>
-      <p>Fails if the specified column contains duplicate values.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">🔢</div>
-      <h4>row_count_between</h4>
-      <p>Fails if the output row count falls outside a min/max range.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">📋</div>
-      <h4>accepted_values</h4>
-      <p>Fails if a column contains values outside an allowed list.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">🔗</div>
-      <h4>relationships</h4>
-      <p>Fails if column values don't exist in a reference table (referential integrity).</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">💻</div>
-      <h4>custom_sql</h4>
-      <p>Write any SQL that returns rows on failure. Full flexibility for complex checks.</p>
-    </div>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Test Options</h3>
-  <div class="callouts">
-    <div class="callout">
-      <div class="callout-num red">🚫</div>
-      <div><strong>Severity: error</strong><span>Failing tests with error severity <strong>block the pipeline</strong> from completing. The run is marked as failed.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num amber">⚠</div>
-      <div><strong>Severity: warn</strong><span>Failing tests with warn severity <strong>surface as warnings</strong> but don't fail the run. Good for informational checks.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num blue">🔍</div>
-      <div><strong>Where filter</strong><span>Add a SQL WHERE clause to scope a test to a subset of rows. e.g. <code>status = 'active'</code> to only check active records.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num orange" style="background:#fff7ed;color:#9a3412;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">📁</div>
-      <div><strong>Store failures</strong><span>When enabled, failing rows are written to a <code>_failures_{test_name}</code> table for inspection. An orange badge in the Tests panel shows the table name — click to copy it.</span></div>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 8 — SCHEDULING ══════════ -->
-<div class="section" id="s8">
-  <div class="section-header">
-    <div class="section-num">8</div>
-    <div>
-      <div class="section-title">Scheduling Pipelines</div>
-      <div class="section-subtitle">Automate your pipelines with cron schedules</div>
-    </div>
-  </div>
-
-  <img src="screenshots/08-schedule-modal.png" alt="Schedule modal"
-       style="width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.15);margin:24px 0;"
-       onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-  <div class="screenshot-placeholder" style="display:none">
-    <div class="ph-icon">🗓️</div>
-    <div class="ph-label">Schedule modal screenshot</div>
-  </div>
-
-  <div class="steps">
-    <div class="step"><div class="step-body"><strong>Open the schedule editor</strong><span>Click the 🗓 calendar icon in the toolbar to open the Schedule modal for the current pipeline.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Enter a cron expression</strong><span>Use standard 5-field cron syntax: <code>minute hour day month weekday</code>. Examples: <code>0 6 * * *</code> (daily at 6am), <code>0 */4 * * *</code> (every 4 hours), <code>0 9 * * 1</code> (every Monday at 9am).</span></div></div>
-    <div class="step"><div class="step-body"><strong>Enable the schedule</strong><span>Toggle the schedule on. The scheduler checks every 60 seconds and fires any overdue schedules.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Monitor runs</strong><span>Open the <strong>RUNS</strong> tab in the right panel to see the execution history, status (success/failed), row counts, and error messages.</span></div></div>
-  </div>
-
-  <div class="info">
-    <div>ℹ️</div>
-    <div><strong>Webhook triggers:</strong> Every pipeline also has a unique webhook URL. Use the <strong>WEBHOOK</strong> sub-tab to get the URL and trigger pipelines from external systems (CI/CD, Airflow, dbt, etc). Supports sync and async modes, and parameter passing in the request body.</div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 9 — INCREMENTAL MODELS ══════════ -->
-<div class="section" id="s9">
-  <div class="section-header">
-    <div class="section-num">9</div>
-    <div>
-      <div class="section-title">Incremental Models</div>
-      <div class="section-subtitle">Efficiently process only new or changed data</div>
-    </div>
-  </div>
-
-  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Set the output mode to <strong>Incremental</strong> in the CONFIG tab to enable incremental processing. Three strategies are available:</p>
-
-  <div class="feature-grid">
-    <div class="feature-card" style="border-left:3px solid var(--blue)">
-      <div class="feature-card-icon">🔀</div>
-      <h4>Merge</h4>
-      <p>Upserts changed rows using <code>MERGE INTO</code>. Requires an Iceberg table. First run creates the table via CTAS; subsequent runs merge changes.</p>
-    </div>
-    <div class="feature-card" style="border-left:3px solid var(--green)">
-      <div class="feature-card-icon">➕</div>
-      <h4>Append</h4>
-      <p>Inserts only rows where the timestamp column is greater than the current max. Simple and fast — no deduplication. First run is CTAS.</p>
-    </div>
-    <div class="feature-card" style="border-left:3px solid var(--amber)">
-      <div class="feature-card-icon">⏱</div>
-      <h4>Microbatch</h4>
-      <p>Processes data in time-window chunks (1hr / 6hr / 1day / 1week). Each Execute loops through all pending windows and processes them in order.</p>
-    </div>
-  </div>
-
-  <div class="tip">
-    <div>💡</div>
-    <div><strong>First run behavior:</strong> All incremental strategies use CTAS on the first run to create the output table. Subsequent runs use the incremental logic. If you need to full-refresh, delete the output table and run Execute again.</div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 10 — ADVANCED FEATURES ══════════ -->
-<div class="section" id="s10">
-  <div class="section-header">
-    <div class="section-num">10</div>
-    <div>
-      <div class="section-title">Advanced Features</div>
-      <div class="section-subtitle">Parameters, environments, MCP server, and more</div>
-    </div>
-  </div>
-
-  <div class="feature-grid">
-    <div class="feature-card">
-      <div class="feature-card-icon">🔡</div>
-      <h4>Pipeline Parameters</h4>
-      <p>Define <code>{{param_name}}</code> placeholders in any step config. Set default values. Override at runtime via the Run modal, webhook body, or scheduled defaults.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">🌍</div>
-      <h4>Environments</h4>
-      <p>Create named connection profiles (dev / staging / prod). Switch the active environment from the toolbar dropdown. All executes use the active environment's Dremio connection.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">🔗</div>
-      <h4>Pipeline Dependencies</h4>
-      <p>Use the DEPS tab to declare upstream pipelines. "Run with Dependencies" (⚡ icon) executes the full chain in topological order, skipping on upstream failure.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">🌱</div>
-      <h4>Seed from CSV</h4>
-      <p>Drag and drop a CSV file onto the app to create a Dremio table directly. Auto-infers column types. Up to 5,000 rows per seed.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">📤</div>
-      <h4>Export Documentation</h4>
-      <p>Export a self-contained HTML document covering all pipelines, their steps, parameters, schedules, and tests. Great for sharing with stakeholders.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">🤖</div>
-      <h4>MCP Server</h4>
-      <p>Built-in MCP server at <code>/mcp/sse</code> — exposes 22 tools so AI assistants (like Claude) can query and manipulate pipelines directly via natural language.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">🏔️</div>
-      <h4>Iceberg Catalogs</h4>
-      <p>Connect to Polaris, Unity Catalog, AWS Glue (SigV4), or any Iceberg REST endpoint. Browse namespaces and tables alongside your Dremio catalog.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-card-icon">🚨</div>
-      <h4>Alerts</h4>
-      <p>Cron-based alerting: custom SQL thresholds, pipeline health checks, data quality checks, and source freshness monitoring. Notifications via email or Slack.</p>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 11 — PIPELINE HEALTH DASHBOARD ══════════ -->
-<div class="section" id="s11">
-  <div class="section-header">
-    <div class="section-num">11</div>
-    <div>
-      <div class="section-title">Pipeline Health Dashboard</div>
-      <div class="section-subtitle">At-a-glance status for all your pipelines</div>
-    </div>
-  </div>
-
-  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Click the <strong>📊 Dashboard</strong> icon in the top toolbar to open the Pipeline Health Dashboard — a full-screen view showing the real-time health of every pipeline in your workspace.</p>
-
-  <img src="screenshots/09-health-dashboard.png" alt="Pipeline Health Dashboard"
-       style="width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.15);margin:24px 0;"
-       onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-  <div class="screenshot-placeholder" style="display:none">
-    <div class="ph-icon">📊</div>
-    <div class="ph-label">Pipeline Health Dashboard screenshot</div>
-  </div>
-
-  <div class="health-grid">
-    <div class="health-card healthy">
-      <div class="health-badge healthy">✅ Healthy</div>
-      <h5>Orders Daily</h5>
-      <p>Last run succeeded · 98% success rate over 30 days</p>
-    </div>
-    <div class="health-card degraded">
-      <div class="health-badge degraded">⚠ Degraded</div>
-      <h5>Customer Sync</h5>
-      <p>Last run succeeded · 62% success rate — some failures recently</p>
-    </div>
-    <div class="health-card failing">
-      <div class="health-badge failing">🔴 Failing</div>
-      <h5>Revenue Roll-up</h5>
-      <p>Last run failed · &lt;50% success rate — needs attention</p>
-    </div>
-    <div class="health-card never">
-      <div class="health-badge never">— Never Run</div>
-      <h5>New Pipeline</h5>
-      <p>No execution history yet</p>
-    </div>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Health Status Logic</h3>
-  <div class="callouts">
-    <div class="callout">
-      <div class="callout-num green">✅</div>
-      <div><strong>Healthy</strong><span>Last run succeeded <em>and</em> overall success rate ≥ 80% over the last 30 days.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num amber">⚠</div>
-      <div><strong>Degraded</strong><span>Mixed results — last run may have succeeded but success rate is between 50–80%, or last run failed but historical rate is still high.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num red">🔴</div>
-      <div><strong>Failing</strong><span>Last run failed <em>and</em> overall success rate is below 50%. Immediate attention needed.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num blue">—</div>
-      <div><strong>Never Run</strong><span>No execution history exists for this pipeline yet.</span></div>
-    </div>
-  </div>
-
-  <div class="callouts" style="margin-top:16px">
-    <div class="callout">
-      <div class="callout-num blue">📈</div>
-      <div><strong>Success bar</strong><span>Each card shows a color-coded bar representing the pipeline's success rate at a glance. Filled green = 100%, partial amber = mixed, red = mostly failing.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num green">⏱</div>
-      <div><strong>Last run &amp; next scheduled run</strong><span>Each card shows when the pipeline last ran and (if scheduled) when its next run is due.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num amber">🖱</div>
-      <div><strong>Click to open</strong><span>Click any pipeline card to jump directly to that pipeline in the editor. The dashboard closes and the pipeline loads.</span></div>
-    </div>
-  </div>
-
-  <div class="info">
-    <div>ℹ️</div>
-    <div><strong>Auto-refresh:</strong> The dashboard refreshes automatically every 30 seconds so you always see the current state without reloading.</div>
-  </div>
-
-  <div class="tip">
-    <div>💡</div>
-    <div><strong>Card ordering:</strong> Pipelines are sorted by health — Failing first, then Degraded, then Healthy, then Never Run — so the most critical pipelines are always at the top.</div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 12 — APPROVAL WORKFLOW ══════════ -->
-<div class="section" id="s12">
-  <div class="section-header">
-    <div class="section-num">12</div>
-    <div>
-      <div class="section-title">Approval Workflow</div>
-      <div class="section-subtitle">Require review before pipeline changes go live</div>
-    </div>
-  </div>
-
-  <img src="screenshots/10-approval-reviews.png" alt="Approval Reviews panel"
-       style="width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.15);margin:24px 0;"
-       onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-  <div class="screenshot-placeholder" style="display:none">
-    <div class="ph-icon">✅</div>
-    <div class="ph-label">Approval Reviews panel screenshot</div>
-  </div>
-
-  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">For sensitive pipelines, admins can require that all changes go through a review process before being saved. This adds a governance layer — editors submit changes for review, and an admin approves or rejects them.</p>
-
-  <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Enabling Approval Required</h3>
-  <div class="steps">
-    <div class="step"><div class="step-body"><strong>Open a pipeline</strong><span>Select the pipeline you want to protect in the pipeline list.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Toggle Approval Required</strong><span>In the toolbar save area (top right), admins see an <strong>Approval Required</strong> toggle. Turn it on to protect this pipeline.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Pipeline is now protected</strong><span>Non-admin users will no longer see a <strong>Save</strong> button. Instead they see <strong>Submit for Review</strong>.</span></div></div>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Submitting a Review (Editor Flow)</h3>
-  <div class="steps">
-    <div class="step"><div class="step-body"><strong>Make your changes</strong><span>Edit the pipeline steps, config, or output settings as normal.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Click Submit for Review</strong><span>Instead of Save, click <strong>Submit for Review</strong> in the toolbar. The pipeline enters a pending state and you'll see a <strong>Review Pending</strong> badge.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Wait for approval</strong><span>An admin will review the proposed changes. You'll be notified once a decision is made.</span></div></div>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Reviewing &amp; Approving (Admin Flow)</h3>
-  <div class="steps">
-    <div class="step"><div class="step-body"><strong>Open the Reviews panel</strong><span>Click the <strong>✔ Reviews</strong> icon in the right panel icon strip to open the approval queue.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Review the diff</strong><span>Each pending review shows a step-by-step diff: <strong>Added</strong> steps (green), <strong>Removed</strong> steps (red), <strong>Changed</strong> steps (amber), and <strong>Unchanged</strong> steps (grey).</span></div></div>
-    <div class="step"><div class="step-body"><strong>Approve or Reject</strong><span>Add an optional comment and click <strong>Approve</strong> to apply the changes, or <strong>Reject</strong> to send them back. The submitter's pending state is cleared either way.</span></div></div>
-  </div>
-
-  <div class="two-col">
-    <div style="background:var(--green-light);border:1px solid #a7f3d0;border-radius:10px;padding:16px;">
-      <h4 style="font-size:14px;font-weight:600;color:#065f46;margin-bottom:8px">✅ Approved</h4>
-      <p style="font-size:13px;color:#064e3b;line-height:1.6">The proposed pipeline version is saved and becomes the live version. The submitter's pending state is cleared.</p>
-    </div>
-    <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:16px;">
-      <h4 style="font-size:14px;font-weight:600;color:#991b1b;margin-bottom:8px">❌ Rejected</h4>
-      <p style="font-size:13px;color:#7f1d1d;line-height:1.6">The proposed changes are discarded. The pipeline stays on its current saved version. The rejection reason is recorded in the review history.</p>
-    </div>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">Review History</h3>
-  <div class="callouts">
-    <div class="callout">
-      <div class="callout-num blue">📋</div>
-      <div><strong>Filter tabs</strong><span>The Reviews panel has filter tabs: <strong>Pending</strong> (needs action), <strong>Approved</strong>, <strong>Rejected</strong>, and <strong>All</strong>. Admins see all pipelines; editors see only their own submissions.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num amber">💬</div>
-      <div><strong>Review comments</strong><span>Both approvers and submitters can leave comments when submitting or resolving a review. Comments are stored with the review record.</span></div>
-    </div>
-  </div>
-
-  <div class="warning">
-    <div>⚠️</div>
-    <div><strong>Auth required for full enforcement:</strong> The approval toggle is visible and functional in all modes. Full per-user enforcement (blocking non-admins from bypassing Save) requires authentication to be enabled (<code>AUTH_ENABLED=true</code>) and a user/role framework to be in place.</div>
-  </div>
-</div>
-
-
-<!-- ══════════ SECTION 13 — MULTI-USER ROLES & SHARING ══════════ -->
-<div class="section" id="s13">
-  <div class="section-header">
-    <div class="section-num">13</div>
-    <div>
-      <div class="section-title">Multi-User Roles &amp; Sharing</div>
-      <div class="section-subtitle">Collaborate with your team using roles, pipeline sharing, and per-user credentials</div>
-    </div>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:0 0 12px">User Roles</h3>
-  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">When authentication is enabled, every user has one of three roles. Your role is shown in colour under your username in the top-right user menu.</p>
-
-  <div class="two-col">
-    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;">
-      <h4 style="font-size:14px;font-weight:700;color:#1d4ed8;margin-bottom:6px">🔵 Admin</h4>
-      <p style="font-size:13px;color:#1e3a8a;line-height:1.6">Full access to all pipelines. Manages users and settings. Can enable/disable authentication live from Settings → Security. Approves change reviews.</p>
-    </div>
-    <div style="background:var(--green-light);border:1px solid #a7f3d0;border-radius:10px;padding:16px;">
-      <h4 style="font-size:14px;font-weight:700;color:#065f46;margin-bottom:6px">🟢 Editor</h4>
-      <p style="font-size:13px;color:#064e3b;line-height:1.6">Default role. Creates and owns pipelines. Can share pipelines with others. Can edit pipelines shared with them at Editor level.</p>
-    </div>
-  </div>
-  <div style="background:var(--amber-light);border:1px solid #fcd34d;border-radius:10px;padding:16px;margin-top:12px;">
-    <h4 style="font-size:14px;font-weight:700;color:#92400e;margin-bottom:6px">🟡 Viewer</h4>
-    <p style="font-size:13px;color:#78350f;line-height:1.6">Read-only access. Can browse and preview any pipeline they have access to but cannot save changes directly. Changes must go through the Submit for Review workflow. Execute is disabled.</p>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:28px 0 12px">Enabling Authentication</h3>
-  <div class="steps">
-    <div class="step"><div class="step-body"><strong>Open Settings → Security tab</strong><span>Click the ⚙️ gear icon in the toolbar and switch to the <strong>Security</strong> tab. Toggle authentication on — no Docker restart required.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Log in as admin</strong><span>The default first-run account is <strong>admin / admin</strong>. Change the password immediately after enabling auth.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Create user accounts</strong><span>Go to <strong>Settings → Users</strong> to create accounts and assign roles to your team members.</span></div></div>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:28px 0 12px">Sharing a Pipeline</h3>
-  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Pipeline owners and admins can share individual pipelines with specific users. Shared pipelines appear in the recipient's sidebar with a <strong>(shared)</strong> badge.</p>
-  <div class="steps">
-    <div class="step"><div class="step-body"><strong>Click the Share icon</strong><span>Open the pipeline and click the <strong>🔗 Share</strong> icon in the top toolbar. It's only visible to the pipeline owner and admins.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Add a user</strong><span>In the Share dialog, use the <strong>Add people</strong> field to find a user by username, then choose their access level: <strong>Editor</strong> (can modify) or <strong>Viewer</strong> (read-only).</span></div></div>
-    <div class="step"><div class="step-body"><strong>Grant Access</strong><span>Click <strong>Grant Access</strong>. The user now sees the pipeline in their sidebar. You can change their access level or revoke access at any time from the same dialog.</span></div></div>
-  </div>
-
-  <h3 style="font-size:16px;font-weight:600;margin:28px 0 12px">Per-User Dremio Credentials</h3>
-  <p style="font-size:14px;color:var(--muted);margin-bottom:16px">Each user can store their own personal Dremio PAT so their queries run under their own Dremio identity — not the shared service account. Useful when Dremio has per-user access control or audit logging.</p>
-  <div class="steps">
-    <div class="step"><div class="step-body"><strong>Open User menu → My Dremio Credentials</strong><span>Click your username in the top-right corner, then select <strong>My Dremio Credentials</strong>.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Enter your PAT</strong><span>Paste your Dremio Personal Access Token. For Dremio Cloud, create a PAT under Account Settings → Personal Access Tokens. For Dremio Software 25.x+, use your user profile page.</span></div></div>
-    <div class="step"><div class="step-body"><strong>Save</strong><span>Click <strong>Save PAT</strong>. From now on, all your previews and executes run under your Dremio identity. Leave blank to use the shared service account.</span></div></div>
-  </div>
-
-  <div class="callouts">
-    <div class="callout">
-      <div class="callout-num blue">💡</div>
-      <div><strong>Auth is optional</strong><span>Authentication is disabled by default. If your instance has no login screen, all users have full access — no roles or sharing needed.</span></div>
-    </div>
-    <div class="callout">
-      <div class="callout-num amber">🔑</div>
-      <div><strong>PAT works for Cloud &amp; Software</strong><span>Dremio Cloud always uses PAT. Dremio Software 25.x+ supports PAT. Older Software versions should leave the field blank and use the shared account.</span></div>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════ SECTION 14 — dbt IMPORT & EXPORT ══════════ -->
-<div class="section" id="s14">
-  <div class="section-header">
-    <div class="section-num">14</div>
-    <div>
-      <div class="section-title">dbt Import &amp; Export</div>
-      <div class="section-sub">Bidirectional dbt compatibility — no dbt installation required</div>
-    </div>
-  </div>
-
-  <p>Transform Studio v1.8 adds full bidirectional dbt compatibility. Two new toolbar icons handle both directions:</p>
-
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:20px 0;">
-    <div style="background:#0f172a;border:1px solid #1e3a5f;border-radius:10px;padding:20px;">
-      <div style="font-size:28px;margin-bottom:8px;">📦</div>
-      <div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:6px;">Export as dbt Project</div>
-      <div style="font-size:13px;color:#94a3b8;">Click the <strong>Package icon</strong> to download all your pipelines as a runnable dbt project ZIP. Includes model SQL files with proper Jinja syntax, sources.yml, schema.yml with tests, and dbt_project.yml.</div>
-    </div>
-    <div style="background:#0f172a;border:1px solid #1e3a5f;border-radius:10px;padding:20px;">
-      <div style="font-size:28px;margin-bottom:8px;">⬆</div>
-      <div style="font-size:15px;font-weight:600;color:#fff;margin-bottom:6px;">Import from dbt</div>
-      <div style="font-size:13px;color:#94a3b8;">Click the <strong>Upload icon</strong> to import any dbt project ZIP. Transform Studio resolves all Jinja internally and creates one pipeline per model — with dependencies, tests, and output modes wired up automatically.</div>
-    </div>
-  </div>
-
-  <h3 style="color:#60a5fa;margin:24px 0 12px;">Export: What's in the ZIP</h3>
-  <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px;font-family:monospace;font-size:12px;color:#94a3b8;line-height:1.8;">
-    transform_studio/<br>
-    ├── dbt_project.yml &nbsp;&nbsp;&nbsp;<span style="color:#6ee7b7">— project config</span><br>
-    ├── profiles.yml &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6ee7b7">— Dremio connection template</span><br>
-    ├── README.md &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6ee7b7">— setup instructions</span><br>
-    └── models/<br>
-    &nbsp;&nbsp;&nbsp;&nbsp;├── sources.yml &nbsp;&nbsp;<span style="color:#6ee7b7">— all external Dremio tables</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;├── schema.yml &nbsp;&nbsp;&nbsp;<span style="color:#6ee7b7">— column tests per model</span><br>
-    &nbsp;&nbsp;&nbsp;&nbsp;└── *.sql &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#6ee7b7">— one model file per pipeline</span>
-  </div>
-
-  <h3 style="color:#60a5fa;margin:24px 0 12px;">Export: Model SQL Example</h3>
-  <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:16px;font-family:monospace;font-size:12px;color:#e2e8f0;line-height:1.8;">
-    <span style="color:#6ee7b7">&#123;&#123; config(materialized='incremental', unique_key='customer_id') &#125;&#125;</span><br><br>
-    WITH<br>
-    &nbsp;&nbsp;_src AS (SELECT * FROM <span style="color:#fbbf24">&#123;&#123; source('sales', 'customers') &#125;&#125;</span>),<br>
-    &nbsp;&nbsp;_s0 AS (SELECT customer_id, TRIM(email) AS email FROM _src WHERE email IS NOT NULL),<br>
-    &nbsp;&nbsp;_s1 AS (SELECT * FROM _s0 JOIN <span style="color:#a78bfa">&#123;&#123; ref('dim_regions') &#125;&#125;</span> USING (region_id))<br>
-    SELECT * FROM _s1<br>
-    <span style="color:#64748b">&#123;% if is_incremental() %&#125;</span><br>
-    WHERE updated_at &gt; (SELECT MAX(updated_at) FROM <span style="color:#94a3b8">&#123;&#123; this &#125;&#125;</span>)<br>
-    <span style="color:#64748b">&#123;% endif %&#125;</span>
-  </div>
-
-  <h3 style="color:#60a5fa;margin:24px 0 12px;">Import: 4-Step Flow</h3>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
-    <div style="background:#0f172a;border:1px solid #1e3a5f;border-radius:8px;padding:14px;text-align:center;">
-      <div style="font-size:22px;margin-bottom:6px;">📁</div>
-      <div style="font-size:11px;font-weight:700;color:#60a5fa;margin-bottom:4px;">1. Upload</div>
-      <div style="font-size:11px;color:#94a3b8;">Drag &amp; drop your dbt project .zip</div>
-    </div>
-    <div style="background:#0f172a;border:1px solid #1e3a5f;border-radius:8px;padding:14px;text-align:center;">
-      <div style="font-size:22px;margin-bottom:6px;">🔍</div>
-      <div style="font-size:11px;font-weight:700;color:#60a5fa;margin-bottom:4px;">2. Preview</div>
-      <div style="font-size:11px;color:#94a3b8;">Review model table — source, mode, deps, tests, warnings</div>
-    </div>
-    <div style="background:#0f172a;border:1px solid #1e3a5f;border-radius:8px;padding:14px;text-align:center;">
-      <div style="font-size:22px;margin-bottom:6px;">⚡</div>
-      <div style="font-size:11px;font-weight:700;color:#60a5fa;margin-bottom:4px;">3. Import</div>
-      <div style="font-size:11px;color:#94a3b8;">Pipelines created in dependency order</div>
-    </div>
-    <div style="background:#0f172a;border:1px solid #1e3a5f;border-radius:8px;padding:14px;text-align:center;">
-      <div style="font-size:22px;margin-bottom:6px;">✅</div>
-      <div style="font-size:11px;font-weight:700;color:#60a5fa;margin-bottom:4px;">4. Done</div>
-      <div style="font-size:11px;color:#94a3b8;">Pipelines appear in sidebar, ready to run or edit</div>
-    </div>
-  </div>
-
-  <h3 style="color:#60a5fa;margin:24px 0 12px;">What Gets Resolved Automatically</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:12px;">
-    <thead><tr style="background:#1e293b;">
-      <th style="padding:8px 12px;text-align:left;color:#94a3b8;font-weight:600;">dbt Syntax</th>
-      <th style="padding:8px 12px;text-align:left;color:#94a3b8;font-weight:600;">Transform Studio Equivalent</th>
-    </tr></thead>
-    <tbody>
-      <tr style="border-top:1px solid #1e293b;"><td style="padding:8px 12px;color:#fbbf24;font-family:monospace;">&#123;&#123; source('schema', 'table') &#125;&#125;</td><td style="padding:8px 12px;color:#e2e8f0;">"schema"."table" — Dremio-quoted reference</td></tr>
-      <tr style="border-top:1px solid #1e293b;background:#0f172a;"><td style="padding:8px 12px;color:#a78bfa;font-family:monospace;">&#123;&#123; ref('model_name') &#125;&#125;</td><td style="padding:8px 12px;color:#e2e8f0;">Pipeline dependency wired in the Dependencies panel</td></tr>
-      <tr style="border-top:1px solid #1e293b;"><td style="padding:8px 12px;color:#6ee7b7;font-family:monospace;">&#123;&#123; config(materialized='incremental') &#125;&#125;</td><td style="padding:8px 12px;color:#e2e8f0;">Output mode set to Incremental with unique_key/strategy</td></tr>
-      <tr style="border-top:1px solid #1e293b;background:#0f172a;"><td style="padding:8px 12px;color:#64748b;font-family:monospace;">&#123;% if is_incremental() %&#125;...&#123;% endif %&#125;</td><td style="padding:8px 12px;color:#e2e8f0;">Stripped — Transform Studio handles incremental natively</td></tr>
-      <tr style="border-top:1px solid #1e293b;"><td style="padding:8px 12px;color:#f87171;font-family:monospace;">&#123;&#123; dbt_utils.something() &#125;&#125;</td><td style="padding:8px 12px;color:#e2e8f0;">⚠ Flagged as warning — fix manually in Custom SQL step</td></tr>
-    </tbody>
-  </table>
-
-  <div class="callout-grid" style="margin-top:20px;">
-    <div class="callout blue">
-      <div class="callout-num blue">💡</div>
-      <div><strong>No dbt installation required</strong><span>All Jinja resolution uses built-in regex parsing. You do not need dbt, Python, or any other tool installed to import a dbt project.</span></div>
-    </div>
-    <div class="callout green">
-      <div class="callout-num green">🔄</div>
-      <div><strong>Round-trip compatible</strong><span>Export your pipelines to dbt, make changes in your dbt workflow, then import the updated project back. Each import creates new pipelines — existing ones are not overwritten.</span></div>
-    </div>
-  </div>
-</div>
-
-</div><!-- /content -->
-
-<footer>
-  <strong>Dremio Transform Studio v1.7</strong> &nbsp;·&nbsp;
-  Built with FastAPI + React &nbsp;·&nbsp;
-  For full API reference see <code>USER_GUIDE.md</code>
-</footer>
-
+<script>
+// Highlight active TOC item on scroll
+const sections = document.querySelectorAll('.section[id]');
+const tocItems = document.querySelectorAll('.toc-item');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      tocItems.forEach(item => item.classList.remove('active'));
+      const active = document.querySelector('.toc-item[href="#' + entry.target.id + '"]');
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => observer.observe(s));
+</script>
 </body>
 </html>

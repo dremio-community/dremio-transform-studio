@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, ChevronDown, Database, Folder, Table2, Search, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { IconCaretRight, IconCaretDown, IconEntityNamespace, IconEntityFolderBlue, IconEntityTable, IconSearch } from './icons'
 import clsx from 'clsx'
 import { fetchNamespaces, fetchTables } from '../api/client'
 import type { CatalogEntry } from '../types'
@@ -40,10 +41,10 @@ function EntryNode({
         style={{ paddingLeft: `${12 + depth * 12}px` }}
         className={clsx(
           'flex items-center gap-1.5 w-full pr-3 py-1.5 text-xs transition-colors',
-          isActive ? 'bg-dblue-500/20 text-dblue-400 font-medium' : 'text-surface-300 hover:bg-navy-800 hover:text-white'
+          isActive ? 'bg-primary/20 text-primary font-medium' : 'text-white/70 hover:bg-sidebar-accent hover:text-white'
         )}
       >
-        <Table2 size={11} className={clsx('shrink-0', isActive ? 'text-dblue-400' : 'text-surface-600')} />
+        <IconEntityTable size={11} className={clsx('shrink-0', isActive ? 'text-primary' : 'text-white/40')} />
         <span className="truncate">{entry.name}</span>
       </button>
     )
@@ -55,10 +56,10 @@ function EntryNode({
       <button
         onClick={() => setOpen((v) => !v)}
         style={{ paddingLeft: `${12 + depth * 12}px` }}
-        className="flex items-center gap-1.5 w-full pr-3 py-1.5 text-xs text-surface-300 hover:bg-navy-800 hover:text-white transition-colors"
+        className="flex items-center gap-1.5 w-full pr-3 py-1.5 text-xs text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
       >
-        {open ? <ChevronDown size={11} className="text-surface-500 shrink-0" /> : <ChevronRight size={11} className="text-surface-500 shrink-0" />}
-        <Folder size={11} className="text-amber-500 shrink-0" />
+        {open ? <IconCaretDown size={11} className="text-white/40 shrink-0" /> : <IconCaretRight size={11} className="text-white/40 shrink-0" />}
+        <IconEntityFolderBlue size={11} className="shrink-0" />
         <span className="truncate">{entry.name}</span>
       </button>
       {open && (
@@ -108,14 +109,14 @@ function NamespaceNode({
     <div>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 w-full px-3 py-1.5 text-sm hover:bg-navy-800 text-surface-300 hover:text-white transition-colors"
+        className="flex items-center gap-1.5 w-full px-3 py-1.5 text-sm hover:bg-sidebar-accent text-white/70 hover:text-white transition-colors"
       >
         {open ? (
-          <ChevronDown size={12} className="text-surface-500 shrink-0" />
+          <IconCaretDown size={12} className="text-white/40 shrink-0" />
         ) : (
-          <ChevronRight size={12} className="text-surface-500 shrink-0" />
+          <IconCaretRight size={12} className="text-white/40 shrink-0" />
         )}
-        <Database size={12} className="text-dblue-400 shrink-0" />
+        <IconEntityNamespace size={12} className="text-primary shrink-0" />
         <span className="truncate font-medium text-xs">{ns}</span>
       </button>
 
@@ -161,14 +162,14 @@ export default function CatalogBrowser({ activeTable, onSelectTable }: Props) {
   return (
     <div className="flex flex-col h-full">
       <div className="px-3 py-2 shrink-0">
-        <div className="flex items-center gap-1.5 bg-navy-800 rounded px-2 py-1.5">
-          <Search size={12} className="text-surface-500 shrink-0" />
+        <div className="flex items-center gap-1.5 bg-sidebar-accent rounded px-2 py-1.5 border border-sidebar-border">
+          <IconSearch size={12} className="text-white/50 shrink-0" />
           <input
             type="text"
             placeholder="Filter namespaces…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="bg-transparent text-xs text-surface-300 outline-none flex-1 placeholder-surface-400"
+            className="bg-transparent text-xs text-white/80 outline-none flex-1 placeholder-white/30"
           />
         </div>
       </div>

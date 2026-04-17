@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { X, Share2, UserPlus, Trash2, ChevronDown, Loader2, Shield, Eye, Edit3 } from 'lucide-react'
+import { Share2, UserPlus, Loader2, Shield } from 'lucide-react'
+import { IconCaretDown, IconClose, IconDelete, IconEdit, IconEyeShow } from './icons'
 import clsx from 'clsx'
 import {
   fetchPipelinePermissions,
@@ -19,12 +20,12 @@ interface Props {
 const ACCESS_LABELS: Record<string, { label: string; icon: React.ReactNode; description: string }> = {
   editor: {
     label: 'Editor',
-    icon: <Edit3 size={13} />,
+    icon: <IconEdit size={13} />,
     description: 'Can view and edit the pipeline',
   },
   viewer: {
     label: 'Viewer',
-    icon: <Eye size={13} />,
+    icon: <IconEyeShow size={13} />,
     description: 'Can view and run the pipeline',
   },
 }
@@ -119,7 +120,7 @@ export default function ShareModal({ pipeline, currentUserId, onClose }: Props) 
             onClick={onClose}
             className="text-white/40 hover:text-white/80 transition-colors"
           >
-            <X size={16} />
+            <IconClose size={16} />
           </button>
         </div>
 
@@ -183,7 +184,7 @@ export default function ShareModal({ pipeline, currentUserId, onClose }: Props) 
                             <option value="viewer">Viewer</option>
                             <option value="editor">Editor</option>
                           </select>
-                          <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+                          <IconCaretDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
                         </div>
 
                         {/* Revoke */}
@@ -196,7 +197,7 @@ export default function ShareModal({ pipeline, currentUserId, onClose }: Props) 
                           {removingId === perm.user_id ? (
                             <Loader2 size={14} className="animate-spin" />
                           ) : (
-                            <Trash2 size={14} />
+                            <IconDelete size={14} />
                           )}
                         </button>
                       </div>

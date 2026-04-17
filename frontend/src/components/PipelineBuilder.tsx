@@ -16,7 +16,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useState } from 'react'
-import { ChevronUp, ChevronDown, Trash2, Plus, GripVertical, MessageSquare } from 'lucide-react'
+import { MessageSquare } from 'lucide-react'
+import { IconCaretUp, IconCaretDown, IconDelete, IconAdd, IconDrag } from './icons'
 import clsx from 'clsx'
 import type { TransformStep } from '../types'
 import { fetchTransforms } from '../api/client'
@@ -234,7 +235,7 @@ function StepCard({
           className="p-0.5 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           title="Move up"
         >
-          <ChevronUp size={12} />
+          <IconCaretUp size={12} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onStepMove(step.id, 'down') }}
@@ -242,14 +243,14 @@ function StepCard({
           className="p-0.5 rounded text-gray-300 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
           title="Move down"
         >
-          <ChevronDown size={12} />
+          <IconCaretDown size={12} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onStepDelete(step.id) }}
           className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
           title="Delete step"
         >
-          <Trash2 size={14} />
+          <IconDelete size={14} />
         </button>
       </div>
     </div>
@@ -293,7 +294,7 @@ function SortableStepCard({
         onClick={(e) => e.stopPropagation()}
         title="Drag to reorder"
       >
-        <GripVertical size={15} />
+        <IconDrag size={15} />
       </div>
 
       <div className="flex-1">
@@ -398,7 +399,7 @@ export default function PipelineBuilder({
           {activeStep && activeIdx >= 0 ? (
             <div className="flex items-start gap-1.5 opacity-95 rotate-1 scale-105">
               <div className="flex items-center justify-center w-5 mt-3.5 text-dblue-400 shrink-0">
-                <GripVertical size={15} />
+                <IconDrag size={15} />
               </div>
               <div className="flex-1 shadow-2xl">
                 <StepCard
@@ -422,7 +423,7 @@ export default function PipelineBuilder({
         onClick={onAddStep}
         className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-all max-w-2xl"
       >
-        <Plus size={15} /> Add transform step
+        <IconAdd size={15} /> Add transform step
       </button>
     </div>
   )

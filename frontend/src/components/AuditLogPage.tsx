@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Download, ScrollText, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, ScrollText, Loader2 } from 'lucide-react'
+import { IconCaretLeft, IconCaretRight, IconDatasetDownload } from './icons'
 import { fetchAuditLog, exportAuditLogCsv, fetchUsers } from '../api/client'
 import type { AuditLogEntry } from '../types'
 import clsx from 'clsx'
@@ -100,21 +101,21 @@ export default function AuditLogPage({ onClose }: Props) {
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 text-sm text-surface-400 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-sm text-white/60 hover:text-white transition-colors"
           >
             <ArrowLeft size={16} />
           </button>
           <div className="flex items-center gap-2">
-            <ScrollText size={16} className="text-dblue-400" />
+            <ScrollText size={16} className="text-primary" />
             <span className="text-white font-semibold text-sm">Audit Log</span>
           </div>
         </div>
         <button
           onClick={handleExport}
           disabled={exporting}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-navy-800 text-surface-300 hover:bg-navy-700 hover:text-white border border-navy-700 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-navy-800 text-white/70 hover:bg-navy-700 hover:text-white border border-navy-700 transition-colors disabled:opacity-50"
         >
-          {exporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+          {exporting ? <Loader2 size={12} className="animate-spin" /> : <IconDatasetDownload size={12} />}
           Export CSV
         </button>
       </div>
@@ -275,14 +276,14 @@ export default function AuditLogPage({ onClose }: Props) {
               disabled={page === 0}
               className="p-1 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronLeft size={14} />
+              <IconCaretLeft size={14} />
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={page >= totalPages - 1}
               className="p-1 rounded hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronRight size={14} />
+              <IconCaretRight size={14} />
             </button>
           </div>
         </div>

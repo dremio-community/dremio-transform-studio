@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { X, CheckCircle, XCircle, Loader2, Wifi, Bell, HardDrive, Download, Upload, Shield, Users, Lock, Unlock, KeyRound, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Loader2, Wifi, Bell, HardDrive, Upload, Shield, Users, Lock, Unlock, KeyRound } from 'lucide-react'
+import { IconAdd, IconCaretDown, IconCaretUp, IconCheckCircle, IconClose, IconDatasetDownload, IconDelete, IconErrorCircle } from './icons'
 import clsx from 'clsx'
 import {
   fetchConnectionSettings,
@@ -249,11 +250,11 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-navy-950">
           <div className="flex items-center gap-2.5">
-            <Wifi size={16} className="text-dblue-400" />
+            <Wifi size={16} className="text-primary" />
             <span className="font-semibold text-white text-sm">Settings</span>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-            <X size={16} />
+            <IconClose size={16} />
           </button>
         </div>
 
@@ -370,7 +371,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
               type="checkbox"
               checked={form.ssl}
               onChange={(e) => set('ssl', e.target.checked)}
-              className="rounded border-gray-300 text-dblue-500 focus:ring-dblue-400"
+              className="rounded border-gray-300 text-primary focus:ring-dblue-400"
             />
             <span className="text-sm text-gray-700">Use HTTPS / SSL</span>
           </label>
@@ -473,8 +474,8 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
               testResult.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'
             )}>
               {testResult.ok
-                ? <CheckCircle size={15} className="shrink-0 mt-0.5" />
-                : <XCircle size={15} className="shrink-0 mt-0.5" />
+                ? <IconCheckCircle size={15} className="shrink-0 mt-0.5" />
+                : <IconErrorCircle size={15} className="shrink-0 mt-0.5" />
               }
               <span>{testResult.message}</span>
             </div>
@@ -495,7 +496,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
                   type="checkbox"
                   checked={notifForm.notify_email_enabled}
                   onChange={(e) => setNotif('notify_email_enabled', e.target.checked)}
-                  className="rounded border-gray-300 text-dblue-500 focus:ring-dblue-400"
+                  className="rounded border-gray-300 text-primary focus:ring-dblue-400"
                 />
                 <span className="text-xs text-gray-600">Enable</span>
               </label>
@@ -579,7 +580,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
                   type="checkbox"
                   checked={notifForm.notify_slack_enabled}
                   onChange={(e) => setNotif('notify_slack_enabled', e.target.checked)}
-                  className="rounded border-gray-300 text-dblue-500 focus:ring-dblue-400"
+                  className="rounded border-gray-300 text-primary focus:ring-dblue-400"
                 />
                 <span className="text-xs text-gray-600">Enable</span>
               </label>
@@ -600,7 +601,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
                       href="https://api.slack.com/messaging/webhooks"
                       target="_blank"
                       rel="noreferrer"
-                      className="text-dblue-500 hover:underline"
+                      className="text-primary hover:underline"
                     >
                       How to create a Slack webhook
                     </a>
@@ -617,8 +618,8 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
               notifTestResult.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'
             )}>
               {notifTestResult.ok
-                ? <CheckCircle size={15} className="shrink-0 mt-0.5" />
-                : <XCircle size={15} className="shrink-0 mt-0.5" />
+                ? <IconCheckCircle size={15} className="shrink-0 mt-0.5" />
+                : <IconErrorCircle size={15} className="shrink-0 mt-0.5" />
               }
               <span>{notifTestResult.message}</span>
             </div>
@@ -748,7 +749,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
 
               {storageSaved && (
                 <div className="flex items-center gap-2 text-xs text-green-600">
-                  <CheckCircle size={13} /> Saved — restart the app to apply
+                  <IconCheckCircle size={13} /> Saved — restart the app to apply
                 </div>
               )}
             </>
@@ -769,7 +770,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
                   disabled={backupBusy}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
-                  {backupBusy ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                  {backupBusy ? <Loader2 size={12} className="animate-spin" /> : <IconDatasetDownload size={12} />}
                   Download Backup
                 </button>
                 <label className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer ${restoreBusy ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -799,7 +800,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
               </div>
               {restoreMsg && (
                 <div className={`flex items-start gap-2 text-xs rounded-lg p-2 ${restoreMsg.ok ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'}`}>
-                  {restoreMsg.ok ? <CheckCircle size={13} className="mt-0.5 shrink-0" /> : <XCircle size={13} className="mt-0.5 shrink-0" />}
+                  {restoreMsg.ok ? <IconCheckCircle size={13} className="mt-0.5 shrink-0" /> : <IconErrorCircle size={13} className="mt-0.5 shrink-0" />}
                   {restoreMsg.text}
                 </div>
               )}
@@ -988,7 +989,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
                       }}
                       className="text-gray-400 hover:text-red-500 transition-colors"
                     >
-                      <Trash2 size={13} />
+                      <IconDelete size={13} />
                     </button>
                   </div>
                 </div>
@@ -1009,7 +1010,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
               }}
               className="flex items-center gap-1.5 text-xs font-medium text-dblue-600 hover:text-dblue-700"
             >
-              {ssoShowForm && !ssoEditName ? <ChevronUp size={13} /> : <Plus size={13} />}
+              {ssoShowForm && !ssoEditName ? <IconCaretUp size={13} /> : <IconAdd size={13} />}
               {ssoShowForm && !ssoEditName ? 'Cancel' : 'Add Provider'}
             </button>
 

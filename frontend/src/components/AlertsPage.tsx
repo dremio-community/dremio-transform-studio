@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  ArrowLeft, Plus, Bell, BellOff, Play, Trash2, Pencil,
-  CheckCircle2, AlertTriangle, XCircle, Clock, ChevronDown, ChevronUp, Loader2
-} from 'lucide-react'
+import { ArrowLeft, Bell, BellOff, Clock, Loader2 } from 'lucide-react'
+import { IconAdd, IconCaretDown, IconCaretUp, IconCheckCircle, IconDatasetRun, IconDelete, IconEdit, IconErrorCircle, IconWarning } from './icons'
 import clsx from 'clsx'
 import type { Alert, AlertHistory, AlertStatus } from '../types'
 import {
@@ -25,17 +23,17 @@ function StatusBadge({ status }: { status?: AlertStatus }) {
   )
   if (status === 'ok') return (
     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-emerald-50 text-emerald-700 font-medium">
-      <CheckCircle2 size={10} /> OK
+      <IconCheckCircle size={10} /> OK
     </span>
   )
   if (status === 'triggered') return (
     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-50 text-red-700 font-medium">
-      <AlertTriangle size={10} /> Triggered
+      <IconWarning size={10} /> Triggered
     </span>
   )
   return (
     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-50 text-amber-700 font-medium">
-      <XCircle size={10} /> Error
+      <IconErrorCircle size={10} /> Error
     </span>
   )
 }
@@ -171,7 +169,7 @@ function AlertRow({
             title="Run now"
             className="p-1.5 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-40"
           >
-            {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+            {running ? <Loader2 size={14} className="animate-spin" /> : <IconDatasetRun size={14} />}
           </button>
           <button
             onClick={onToggle}
@@ -185,21 +183,21 @@ function AlertRow({
             title="Edit"
             className="p-1.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           >
-            <Pencil size={14} />
+            <IconEdit size={14} />
           </button>
           <button
             onClick={onDelete}
             title="Delete"
             className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
           >
-            <Trash2 size={14} />
+            <IconDelete size={14} />
           </button>
           <button
             onClick={() => setShowHistory((v) => !v)}
             title="Toggle history"
             className="p-1.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           >
-            {showHistory ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {showHistory ? <IconCaretUp size={14} /> : <IconCaretDown size={14} />}
           </button>
         </div>
       </div>
@@ -267,12 +265,12 @@ export default function AlertsPage({ onClose }: Props) {
         {/* Summary badges */}
         {triggered.length > 0 && (
           <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">
-            <AlertTriangle size={11} /> {triggered.length} triggered
+            <IconWarning size={11} /> {triggered.length} triggered
           </span>
         )}
         {errors.length > 0 && (
           <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
-            <XCircle size={11} /> {errors.length} error{errors.length > 1 ? 's' : ''}
+            <IconErrorCircle size={11} /> {errors.length} error{errors.length > 1 ? 's' : ''}
           </span>
         )}
 
@@ -282,7 +280,7 @@ export default function AlertsPage({ onClose }: Props) {
           onClick={() => { setEditingAlert(null); setShowCreate(true) }}
           className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
         >
-          <Plus size={14} /> New Alert
+          <IconAdd size={14} /> New Alert
         </button>
       </div>
 
@@ -306,7 +304,7 @@ export default function AlertsPage({ onClose }: Props) {
                 onClick={() => { setEditingAlert(null); setShowCreate(true) }}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
               >
-                <Plus size={14} /> Create your first alert
+                <IconAdd size={14} /> Create your first alert
               </button>
             </div>
           )}
@@ -315,7 +313,7 @@ export default function AlertsPage({ onClose }: Props) {
           {triggered.length > 0 && (
             <div className="mb-2">
               <h3 className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <AlertTriangle size={12} /> Triggered
+                <IconWarning size={12} /> Triggered
               </h3>
               <div className="space-y-2">
                 {triggered.map((alert) => (
@@ -370,9 +368,9 @@ export default function AlertsPage({ onClose }: Props) {
               'bg-emerald-50 border-emerald-200 text-emerald-800'
             )}
           >
-            {result.status === 'ok' ? <CheckCircle2 size={16} className="shrink-0 mt-0.5" /> :
-             result.status === 'triggered' ? <AlertTriangle size={16} className="shrink-0 mt-0.5" /> :
-             <XCircle size={16} className="shrink-0 mt-0.5" />}
+            {result.status === 'ok' ? <IconCheckCircle size={16} className="shrink-0 mt-0.5" /> :
+             result.status === 'triggered' ? <IconWarning size={16} className="shrink-0 mt-0.5" /> :
+             <IconErrorCircle size={16} className="shrink-0 mt-0.5" />}
             <div>
               <p className="font-medium">{alert?.name ?? 'Alert'}: {result.status}</p>
               <p className="text-xs opacity-75 mt-0.5">{result.message}</p>

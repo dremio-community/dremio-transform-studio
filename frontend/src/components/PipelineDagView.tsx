@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { X, GitBranch, AlertTriangle, RefreshCw, ArrowRight, Database, Layers, Shuffle } from 'lucide-react'
+import { GitBranch, ArrowRight, Layers, Shuffle } from 'lucide-react'
+import { IconClose, IconEntityNamespace, IconRefresh, IconWarning } from './icons'
 import type { PipelineDag, DagNode, LineageNode, DagEdge } from '../types'
 import { fetchDag } from '../api/client'
 
@@ -96,13 +97,13 @@ function PipelineNodeCard({ node, pos, isInCycle, onClick }: {
   return (
     <foreignObject x={pos.x} y={pos.y} width={180} height={60}>
       <div
-        className={`w-full h-full rounded-lg border-2 px-3 py-2 cursor-pointer shadow-sm hover:shadow-md transition-shadow bg-white ${isInCycle ? 'border-red-400' : 'border-gray-200 hover:border-dblue-400'}`}
+        className={`w-full h-full rounded-lg border-2 px-3 py-2 cursor-pointer shadow-sm hover:shadow-md transition-shadow bg-white ${isInCycle ? 'border-red-400' : 'border-gray-200 hover:border-primary'}`}
         onClick={onClick}
         title={`Open ${node.name}`}
       >
         <div className="flex items-start justify-between gap-1">
           <div className="text-xs font-semibold text-gray-800 truncate flex-1">{node.name}</div>
-          {isInCycle && <AlertTriangle size={11} className="text-red-400 shrink-0 mt-0.5" />}
+          {isInCycle && <IconWarning size={11} className="text-red-400 shrink-0 mt-0.5" />}
         </div>
         <div className="flex items-center gap-1 mt-1">
           <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${modeColor[node.output_mode] || 'bg-gray-100 text-gray-600'}`}>{node.output_mode}</span>
@@ -124,12 +125,12 @@ function LineageNodeCard({ node, pos, onClick }: {
     node.type === 'source' ? 'bg-blue-50 border-blue-300' :
     node.type === 'output' ? 'bg-green-50 border-green-300' :
     node.type === 'intermediate' ? 'bg-amber-50 border-amber-300' :
-    'bg-white border-gray-200 hover:border-dblue-400 cursor-pointer'
+    'bg-white border-gray-200 hover:border-primary cursor-pointer'
 
   const icon =
-    node.type === 'source' ? <Database size={11} className="text-blue-500 shrink-0" /> :
-    node.type === 'output' ? <Database size={11} className="text-green-500 shrink-0" /> :
-    node.type === 'intermediate' ? <Database size={11} className="text-amber-500 shrink-0" /> :
+    node.type === 'source' ? <IconEntityNamespace size={11} className="text-blue-500 shrink-0" /> :
+    node.type === 'output' ? <IconEntityNamespace size={11} className="text-green-500 shrink-0" /> :
+    node.type === 'intermediate' ? <IconEntityNamespace size={11} className="text-amber-500 shrink-0" /> :
     <Layers size={11} className="text-navy-600 shrink-0" />
 
   const modeColor: Record<string, string> = {
@@ -220,16 +221,16 @@ export default function PipelineDagView({ onClose, onSelectPipeline }: PipelineD
             <GitBranch size={16} />
             <span className="font-semibold text-sm">Pipeline Graph</span>
             {/* View toggle */}
-            <div className="flex bg-navy-700 rounded-lg p-0.5 ml-2">
+            <div className="flex bg-white/15 rounded-lg p-0.5 ml-2">
               <button
                 onClick={() => setViewMode('dag')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'dag' ? 'bg-dblue-500 text-white' : 'text-navy-300 hover:text-white'}`}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'dag' ? 'bg-primary text-white' : 'text-white/60 hover:text-white'}`}
               >
                 <GitBranch size={11} /> Dependency DAG
               </button>
               <button
                 onClick={() => setViewMode('lineage')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'lineage' ? 'bg-dblue-500 text-white' : 'text-navy-300 hover:text-white'}`}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${viewMode === 'lineage' ? 'bg-primary text-white' : 'text-white/60 hover:text-white'}`}
               >
                 <Shuffle size={11} /> Data Lineage
               </button>
@@ -237,14 +238,14 @@ export default function PipelineDagView({ onClose, onSelectPipeline }: PipelineD
           </div>
           <div className="flex items-center gap-2">
             {dag && (
-              <span className="text-xs text-navy-300">
+              <span className="text-xs text-white/60">
                 {dag.nodes.length} pipeline{dag.nodes.length !== 1 ? 's' : ''}
                 {viewMode === 'lineage' && ` · ${dag.lineage_nodes.filter(n => n.type !== 'pipeline').length} tables`}
               </span>
             )}
             {dag?.cycles.length ? (
               <span className="flex items-center gap-1 text-xs bg-red-500 text-white px-2 py-0.5 rounded">
-                <AlertTriangle size={11} /> {dag.cycles.length} cycle(s)
+                <IconWarning size={11} /> {dag.cycles.length} cycle(s)
               </span>
             ) : dag ? (
               <span className="text-xs bg-green-600 text-white px-2 py-0.5 rounded">No cycles</span>
@@ -254,10 +255,10 @@ export default function PipelineDagView({ onClose, onSelectPipeline }: PipelineD
                 {dag.parallel_levels.length} parallel levels
               </span>
             )}
-            <button onClick={load} disabled={loading} className="text-navy-300 hover:text-white disabled:opacity-50" title="Refresh">
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <button onClick={load} disabled={loading} className="text-white/60 hover:text-white disabled:opacity-50" title="Refresh">
+              <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
             </button>
-            <button onClick={onClose} className="text-navy-300 hover:text-white"><X size={16} /></button>
+            <button onClick={onClose} className="text-white/60 hover:text-white"><IconClose size={16} /></button>
           </div>
         </div>
 
@@ -289,12 +290,12 @@ export default function PipelineDagView({ onClose, onSelectPipeline }: PipelineD
         <div className="flex-1 overflow-auto bg-gray-50 p-4">
           {loading && (
             <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
-              <RefreshCw size={16} className="animate-spin mr-2" /> Loading...
+              <IconRefresh size={16} className="animate-spin mr-2" /> Loading...
             </div>
           )}
           {error && (
             <div className="flex items-center justify-center h-48 text-red-500 text-sm gap-2">
-              <AlertTriangle size={16} /> {error}
+              <IconWarning size={16} /> {error}
             </div>
           )}
           {!loading && !error && dag && dag.nodes.length === 0 && (
@@ -378,7 +379,7 @@ export default function PipelineDagView({ onClose, onSelectPipeline }: PipelineD
                   {i > 0 && <ArrowRight size={10} className="text-gray-400 shrink-0" />}
                   <button
                     onClick={() => { onSelectPipeline(id); onClose() }}
-                    className={`text-xs px-2 py-0.5 rounded shrink-0 hover:opacity-80 ${cycleNodeIds.has(id) ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700 hover:bg-dblue-100 hover:text-dblue-700'}`}
+                    className={`text-xs px-2 py-0.5 rounded shrink-0 hover:opacity-80 ${cycleNodeIds.has(id) ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700 hover:bg-primary/10 hover:text-primary'}`}
                   >
                     {node?.name || id}
                   </button>

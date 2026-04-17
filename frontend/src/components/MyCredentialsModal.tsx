@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { X, KeyRound, CheckCircle, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { KeyRound, Loader2 } from 'lucide-react'
+import { IconCheckCircle, IconClose, IconErrorCircle, IconEyeHide, IconEyeShow } from './icons'
 import { fetchMyCredentials, updateMyCredentials } from '../api/client'
 
 interface Props {
@@ -64,43 +65,43 @@ export default function MyCredentialsModal({ onClose }: Props) {
         {/* Header */}
         <div className="px-5 py-4 border-b border-navy-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <KeyRound size={15} className="text-dblue-400" />
+            <KeyRound size={15} className="text-primary" />
             <span className="text-sm font-semibold text-white">My Dremio Credentials</span>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-            <X size={15} />
+            <IconClose size={15} />
           </button>
         </div>
 
         <div className="px-5 py-4 space-y-4">
           {/* Explanation */}
-          <p className="text-xs text-surface-400 leading-relaxed">
+          <p className="text-xs text-white/60 leading-relaxed">
             Set your personal Dremio PAT (Personal Access Token) so your queries run under
             your Dremio identity instead of the shared service account. This applies to
             previews, executes, and all pipeline runs you trigger.
           </p>
 
           {/* Works for both Cloud and Software */}
-          <div className="bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-xs text-surface-400">
-            <span className="text-dblue-400 font-medium">Dremio Cloud:</span> Create a PAT under
+          <div className="bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-xs text-white/60">
+            <span className="text-primary font-medium">Dremio Cloud:</span> Create a PAT under
             Account Settings → Personal Access Tokens.<br />
-            <span className="text-dblue-400 font-medium">Dremio Software:</span> Create a PAT under
+            <span className="text-primary font-medium">Dremio Software:</span> Create a PAT under
             your user profile → Personal Access Tokens (requires Dremio 25.x+). On older versions,
             leave this blank — the shared account will be used.
           </div>
 
           {/* Current status */}
           {loading ? (
-            <div className="flex items-center gap-2 text-xs text-surface-400">
+            <div className="flex items-center gap-2 text-xs text-white/60">
               <Loader2 size={12} className="animate-spin" /> Loading...
             </div>
           ) : (
             <div className="flex items-center gap-2">
               {hasPat ? (
                 <>
-                  <CheckCircle size={13} className="text-emerald-400 shrink-0" />
-                  <span className="text-xs text-surface-300">
-                    PAT set — <span className="font-mono text-surface-400">{patPreview}</span>
+                  <IconCheckCircle size={13} className="text-emerald-400 shrink-0" />
+                  <span className="text-xs text-white/70">
+                    PAT set — <span className="font-mono text-white/60">{patPreview}</span>
                   </span>
                   <button
                     onClick={handleClear}
@@ -112,8 +113,8 @@ export default function MyCredentialsModal({ onClose }: Props) {
                 </>
               ) : (
                 <>
-                  <AlertCircle size={13} className="text-amber-400 shrink-0" />
-                  <span className="text-xs text-surface-400">No personal PAT set — using shared credentials</span>
+                  <IconErrorCircle size={13} className="text-amber-400 shrink-0" />
+                  <span className="text-xs text-white/60">No personal PAT set — using shared credentials</span>
                 </>
               )}
             </div>
@@ -121,7 +122,7 @@ export default function MyCredentialsModal({ onClose }: Props) {
 
           {/* PAT input */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-surface-300">
+            <label className="text-xs font-medium text-white/70">
               {hasPat ? 'Replace PAT' : 'Enter PAT'}
             </label>
             <div className="relative">
@@ -136,9 +137,9 @@ export default function MyCredentialsModal({ onClose }: Props) {
               <button
                 type="button"
                 onClick={() => setShowPat((v) => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70"
               >
-                {showPat ? <EyeOff size={13} /> : <Eye size={13} />}
+                {showPat ? <IconEyeHide size={13} /> : <IconEyeShow size={13} />}
               </button>
             </div>
           </div>
@@ -151,8 +152,8 @@ export default function MyCredentialsModal({ onClose }: Props) {
                 : 'bg-red-950 border border-red-800 text-red-300'
             }`}>
               {message.type === 'success'
-                ? <CheckCircle size={12} className="mt-0.5 shrink-0" />
-                : <AlertCircle size={12} className="mt-0.5 shrink-0" />}
+                ? <IconCheckCircle size={12} className="mt-0.5 shrink-0" />
+                : <IconErrorCircle size={12} className="mt-0.5 shrink-0" />}
               {message.text}
             </div>
           )}
@@ -161,14 +162,14 @@ export default function MyCredentialsModal({ onClose }: Props) {
           <div className="flex items-center justify-end gap-2 pt-1">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 text-xs text-surface-400 hover:text-white transition-colors"
+              className="px-3 py-1.5 text-xs text-white/60 hover:text-white transition-colors"
             >
               Close
             </button>
             <button
               onClick={handleSave}
               disabled={!pat.trim() || saving}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-dblue-500 hover:bg-dblue-600 disabled:opacity-50 text-white text-xs rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-primary hover:bg-sidebar-primary disabled:opacity-50 text-white text-xs rounded-lg transition-colors"
             >
               {saving && <Loader2 size={11} className="animate-spin" />}
               Save PAT

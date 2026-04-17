@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Plus, Trash2, Play, CheckCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { IconAdd, IconCheckCircle, IconDatasetRun, IconDelete, IconErrorCircle, IconWarning } from './icons'
 import type { PipelineTest, TestResult, TestType, TestSeverity } from '../types'
 import { runPipelineTests } from '../api/client'
 
@@ -29,9 +30,9 @@ function newTest(): PipelineTest {
 }
 
 function StatusIcon({ status }: { status: string }) {
-  if (status === 'passed') return <CheckCircle size={14} className="text-green-500" />
-  if (status === 'failed') return <XCircle size={14} className="text-red-500" />
-  if (status === 'error') return <AlertTriangle size={14} className="text-orange-400" />
+  if (status === 'passed') return <IconCheckCircle size={14} className="text-green-500" />
+  if (status === 'failed') return <IconErrorCircle size={14} className="text-red-500" />
+  if (status === 'error') return <IconWarning size={14} className="text-orange-400" />
   return null
 }
 
@@ -89,15 +90,15 @@ export default function TestsPanel({ pipelineId, tests, columns, onTestsChange }
               disabled={running}
               className="flex items-center gap-1 px-2 py-1 text-xs bg-dblue-500 text-white rounded hover:bg-dblue-600 disabled:opacity-60"
             >
-              {running ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+              {running ? <Loader2 size={12} className="animate-spin" /> : <IconDatasetRun size={12} />}
               Run Now
             </button>
           )}
           <button
             onClick={addTest}
-            className="flex items-center gap-1 px-2 py-1 text-xs bg-navy-700 text-white rounded hover:bg-navy-600"
+            className="flex items-center gap-1 px-2 py-1 text-xs bg-navy-700 text-white rounded hover:bg-white/15"
           >
-            <Plus size={12} />
+            <IconAdd size={12} />
             Add Test
           </button>
         </div>
@@ -108,7 +109,7 @@ export default function TestsPanel({ pipelineId, tests, columns, onTestsChange }
         <div className={`flex items-center gap-3 px-3 py-2 rounded text-xs font-medium ${
           failed > 0 ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'
         }`}>
-          <CheckCircle size={13} className={failed > 0 ? 'text-red-400' : 'text-green-500'} />
+          <IconCheckCircle size={13} className={failed > 0 ? 'text-red-400' : 'text-green-500'} />
           <span className={failed > 0 ? 'text-red-700' : 'text-green-700'}>
             {passed} passed · {failed} failed
           </span>
@@ -170,7 +171,7 @@ export default function TestsPanel({ pipelineId, tests, columns, onTestsChange }
                   onClick={(e) => { e.stopPropagation(); removeTest(test.id) }}
                   className="text-gray-300 hover:text-red-400 ml-1"
                 >
-                  <Trash2 size={12} />
+                  <IconDelete size={12} />
                 </button>
               </div>
 

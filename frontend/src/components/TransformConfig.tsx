@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Trash2, Plus, X, MessageSquare } from 'lucide-react'
+import { MessageSquare } from 'lucide-react'
+import { IconDelete, IconAdd, IconClose } from './icons'
 import clsx from 'clsx'
 import type { TransformStep, TransformParam } from '../types'
 import { fetchTransform } from '../api/client'
@@ -134,7 +135,7 @@ function ColumnsMultiSelect({
             <span key={col} className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-mono">
               {col}
               <button onClick={() => toggle(col)} className="hover:text-blue-900">
-                <X size={10} />
+                <IconClose size={10} />
               </button>
             </span>
           ))}
@@ -197,7 +198,7 @@ function MapEditor({
             onClick={() => removeRow(k)}
             className="text-gray-400 hover:text-red-500 transition-colors"
           >
-            <X size={13} />
+            <IconClose size={13} />
           </button>
         </div>
       ))}
@@ -206,7 +207,7 @@ function MapEditor({
         onClick={addRow}
         className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
       >
-        <Plus size={12} /> Add row
+        <IconAdd size={12} /> Add row
       </button>
     </div>
   )
@@ -403,7 +404,7 @@ export default function TransformConfig({ step, columns, onUpdate, onDelete, onO
             onClick={onDelete}
             className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
           >
-            <Trash2 size={13} /> Remove step
+            <IconDelete size={13} /> Remove step
           </button>
         </div>
       </div>
@@ -474,7 +475,7 @@ export default function TransformConfig({ step, columns, onUpdate, onDelete, onO
           onClick={onDelete}
           className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
         >
-          <Trash2 size={13} /> Remove step
+          <IconDelete size={13} /> Remove step
         </button>
       </div>
     </div>

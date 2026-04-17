@@ -1,0 +1,17 @@
+import React from 'react';
+
+interface IconJobSetupProps {
+  size?: number;
+  className?: string;
+}
+
+export function IconJobSetup({ size = 24, className }: IconJobSetupProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <rect x="12" y="3.1001" width="12.5" height="12.5" rx="2" transform="rotate(45 12 3.1001)" fill="#4379C9"/>
+    <rect x="9.01187" y="10.6001" width="2" height="2" rx="1" transform="rotate(45 9.01187 10.6001)" fill="white"/>
+    <rect x="12.0119" y="10.6001" width="2" height="2" rx="1" transform="rotate(45 12.0119 10.6001)" fill="white"/>
+    <rect x="15.0119" y="10.6001" width="2" height="2" rx="1" transform="rotate(45 15.0119 10.6001)" fill="white"/>
+    </svg>
+  );
+}

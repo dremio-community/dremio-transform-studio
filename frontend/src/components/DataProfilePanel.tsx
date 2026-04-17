@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { X, Loader2, BarChart2, AlertCircle, RefreshCw, Clock } from 'lucide-react'
+import { Loader2, BarChart2, Clock } from 'lucide-react'
+import { IconClose, IconErrorCircle, IconRefresh } from './icons'
 import clsx from 'clsx'
 import { fetchTableProfile } from '../api/client'
 import type { ColumnProfile, TableProfile } from '../api/client'
@@ -100,11 +101,11 @@ export default function DataProfilePanel({ table, onClose }: Props) {
             title="Refresh profile (re-runs Dremio query)"
             className="ml-1 p-1 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors disabled:opacity-40"
           >
-            <RefreshCw size={12} className={clsx(refreshing && 'animate-spin')} />
+            <IconRefresh size={12} className={clsx(refreshing && 'animate-spin')} />
           </button>
         )}
         <button onClick={onClose} className="p-1 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors">
-          <X size={13} />
+          <IconClose size={13} />
         </button>
       </div>
 
@@ -128,7 +129,7 @@ export default function DataProfilePanel({ table, onClose }: Props) {
           </div>
         ) : error ? (
           <div className="flex items-center gap-2 p-4 text-red-600">
-            <AlertCircle size={14} />
+            <IconErrorCircle size={14} />
             <span className="text-sm">{(error as Error).message}</span>
           </div>
         ) : profile ? (

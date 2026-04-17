@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Search, Save, Trash2, Plus, X, Check, Loader2, Tag } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Tag } from 'lucide-react'
+import { IconAdd, IconCheck, IconClose, IconDelete, IconSearch } from './icons'
 import clsx from 'clsx'
 import type { TransformStep, CustomTransformTemplate } from '../types'
 import {
@@ -44,7 +45,7 @@ function SaveTemplateModal({
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-gray-800">Save as Template</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X size={16} />
+            <IconClose size={16} />
           </button>
         </div>
 
@@ -146,7 +147,7 @@ function TemplateLibrary({
       <div className="px-4 pt-4 pb-3 border-b border-gray-100 shrink-0">
         <h3 className="font-semibold text-sm text-gray-800 mb-2">Template Library</h3>
         <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5">
-          <Search size={13} className="text-gray-400 shrink-0" />
+          <IconSearch size={13} className="text-gray-400 shrink-0" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -155,7 +156,7 @@ function TemplateLibrary({
           />
           {search && (
             <button onClick={() => setSearch('')} className="text-gray-400 hover:text-gray-600">
-              <X size={12} />
+              <IconClose size={12} />
             </button>
           )}
         </div>
@@ -189,13 +190,13 @@ function TemplateLibrary({
                         className="p-1 rounded text-red-500 hover:bg-red-50 text-xs"
                         title="Confirm delete"
                       >
-                        <Check size={12} />
+                        <IconCheck size={12} />
                       </button>
                       <button
                         onClick={() => setDeleteConfirmId(null)}
                         className="p-1 rounded text-gray-400 hover:bg-gray-100"
                       >
-                        <X size={12} />
+                        <IconClose size={12} />
                       </button>
                     </>
                   ) : (
@@ -203,7 +204,7 @@ function TemplateLibrary({
                       onClick={() => setDeleteConfirmId(tpl.id)}
                       className="p-1 rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
                     >
-                      <Trash2 size={12} />
+                      <IconDelete size={12} />
                     </button>
                   )}
                 </div>
@@ -319,7 +320,7 @@ export default function CustomSqlEditor({ step, columns, onSave, onClose }: Prop
           disabled={!sql.trim()}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <Plus size={14} /> Save as Template
+          <IconAdd size={14} /> Save as Template
         </button>
 
         <button
@@ -333,7 +334,7 @@ export default function CustomSqlEditor({ step, columns, onSave, onClose }: Prop
           onClick={handleApply}
           className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
         >
-          <Check size={14} /> Apply
+          <IconCheck size={14} /> Apply
         </button>
       </div>
 

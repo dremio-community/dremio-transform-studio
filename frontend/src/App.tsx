@@ -1,54 +1,11 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { v4 as uuidv4 } from 'uuid'
-import {
-  Save,
-  Play,
-  Zap,
-  Code2,
-  Plus,
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-  Database,
-  Layers,
-  Settings,
-  Trash2,
-  RefreshCw,
-  CalendarClock,
-  Pencil,
-  X,
-  Copy,
-  Download,
-  Upload,
-  Power,
-  BarChart2,
-  Search,
-  Clock,
-  User,
-  LogOut,
-  Users,
-  Bell,
-  GitBranch,
-  GitMerge,
-  FlaskConical,
-  CheckCircle,
-  XCircle,
-  Sprout,
-  FileText,
-  Activity,
-  GitPullRequest,
-  SlidersHorizontal,
-  Link,
-  Radio,
-  ShieldCheck,
-  Share2,
-  KeyRound,
-  Package,
-  LayoutTemplate,
-  ScrollText,
-} from 'lucide-react'
+import { Save, Zap, Code2, Loader2, Layers, CalendarClock, Upload, Power, BarChart2, Clock, User, LogOut, Users, Bell, GitBranch, GitMerge, FlaskConical, Sprout, FileText, Activity, GitPullRequest, SlidersHorizontal, Link, Radio, ShieldCheck, Share2, KeyRound, Package, LayoutTemplate, ScrollText } from 'lucide-react'
+import { IconAdd, IconCheckCircle, IconClose, IconCopy, IconDatasetDownload, IconDatasetRun, IconDelete, IconEdit, IconEntityNamespace, IconErrorCircle, IconRefresh, IconSearch, IconSettings } from './components/icons'
 import clsx from 'clsx'
+import { Button } from './components/ui/button'
+import { Badge } from './components/ui/badge'
 
 import type { Pipeline, TransformStep, TransformType, PreviewResult, ExecuteResult, IcebergCatalog, PipelineParameter, PipelineTest } from './types'
 import {
@@ -857,7 +814,7 @@ export default function App() {
   if (authEnabled && !authChecked) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-navy-950">
-        <Loader2 size={24} className="animate-spin text-dblue-400" />
+        <Loader2 size={24} className="animate-spin text-primary" />
       </div>
     )
   }
@@ -872,7 +829,7 @@ export default function App() {
             <Layers size={14} className="text-white" />
           </div>
           <span className="font-semibold text-white text-sm tracking-tight">Transform Studio</span>
-          <span className="text-surface-400 text-xs font-mono ml-1">for Dremio</span>
+          <span className="text-white/50 text-xs font-mono ml-1">for Dremio</span>
         </div>
 
         <div className="h-5 w-px bg-navy-700" />
@@ -880,15 +837,15 @@ export default function App() {
         <button
           onClick={handleNewPipeline}
           title="New pipeline"
-          className="flex items-center gap-1 px-2.5 py-1 rounded border border-navy-700 hover:border-dblue-500 text-surface-400 hover:text-white hover:bg-navy-800 transition-colors text-xs font-medium"
+          className="flex items-center gap-1 px-2.5 py-1 rounded border border-sidebar-border hover:border-primary text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors text-xs font-medium"
         >
-          <Plus size={12} />
+          <IconAdd size={12} />
           New Pipeline
         </button>
         <button
           onClick={() => setShowTemplates(true)}
           title="Pipeline templates"
-          className="flex items-center gap-1 px-2.5 py-1 rounded border border-navy-700 hover:border-dblue-500 text-surface-400 hover:text-white hover:bg-navy-800 transition-colors text-xs font-medium"
+          className="flex items-center gap-1 px-2.5 py-1 rounded border border-sidebar-border hover:border-primary text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors text-xs font-medium"
         >
           <LayoutTemplate size={12} />
           Templates
@@ -903,9 +860,9 @@ export default function App() {
             <button
               onClick={() => { setRenamingId(activePipelineId); setRenameValue(localName) }}
               title="Rename pipeline"
-              className="opacity-0 group-hover:opacity-100 p-1 rounded text-navy-500 hover:text-surface-300 transition-all"
+              className="opacity-0 group-hover:opacity-100 p-1 rounded text-navy-500 hover:text-white/70 transition-all"
             >
-              <Pencil size={11} />
+              <IconEdit size={11} />
             </button>
           )}
         </div>
@@ -919,17 +876,17 @@ export default function App() {
             'flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full',
             statusMsg.type === 'ok' ? 'text-emerald-400 bg-emerald-950/60' : 'text-red-400 bg-red-950/60'
           )}>
-            {statusMsg.type === 'ok' ? <CheckCircle2 size={11} /> : <AlertCircle size={11} />}
+            {statusMsg.type === 'ok' ? <IconCheckCircle size={11} /> : <IconErrorCircle size={11} />}
             {statusMsg.text}
           </span>
         )}
 
-        {isLoading && <Loader2 size={14} className="animate-spin text-dblue-400" />}
+        {isLoading && <Loader2 size={14} className="animate-spin text-primary" />}
 
         <Tooltip text="Data Quality Hub">
           <button
             onClick={() => setShowDqHub(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dblue-500/20 hover:bg-dblue-500/40 text-dblue-400 hover:text-white border border-dblue-500/40 hover:border-dblue-500/70 transition-all font-semibold text-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dblue-500/20 hover:bg-dblue-500/40 text-primary hover:text-white border border-dblue-500/40 hover:border-dblue-500/70 transition-all font-semibold text-xs"
           >
             <ShieldCheck size={17} />
             DQ Hub
@@ -938,7 +895,7 @@ export default function App() {
         <Tooltip text="Health Dashboard">
           <button
             onClick={() => setShowDashboard(true)}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
           >
             <Activity size={15} />
           </button>
@@ -946,7 +903,7 @@ export default function App() {
         <Tooltip text="Approvals">
           <button
             onClick={() => setRightPanel('approvals')}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors relative"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors relative"
           >
             <GitPullRequest size={15} />
           </button>
@@ -954,7 +911,7 @@ export default function App() {
         <Tooltip text="Alerts">
           <button
             onClick={() => setShowAlerts(true)}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
           >
             <Bell size={15} />
           </button>
@@ -962,7 +919,7 @@ export default function App() {
         <Tooltip text="Pipeline DAG">
           <button
             onClick={() => setShowDagView(true)}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
           >
             <GitBranch size={15} />
           </button>
@@ -972,7 +929,7 @@ export default function App() {
             <button
               onClick={() => activePipelineId && setShowDagRunModal(true)}
               disabled={!activePipelineId}
-              className="p-1.5 rounded text-dblue-400 hover:text-white hover:bg-navy-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="p-1.5 rounded text-primary hover:text-white hover:bg-sidebar-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <GitMerge size={15} />
             </button>
@@ -981,7 +938,7 @@ export default function App() {
         <Tooltip text="Seed Table from CSV">
           <button
             onClick={() => setShowSeedModal(true)}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
           >
             <Sprout size={15} />
           </button>
@@ -989,15 +946,15 @@ export default function App() {
         <Tooltip text="Global Search (⌘K)">
           <button
             onClick={() => { setShowSearch(true); setSearchQuery(''); setSearchResults([]) }}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
           >
-            <Search size={15} />
+            <IconSearch size={15} />
           </button>
         </Tooltip>
         <Tooltip text="Export Documentation">
           <button
             onClick={exportDocs}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
           >
             <FileText size={15} />
           </button>
@@ -1005,7 +962,7 @@ export default function App() {
         <Tooltip text="Export as dbt Project">
           <button
             onClick={exportDbt}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
           >
             <Package size={15} />
           </button>
@@ -1013,7 +970,7 @@ export default function App() {
         <Tooltip text="Import from dbt">
           <button
             onClick={() => setShowDbtImport(true)}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
           >
             <Upload size={15} />
           </button>
@@ -1022,7 +979,7 @@ export default function App() {
           <button
             onClick={() => activePipelineId && setShowSchedule(true)}
             disabled={!activePipelineId}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <CalendarClock size={15} />
           </button>
@@ -1030,9 +987,9 @@ export default function App() {
         <Tooltip text="Connection Settings">
           <button
             onClick={() => setShowConnectionSettings(true)}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
           >
-            <Settings size={15} />
+            <IconSettings size={15} />
           </button>
         </Tooltip>
 
@@ -1043,7 +1000,7 @@ export default function App() {
           <div className="relative">
             <button
               onClick={() => setShowUserMenu((v) => !v)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded text-surface-300 hover:text-white hover:bg-navy-700 transition-colors text-xs"
+              className="flex items-center gap-1.5 px-2 py-1 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors text-xs"
               title={currentUser.username}
             >
               <User size={13} />
@@ -1060,7 +1017,7 @@ export default function App() {
                 {currentUser.is_admin && (
                   <button
                     onClick={() => { setShowManageUsers(true); setShowUserMenu(false) }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-surface-300 hover:bg-navy-800 hover:text-white transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
                   >
                     <Users size={12} /> Manage Users
                   </button>
@@ -1068,20 +1025,20 @@ export default function App() {
                 {currentUser.is_admin && (
                   <button
                     onClick={() => { setShowAuditLog(true); setShowUserMenu(false) }}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-surface-300 hover:bg-navy-700 hover:text-white transition-colors"
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
                   >
                     <ScrollText size={12} /> Audit Log
                   </button>
                 )}
                 <button
                   onClick={() => { setShowMyCredentials(true); setShowUserMenu(false) }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-surface-300 hover:bg-navy-800 hover:text-white transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
                 >
                   <KeyRound size={12} /> My Dremio Credentials
                 </button>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-surface-300 hover:bg-navy-800 hover:text-red-400 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-navy-800 hover:text-red-400 transition-colors"
                 >
                   <LogOut size={12} /> Sign Out
                 </button>
@@ -1093,7 +1050,7 @@ export default function App() {
           <Tooltip text="Quit Transform Studio">
             <button
               onClick={() => setShowQuitConfirm(true)}
-              className="p-1.5 rounded text-surface-400 hover:text-red-400 hover:bg-navy-700 transition-colors"
+              className="p-1.5 rounded text-white/60 hover:text-red-400 hover:bg-navy-700 transition-colors"
             >
               <Power size={15} />
             </button>
@@ -1104,15 +1061,15 @@ export default function App() {
           <button
             onClick={handleExport}
             disabled={!activePipelineId}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Download size={15} />
+            <IconDatasetDownload size={15} />
           </button>
         </Tooltip>
         <Tooltip text="Import pipeline from JSON">
           <button
             onClick={handleImportClick}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
           >
             <Upload size={15} />
           </button>
@@ -1129,7 +1086,7 @@ export default function App() {
         <TopBtn
           onClick={handlePreview}
           disabled={!localSourceTable || isLoading}
-          icon={<Play size={12} />}
+          icon={<IconDatasetRun size={12} />}
           label="Preview"
           accent="emerald"
         />
@@ -1185,7 +1142,7 @@ export default function App() {
                   className={`p-1.5 rounded transition-colors ${
                     localApprovalRequired
                       ? 'text-violet-400 bg-violet-500/15 hover:bg-violet-500/25'
-                      : 'text-surface-500 hover:text-surface-300 hover:bg-navy-700'
+                      : 'text-white/40 hover:text-white/70 hover:bg-navy-700'
                   }`}
                 >
                   <GitPullRequest size={15} />
@@ -1198,7 +1155,7 @@ export default function App() {
                 <Tooltip text="Share pipeline">
                   <button
                     onClick={() => setShareModalPipelineId(activePipelineId)}
-                    className="p-1.5 rounded text-surface-500 hover:text-dblue-400 hover:bg-navy-700 transition-colors"
+                    className="p-1.5 rounded text-white/40 hover:text-primary hover:bg-navy-700 transition-colors"
                   >
                     <Share2 size={15} />
                   </button>
@@ -1225,27 +1182,27 @@ export default function App() {
           {/* Pipelines */}
           <div className="border-b border-navy-800 shrink-0">
             <div className="flex items-center justify-between px-3 pt-3 pb-1.5">
-              <span className="text-xs font-semibold text-surface-300 uppercase tracking-widest">Pipelines</span>
-              <button onClick={handleNewPipeline} className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-navy-700 text-surface-400 hover:text-white transition-colors text-xs" title="New pipeline">
-                <Plus size={12} />
+              <span className="text-xs font-semibold text-white/60 uppercase tracking-widest">Pipelines</span>
+              <button onClick={handleNewPipeline} className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-sidebar-accent text-white/70 hover:text-white transition-colors text-xs" title="New pipeline">
+                <IconAdd size={12} />
                 <span>New</span>
               </button>
             </div>
             {/* Search box — only show when 5+ pipelines */}
             {pipelines.length >= 5 && (
               <div className="px-3 pb-1.5">
-                <div className="flex items-center gap-1.5 bg-navy-800 rounded px-2 py-1 border border-navy-700">
-                  <Search size={10} className="text-surface-500 shrink-0" />
+                <div className="flex items-center gap-1.5 bg-sidebar-accent rounded px-2 py-1 border border-sidebar-border">
+                  <IconSearch size={10} className="text-white/50 shrink-0" />
                   <input
                     type="text"
                     value={pipelineSearch}
                     onChange={(e) => setPipelineSearch(e.target.value)}
                     placeholder="Search pipelines..."
-                    className="flex-1 bg-transparent text-xs text-surface-300 placeholder-surface-600 outline-none min-w-0"
+                    className="flex-1 bg-transparent text-xs text-white/80 placeholder-white/30 outline-none min-w-0"
                   />
                   {pipelineSearch && (
-                    <button onClick={() => setPipelineSearch('')} className="text-surface-500 hover:text-white transition-colors">
-                      <X size={10} />
+                    <button onClick={() => setPipelineSearch('')} className="text-white/60 hover:text-white transition-colors">
+                      <IconClose size={10} />
                     </button>
                   )}
                 </div>
@@ -1254,18 +1211,18 @@ export default function App() {
             {/* Folder filter */}
             {allFolders.length > 0 && (
               <div className="px-2 pb-1.5 border-b border-navy-800 mb-1">
-                <p className="text-[9px] font-semibold text-surface-600 uppercase tracking-wider px-1 py-1">Folders</p>
+                <p className="text-[9px] font-semibold text-white/30 uppercase tracking-wider px-1 py-1">Folders</p>
                 <button
                   onClick={() => { setActiveFolder(null); setActiveTagFilter(null) }}
                   className={clsx('w-full text-left px-2 py-0.5 rounded text-xs transition-colors',
-                    activeFolder === null && !activeTagFilter ? 'text-white' : 'text-surface-500 hover:text-surface-300')}
+                    activeFolder === null && !activeTagFilter ? 'text-white' : 'text-white/40 hover:text-white/70')}
                 >
                   All pipelines
                 </button>
                 {allFolders.map(folder => (
                   <button key={folder} onClick={() => setActiveFolder(activeFolder === folder ? null : folder)}
                     className={clsx('w-full text-left px-2 py-0.5 rounded text-xs transition-colors flex items-center gap-1.5',
-                      activeFolder === folder ? 'text-dblue-400' : 'text-surface-500 hover:text-surface-300')}>
+                      activeFolder === folder ? 'text-primary' : 'text-white/40 hover:text-white/70')}>
                     <span className="text-[10px]">📁</span>
                     <span className="truncate">{folder}</span>
                   </button>
@@ -1273,7 +1230,7 @@ export default function App() {
                 {pipelines.some((p: any) => !p.folder) && (
                   <button onClick={() => setActiveFolder('__uncategorized__')}
                     className={clsx('w-full text-left px-2 py-0.5 rounded text-xs transition-colors italic',
-                      activeFolder === '__uncategorized__' ? 'text-dblue-400' : 'text-surface-500 hover:text-surface-300')}>
+                      activeFolder === '__uncategorized__' ? 'text-primary' : 'text-white/40 hover:text-white/70')}>
                     Uncategorized
                   </button>
                 )}
@@ -1289,7 +1246,7 @@ export default function App() {
                   {allTags.slice(0, 10).map(tag => (
                     <button key={tag} onClick={() => setActiveTagFilter(activeTagFilter === tag ? null : tag)}
                       className={clsx('text-[9px] px-1.5 py-0.5 rounded-full transition-colors',
-                        activeTagFilter === tag ? 'bg-dblue-500 text-white' : 'bg-navy-800 text-surface-400 hover:text-surface-200')}>
+                        activeTagFilter === tag ? 'bg-dblue-500 text-white' : 'bg-navy-800 text-white/60 hover:text-surface-200')}>
                       {tag}
                     </button>
                   ))}
@@ -1314,10 +1271,10 @@ export default function App() {
                 return (
                   <>
                     {pipelines.length === 0 && (
-                      <li className="px-3 py-2 text-xs text-surface-400">No pipelines yet</li>
+                      <li className="px-3 py-2 text-xs text-white/50">No pipelines yet</li>
                     )}
                     {pipelines.length >= 5 && pipelineSearch && displayedPipelines.length === 0 && (
-                      <li className="px-3 py-2 text-xs text-surface-500 italic">No pipelines match</li>
+                      <li className="px-3 py-2 text-xs text-white/50 italic">No pipelines match</li>
                     )}
                     {displayedPipelines.map((p: any) => (
                       <li key={p.id} className="group flex flex-col">
@@ -1327,27 +1284,27 @@ export default function App() {
                             className={clsx(
                               'flex-1 text-left px-3 py-1.5 text-xs truncate transition-colors',
                               activePipelineId === p.id
-                                ? 'bg-dblue-500/20 text-dblue-400 font-medium border-l-2 border-dblue-500'
-                                : 'text-surface-400 hover:bg-navy-800 hover:text-white'
+                                ? 'bg-primary/20 text-primary font-medium border-l-2 border-primary'
+                                : 'text-white/70 hover:bg-sidebar-accent hover:text-white'
                             )}
                           >
                             <span className="truncate">{p.name}</span>
                             {p.shared_access && (
-                              <span className="ml-1 text-[9px] text-dblue-500/70 font-normal">(shared)</span>
+                              <span className="ml-1 text-[9px] text-white/40 font-normal">(shared)</span>
                             )}
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); duplicateMut.mutate(p.id) }}
                             title="Duplicate"
-                            className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-dblue-400 transition-all"
+                            className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-white/40 hover:text-primary transition-all"
                           >
-                            <Copy size={11} />
+                            <IconCopy size={11} />
                           </button>
                           {canSharePipeline(p) && (
                             <button
                               onClick={(e) => { e.stopPropagation(); setShareModalPipelineId(p.id) }}
                               title="Share"
-                              className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-dblue-400 transition-all"
+                              className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-white/40 hover:text-primary transition-all"
                             >
                               <Share2 size={11} />
                             </button>
@@ -1356,27 +1313,27 @@ export default function App() {
                             <button
                               onClick={(e) => { e.stopPropagation(); setRenamingId(p.id); setRenameValue(p.name) }}
                               title="Rename"
-                              className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-surface-500 hover:text-white transition-all"
+                              className="opacity-0 group-hover:opacity-100 p-1 mr-0.5 rounded text-white/40 hover:text-white transition-all"
                             >
-                              <Pencil size={11} />
+                              <IconEdit size={11} />
                             </button>
                           )}
                           {canDeletePipeline(p) && (
                             <button
                               onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(p.id) }}
                               title="Delete"
-                              className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded text-surface-500 hover:text-red-400 transition-all"
+                              className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded text-white/40 hover:text-red-400 transition-all"
                             >
-                              <Trash2 size={11} />
+                              <IconDelete size={11} />
                             </button>
                           )}
                         </div>
                         {p.tags && p.tags.length > 0 && (
                           <div className="flex gap-1 flex-wrap mt-0.5 px-3 pb-0.5">
                             {(p.tags as string[]).slice(0, 3).map((tag: string) => (
-                              <span key={tag} className="text-[9px] px-1 py-0 rounded-full bg-dblue-500/20 text-dblue-400">{tag}</span>
+                              <span key={tag} className="text-[9px] px-1 py-0 rounded-full bg-primary/20 text-primary">{tag}</span>
                             ))}
-                            {p.tags.length > 3 && <span className="text-[9px] text-surface-500">+{p.tags.length - 3}</span>}
+                            {p.tags.length > 3 && <span className="text-[9px] text-white/40">+{p.tags.length - 3}</span>}
                           </div>
                         )}
                       </li>
@@ -1392,7 +1349,7 @@ export default function App() {
             <CatalogTabBtn
               active={sidebarTab === 'dremio'}
               onClick={() => setSidebarTab('dremio')}
-              icon={<Database size={11} />}
+              icon={<IconEntityNamespace size={11} />}
               label="Dremio"
             />
             <CatalogTabBtn
@@ -1414,19 +1371,19 @@ export default function App() {
               <div className="flex-1 overflow-hidden flex flex-col">
                 {/* Iceberg catalog list */}
                 <div className="px-3 pt-2.5 pb-1.5 flex items-center justify-between shrink-0">
-                  <span className="text-xs text-surface-500 font-medium">REST Catalogs</span>
+                  <span className="text-xs text-white/60 font-medium">REST Catalogs</span>
                   <button
                     onClick={() => setShowAddCatalog(true)}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-xs text-dblue-400 hover:bg-navy-800 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded text-xs text-primary hover:bg-navy-800 transition-colors"
                   >
-                    <Plus size={11} /> Add
+                    <IconAdd size={11} /> Add
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   {icebergCatalogs.length === 0 ? (
-                    <div className="px-3 py-3 text-xs text-surface-600">
+                    <div className="px-3 py-3 text-xs text-white/50">
                       No Iceberg catalogs configured.{' '}
-                      <button onClick={() => setShowAddCatalog(true)} className="text-dblue-400 hover:underline">Add one</button>
+                      <button onClick={() => setShowAddCatalog(true)} className="text-primary hover:underline">Add one</button>
                     </div>
                   ) : (
                     icebergCatalogs.map((cat) => (
@@ -1450,7 +1407,7 @@ export default function App() {
           {/* Source banner */}
           {localSourceTable && (
             <div className="flex items-center gap-2 px-4 py-2 bg-navy-900 border-b border-navy-800 text-sm shrink-0">
-              <span className="text-xs font-semibold text-surface-400 uppercase tracking-wider">Source</span>
+              <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">Source</span>
               <code className="text-xs font-mono text-white bg-white/10 px-2 py-0.5 rounded">{localSourceTable}</code>
               <button
                 onClick={() => setShowProfile((v) => !v)}
@@ -1459,12 +1416,12 @@ export default function App() {
                   'flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors',
                   showProfile
                     ? 'bg-dblue-500 text-white'
-                    : 'text-surface-400 hover:text-white hover:bg-navy-700'
+                    : 'text-white/70 hover:text-white hover:bg-sidebar-accent'
                 )}
               >
                 <BarChart2 size={11} /> Profile
               </button>
-              <span className="ml-auto text-xs text-surface-400">{sourceSchema.length} columns</span>
+              <span className="ml-auto text-xs text-white/60">{sourceSchema.length} columns</span>
               {/* View toggle */}
               <div className="flex items-center gap-0.5 ml-3 bg-surface-100 rounded-full p-0.5">
                 <ViewToggleBtn
@@ -1484,7 +1441,7 @@ export default function App() {
           {/* Description / Notes */}
           {activePipelineId && (
             <div className="px-4 py-2 bg-white border-b border-surface-100 shrink-0">
-              <label className="block text-xs font-semibold text-surface-400 uppercase tracking-wider mb-1">Notes</label>
+              <label className="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1">Notes</label>
               <textarea
                 value={localDescription}
                 onChange={(e) => { setLocalDescription(e.target.value); setIsDirty(true) }}
@@ -1560,10 +1517,10 @@ export default function App() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center max-w-xs">
                 <div className="w-16 h-16 rounded-2xl bg-navy-900 flex items-center justify-center mx-auto mb-4">
-                  <Database size={28} className="text-navy-600" />
+                  <IconEntityNamespace size={28} className="text-navy-600" />
                 </div>
-                <p className="font-semibold text-surface-600 mb-1 text-sm">No source table selected</p>
-                <p className="text-xs text-surface-400">Click a table in the Catalog panel to start building a pipeline.</p>
+                <p className="font-semibold text-white/30 mb-1 text-sm">No source table selected</p>
+                <p className="text-xs text-white/60">Click a table in the Catalog panel to start building a pipeline.</p>
               </div>
             </div>
           ) : centerView === 'lineage' ? (
@@ -1608,16 +1565,16 @@ export default function App() {
 
           {/* Output strip */}
           {localSourceTable && (
-            <div className="shrink-0 bg-dblue-50" style={{ borderTop: '3px solid #00a3ff' }}>
+            <div className="shrink-0 bg-selected" style={{ borderTop: '3px solid var(--primary)' }}>
               <div className="flex items-center gap-3 px-4 py-2.5 flex-wrap">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-dblue-500" />
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: '#0055a0' }}>Output</span>
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>Output</span>
                 </div>
                 <select
                   value={localOutputMode}
                   onChange={(e) => { setLocalOutputMode(e.target.value); setIsDirty(true) }}
-                  className="text-xs border border-dblue-400 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-dblue-400 bg-white text-surface-600 font-medium shadow-sm"
+                  className="text-xs border border-ring rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-ring bg-card text-secondary-foreground font-medium shadow-sm"
                 >
                   <option value="preview">Preview only (no output)</option>
                   <option value="ctas">Create Table (CTAS)</option>
@@ -1648,7 +1605,7 @@ export default function App() {
                       ))}
                     </select>
 
-                    <span className="text-surface-400 font-mono text-sm shrink-0">.</span>
+                    <span className="text-white/60 font-mono text-sm shrink-0">.</span>
 
                     {/* Subpath: folder(s) + table name, supports dots for nesting */}
                     <input
@@ -1668,13 +1625,13 @@ export default function App() {
 
                     {/* Full path preview */}
                     {localOutputTable && (
-                      <span className="text-xs text-surface-400 font-mono truncate max-w-[200px] shrink-0" title={localOutputTable}>
+                      <span className="text-xs text-white/60 font-mono truncate max-w-[200px] shrink-0" title={localOutputTable}>
                         → {localOutputTable}
                       </span>
                     )}
                   </div>
                 ) : (
-                  <span className="text-xs italic" style={{ color: '#0055a0' }}>Select a write mode to save results to a table or view</span>
+                  <span className="text-xs italic text-accent">Select a write mode to save results to a table or view</span>
                 )}
                 {/* Incremental settings */}
                 {localOutputMode === 'incremental' && (
@@ -1682,7 +1639,7 @@ export default function App() {
                     <select
                       value={localIncrementalStrategy}
                       onChange={e => { setLocalIncrementalStrategy(e.target.value); setIsDirty(true) }}
-                      className="text-xs border border-dblue-400 rounded-md px-2 py-1.5 bg-white text-surface-600 shadow-sm"
+                      className="text-xs border border-dblue-400 rounded-md px-2 py-1.5 bg-white text-white/30 shadow-sm"
                     >
                       <option value="append">Append (timestamp)</option>
                       <option value="merge">Merge (MERGE INTO, Iceberg only)</option>
@@ -1698,7 +1655,7 @@ export default function App() {
                       <select
                         value={localMicrobatchWindow}
                         onChange={e => { setLocalMicrobatchWindow(e.target.value); setIsDirty(true) }}
-                        className="text-xs border border-dblue-400 rounded-md px-2 py-1.5 bg-white text-surface-600 shadow-sm"
+                        className="text-xs border border-dblue-400 rounded-md px-2 py-1.5 bg-white text-white/30 shadow-sm"
                         title="Batch window size — each execution processes data in chunks of this size"
                       >
                         <option value="1hour">1-hour batches</option>
@@ -1727,19 +1684,19 @@ export default function App() {
                       onChange={e => { setLocalScd2TrackedCols(e.target.value); setIsDirty(true) }}
                     />
                     <div className="flex items-center gap-1 border border-dblue-400 rounded-md px-2 py-1.5 bg-white shadow-sm">
-                      <span className="text-xs text-surface-500">eff_from</span>
+                      <span className="text-xs text-white/40">eff_from</span>
                       <input
                         className="text-xs font-mono w-24 bg-transparent outline-none"
                         value={localScd2EffFrom}
                         onChange={e => { setLocalScd2EffFrom(e.target.value); setIsDirty(true) }}
                       />
-                      <span className="text-xs text-surface-500 ml-1">eff_to</span>
+                      <span className="text-xs text-white/40 ml-1">eff_to</span>
                       <input
                         className="text-xs font-mono w-24 bg-transparent outline-none"
                         value={localScd2EffTo}
                         onChange={e => { setLocalScd2EffTo(e.target.value); setIsDirty(true) }}
                       />
-                      <span className="text-xs text-surface-500 ml-1">current</span>
+                      <span className="text-xs text-white/40 ml-1">current</span>
                       <input
                         className="text-xs font-mono w-20 bg-transparent outline-none"
                         value={localScd2IsCurrent}
@@ -1880,7 +1837,7 @@ export default function App() {
                 onOpenEditor={selectedStep.transform_type === 'custom_sql' ? () => setCustomSqlEditorStepId(selectedStep.id) : undefined}
               />
             ) : (
-              <div className="p-6 text-center text-surface-400 text-xs">
+              <div className="p-6 text-center text-white/60 text-xs">
                 Select a step to configure it
               </div>
             )}
@@ -1901,7 +1858,7 @@ export default function App() {
                     'px-3 py-1 text-xs font-medium rounded transition-colors capitalize',
                     bottomPanel === tab
                       ? 'bg-white border border-surface-200 text-navy-900 shadow-sm'
-                      : 'text-surface-500 hover:text-surface-700'
+                      : 'text-white/40 hover:text-surface-700'
                   )}
                 >
                   {tab === 'sql' ? 'SQL' : tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -1909,7 +1866,7 @@ export default function App() {
               ))}
             </div>
             <div className="flex-1" />
-            <button onClick={() => setBottomPanel(null)} className="text-surface-400 hover:text-surface-600 text-xs px-2">✕</button>
+            <button onClick={() => setBottomPanel(null)} className="text-white/60 hover:text-white/30 text-xs px-2">✕</button>
           </div>
           <div className="flex-1 overflow-auto">
             {bottomPanel === 'preview' && previewResult && <PreviewTable result={previewResult} />}
@@ -1917,7 +1874,7 @@ export default function App() {
               <div className="p-4 text-sm">
                 {executeResult.success ? (
                   <div className="flex items-center gap-2 text-emerald-700">
-                    <CheckCircle2 size={15} />
+                    <IconCheckCircle size={15} />
                     <span className="font-medium">
                       {localOutputMode === 'view'
                         ? <>View created: <code className="font-mono">{executeResult.output_table}</code></>
@@ -1932,7 +1889,7 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="flex items-start gap-2 text-red-700">
-                    <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                    <IconErrorCircle size={15} className="shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="font-medium">
                         {executeResult.blocked_by_tests
@@ -1956,15 +1913,15 @@ export default function App() {
                 {executeResult.success && executeResult.metadata_push && (
                   <div className="mt-2 flex items-center gap-1.5 text-xs">
                     {executeResult.metadata_push === 'skipped' || executeResult.metadata_push === 'timeout' ? (
-                      <span className="text-surface-400">Iceberg metadata: not stamped (table may not be Iceberg)</span>
+                      <span className="text-white/60">Iceberg metadata: not stamped (table may not be Iceberg)</span>
                     ) : executeResult.metadata_push.startsWith('rest_catalog:') ? (
                       <>
-                        <CheckCircle2 size={11} className="text-emerald-500" />
+                        <IconCheckCircle size={11} className="text-emerald-500" />
                         <span className="text-emerald-600">Iceberg metadata stamped via REST catalog ({executeResult.metadata_push.replace('rest_catalog:', '')})</span>
                       </>
                     ) : executeResult.metadata_push === 'sql' ? (
                       <>
-                        <CheckCircle2 size={11} className="text-emerald-500" />
+                        <IconCheckCircle size={11} className="text-emerald-500" />
                         <span className="text-emerald-600">Iceberg metadata stamped</span>
                       </>
                     ) : (
@@ -1988,7 +1945,7 @@ export default function App() {
                         <div key={r.test_id} className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${
                           r.status === 'passed' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                         }`}>
-                          {r.status === 'passed' ? <CheckCircle size={11} /> : <XCircle size={11} />}
+                          {r.status === 'passed' ? <IconCheckCircle size={11} /> : <IconErrorCircle size={11} />}
                           <span className="font-medium">{r.test_name}</span>
                           <span className="text-gray-500 flex-1">{r.message}</span>
                           {r.severity === 'warn' && r.status !== 'passed' && (
@@ -2037,7 +1994,7 @@ export default function App() {
           >
             {/* Search input */}
             <div className="flex items-center gap-2.5 px-4 py-3 border-b border-gray-100">
-              <Search size={16} className="text-gray-400 shrink-0" />
+              <IconSearch size={16} className="text-gray-400 shrink-0" />
               <input
                 autoFocus
                 type="text"
@@ -2122,10 +2079,10 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4">
             <div className="flex items-start gap-3 mb-4">
-              <AlertCircle size={20} className="text-amber-500 shrink-0 mt-0.5" />
+              <IconErrorCircle size={20} className="text-amber-500 shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-surface-800 text-sm">Duplicate Pipeline Name</h3>
-                <p className="text-surface-500 text-xs mt-1">
+                <p className="text-white/40 text-xs mt-1">
                   A pipeline named <span className="font-mono font-semibold text-surface-700">"{localName}"</span> already
                   exists. Duplicate names can make pipelines hard to find and manage.
                 </p>
@@ -2134,7 +2091,7 @@ export default function App() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowDupeNameWarning(false)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-surface-600 hover:bg-surface-100 transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-white/30 hover:bg-surface-100 transition-colors"
               >
                 Cancel — rename it
               </button>
@@ -2153,12 +2110,12 @@ export default function App() {
       {showDashboard && (
         <div className="fixed inset-0 z-50 bg-navy-900 flex flex-col">
           <div className="flex items-center justify-between px-4 py-2 border-b border-navy-700 bg-navy-800 shrink-0">
-            <span className="text-xs text-surface-400">Click a pipeline card to open it in the editor</span>
+            <span className="text-xs text-white/60">Click a pipeline card to open it in the editor</span>
             <button
               onClick={() => setShowDashboard(false)}
-              className="p-1.5 rounded hover:bg-navy-700 text-surface-400 hover:text-white transition-colors"
+              className="p-1.5 rounded hover:bg-sidebar-accent text-white/70 hover:text-white transition-colors"
             >
-              <X size={15} />
+              <IconClose size={15} />
             </button>
           </div>
           <div className="flex-1 overflow-hidden">
@@ -2234,7 +2191,7 @@ export default function App() {
           <div className="bg-white rounded-xl shadow-2xl w-80 mx-4 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 bg-navy-950 flex items-center justify-between">
               <span className="text-sm font-semibold text-white">Rename Pipeline</span>
-              <button onClick={() => setRenamingId(null)} className="text-gray-400 hover:text-white"><X size={15} /></button>
+              <button onClick={() => setRenamingId(null)} className="text-gray-400 hover:text-white"><IconClose size={15} /></button>
             </div>
             <div className="p-5 space-y-4">
               <input
@@ -2246,14 +2203,14 @@ export default function App() {
                 placeholder="Pipeline name"
               />
               <div className="flex justify-end gap-2">
-                <button onClick={() => setRenamingId(null)} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700">Cancel</button>
-                <button
+                <Button variant="ghost" size="sm" onClick={() => setRenamingId(null)}>Cancel</Button>
+                <Button
+                  size="sm"
                   onClick={() => renameMut.mutate({ id: renamingId, name: renameValue })}
                   disabled={!renameValue.trim() || renameMut.isPending}
-                  className="px-4 py-1.5 text-xs font-semibold bg-dblue-500 text-white rounded hover:bg-dblue-600 disabled:opacity-50"
                 >
                   {renameMut.isPending ? 'Saving…' : 'Rename'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -2266,21 +2223,22 @@ export default function App() {
           <div className="bg-white rounded-xl shadow-2xl w-80 mx-4 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 bg-navy-950 flex items-center justify-between">
               <span className="text-sm font-semibold text-white">Delete Pipeline</span>
-              <button onClick={() => setDeleteConfirmId(null)} className="text-gray-400 hover:text-white"><X size={15} /></button>
+              <button onClick={() => setDeleteConfirmId(null)} className="text-gray-400 hover:text-white"><IconClose size={15} /></button>
             </div>
             <div className="p-5 space-y-4">
               <p className="text-sm text-gray-600">
                 Are you sure you want to delete <span className="font-semibold text-gray-900">"{pipelines.find(p => p.id === deleteConfirmId)?.name ?? 'this pipeline'}"</span>? This will remove all version history and cannot be undone.
               </p>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700">Cancel</button>
-                <button
+                <Button variant="ghost" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
                   onClick={() => deletePipelineMut.mutate(deleteConfirmId)}
                   disabled={deletePipelineMut.isPending}
-                  className="px-4 py-1.5 text-xs font-semibold bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
                 >
                   {deletePipelineMut.isPending ? 'Deleting…' : 'Delete'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -2300,17 +2258,18 @@ export default function App() {
                 This will stop the app server. You can relaunch it anytime from your Applications folder.
               </p>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setShowQuitConfirm(false)} className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700">Cancel</button>
-                <button
+                <Button variant="ghost" size="sm" onClick={() => setShowQuitConfirm(false)}>Cancel</Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
                   onClick={async () => {
                     setQuitting(true)
                     setShowQuitConfirm(false)
                     try { await quitApp() } catch (_) { /* server closed before responding */ }
                   }}
-                  className="px-4 py-1.5 text-xs font-semibold bg-red-500 text-white rounded hover:bg-red-600"
                 >
                   Quit
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -2338,7 +2297,7 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-navy-900">
           <Power size={40} className="text-navy-600 mb-6" />
           <p className="text-white text-lg font-semibold mb-2">Transform Studio has stopped</p>
-          <p className="text-surface-400 text-sm">You can close this tab.</p>
+          <p className="text-white/60 text-sm">You can close this tab.</p>
         </div>
       )}
     </div>
@@ -2394,16 +2353,16 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white rounded-xl shadow-2xl w-[480px] mx-4 overflow-hidden max-h-[80vh] flex flex-col">
         <div className="px-5 py-4 border-b border-gray-100 bg-navy-950 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <Users size={14} className="text-dblue-400" />
+            <Users size={14} className="text-primary" />
             <span className="text-sm font-semibold text-white">Manage Users</span>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={15} /></button>
+          <button onClick={onClose} className="text-gray-400 hover:text-white"><IconClose size={15} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {error && <p className="text-xs text-red-600">{error}</p>}
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 size={18} className="animate-spin text-surface-400" />
+              <Loader2 size={18} className="animate-spin text-white/60" />
             </div>
           ) : (
             <div className="space-y-2">
@@ -2418,7 +2377,7 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
                   <select
                     value={u.role || (u.is_admin ? 'admin' : 'editor')}
                     onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                    className="text-xs border border-surface-200 rounded px-2 py-1 bg-white text-surface-600 focus:outline-none focus:ring-1 focus:ring-dblue-400"
+                    className="text-xs border border-surface-200 rounded px-2 py-1 bg-white text-white/30 focus:outline-none focus:ring-1 focus:ring-dblue-400"
                   >
                     <option value="admin">Admin</option>
                     <option value="editor">Editor</option>
@@ -2426,10 +2385,10 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
                   </select>
                   <button
                     onClick={() => handleDelete(u.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded text-surface-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded text-white/60 hover:text-red-500 hover:bg-red-50 transition-all"
                     title="Delete user"
                   >
-                    <Trash2 size={13} />
+                    <IconDelete size={13} />
                   </button>
                 </div>
               ))}
@@ -2441,7 +2400,7 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
               <p className="text-xs font-semibold text-dblue-700">New User</p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-medium text-surface-600 mb-1">Username</label>
+                  <label className="block text-xs font-medium text-white/30 mb-1">Username</label>
                   <input
                     autoFocus
                     type="text"
@@ -2452,7 +2411,7 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-surface-600 mb-1">Password</label>
+                  <label className="block text-xs font-medium text-white/30 mb-1">Password</label>
                   <input
                     type="password"
                     value={newUser.password}
@@ -2463,7 +2422,7 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-surface-600 mb-1">Role</label>
+                <label className="block text-xs font-medium text-white/30 mb-1">Role</label>
                 <select
                   value={newUser.is_admin ? 'admin' : newUser.role}
                   onChange={(e) => {
@@ -2478,7 +2437,7 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
                 </select>
               </div>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setAdding(false)} className="px-3 py-1.5 text-xs text-surface-500 hover:text-surface-700">Cancel</button>
+                <button onClick={() => setAdding(false)} className="px-3 py-1.5 text-xs text-white/40 hover:text-surface-700">Cancel</button>
                 <button
                   onClick={handleCreate}
                   disabled={!newUser.username.trim() || !newUser.password}
@@ -2493,7 +2452,7 @@ function UserManagementModal({ onClose }: { onClose: () => void }) {
               onClick={() => setAdding(true)}
               className="flex items-center gap-1.5 w-full px-3 py-2 text-xs text-dblue-600 hover:bg-dblue-50 rounded-lg border border-dashed border-dblue-300 transition-colors"
             >
-              <Plus size={12} /> Add User
+              <IconAdd size={12} /> Add User
             </button>
           )}
         </div>
@@ -2518,10 +2477,10 @@ function TopBtn({ onClick, disabled, icon, label, accent, title }: {
   const base = 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors disabled:opacity-40'
   const styles = {
     emerald: 'text-white bg-emerald-600 hover:bg-emerald-500',
-    blue: 'text-white bg-dblue-500 hover:bg-dblue-600',
-    dark: 'text-white bg-navy-700 hover:bg-navy-600',
+    blue: 'text-white bg-primary hover:bg-sidebar-primary',
+    dark: 'text-white bg-navy-700 hover:bg-white/15',
     violet: 'text-white bg-violet-600 hover:bg-violet-500',
-    undefined: 'text-surface-400 hover:text-white hover:bg-navy-800',
+    undefined: 'text-white/70 hover:text-white hover:bg-sidebar-accent',
   }
   return (
     <button onClick={onClick} disabled={disabled} title={title} className={clsx(base, styles[accent as keyof typeof styles] ?? styles['undefined'])}>
@@ -2542,13 +2501,13 @@ function CatalogTabBtn({ active, onClick, icon, label, badge }: {
       onClick={onClick}
       className={clsx(
         'flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors',
-        active ? 'text-dblue-400 border-b-2 border-dblue-500 bg-navy-800/50' : 'text-surface-500 hover:text-white'
+        active ? 'text-primary border-b-2 border-dblue-500 bg-navy-800/50' : 'text-white/60 hover:text-white'
       )}
     >
       {icon}
       {label}
       {badge !== undefined && (
-        <span className="bg-dblue-500/20 text-dblue-400 text-xs px-1.5 py-0.5 rounded-full font-mono leading-none">{badge}</span>
+        <span className="bg-dblue-500/20 text-primary text-xs px-1.5 py-0.5 rounded-full font-mono leading-none">{badge}</span>
       )}
     </button>
   )
@@ -2567,7 +2526,7 @@ function PanelTabBtn({ active, onClick, label, disabled, icon }: {
       disabled={disabled}
       className={clsx(
         'flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors disabled:opacity-40 flex items-center justify-center gap-1',
-        active ? 'text-dblue-600 border-b-2 border-dblue-500 bg-dblue-50' : 'text-surface-500 hover:text-surface-700'
+        active ? 'text-dblue-600 border-b-2 border-dblue-500 bg-dblue-50' : 'text-white/40 hover:text-surface-700'
       )}
     >
       {icon}
@@ -2592,7 +2551,7 @@ function IconTabBtn({ active, onClick, tooltip, icon, disabled }: {
           'flex items-center justify-center w-8 h-8 rounded-lg transition-colors disabled:opacity-30',
           active
             ? 'bg-dblue-50 text-dblue-600'
-            : 'text-surface-400 hover:bg-surface-100 hover:text-surface-700'
+            : 'text-white/60 hover:bg-surface-100 hover:text-surface-700'
         )}
       >
         {icon}
@@ -2617,7 +2576,7 @@ function ViewToggleBtn({ active, onClick, label }: {
         'px-2.5 py-0.5 text-xs font-medium rounded-full transition-colors',
         active
           ? 'bg-white text-navy-900 shadow-sm'
-          : 'text-surface-500 hover:text-surface-700'
+          : 'text-white/40 hover:text-surface-700'
       )}
     >
       {label}
@@ -2650,7 +2609,7 @@ function RunsPanel({ pipelineId }: { pipelineId: string }) {
 
   if (isFetching && runs.length === 0) {
     return (
-      <div className="flex items-center justify-center py-10 gap-2 text-surface-400">
+      <div className="flex items-center justify-center py-10 gap-2 text-white/60">
         <Loader2 size={14} className="animate-spin" />
         <span className="text-xs">Loading runs…</span>
       </div>
@@ -2659,9 +2618,9 @@ function RunsPanel({ pipelineId }: { pipelineId: string }) {
 
   if (runs.length === 0) {
     return (
-      <div className="p-6 text-center text-surface-400">
-        <Clock size={24} className="mx-auto mb-3 text-surface-300" />
-        <p className="text-xs font-medium text-surface-500 mb-1">No runs yet</p>
+      <div className="p-6 text-center text-white/60">
+        <Clock size={24} className="mx-auto mb-3 text-white/70" />
+        <p className="text-xs font-medium text-white/40 mb-1">No runs yet</p>
         <p className="text-xs">Hit Execute to run this pipeline</p>
       </div>
     )
@@ -2676,30 +2635,27 @@ function RunsPanel({ pipelineId }: { pipelineId: string }) {
             <div className="flex items-start gap-2">
               {/* Status icon */}
               {run.status === 'success' ? (
-                <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                <IconCheckCircle size={14} className="text-emerald-500 shrink-0 mt-0.5" />
               ) : (
-                <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                <IconErrorCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className={clsx(
-                    'text-xs font-semibold',
-                    run.status === 'success' ? 'text-emerald-700' : 'text-red-700'
-                  )}>
+                  <Badge variant={run.status === 'success' ? 'success' : 'destructive'}>
                     {run.status === 'success' ? 'Success' : 'Failed'}
-                  </span>
+                  </Badge>
                   <span className={clsx(
                     'text-xs px-1.5 py-0.5 rounded-full font-medium',
                     run.run_type === 'manual'
-                      ? 'bg-surface-100 text-surface-600'
+                      ? 'bg-surface-100 text-white/30'
                       : 'bg-amber-100 text-amber-700'
                   )}>
                     {run.run_type}
                   </span>
-                  <span className="text-xs text-surface-400 ml-auto">{relativeTime(run.started_at)}</span>
+                  <span className="text-xs text-white/60 ml-auto">{relativeTime(run.started_at)}</span>
                 </div>
                 {run.row_count != null && (
-                  <p className="text-xs text-surface-500 mt-0.5">{run.row_count.toLocaleString()} rows</p>
+                  <p className="text-xs text-white/40 mt-0.5">{run.row_count.toLocaleString()} rows</p>
                 )}
                 {run.status === 'failed' && run.error_message && (
                   <div className="mt-1">
@@ -2751,18 +2707,18 @@ function IcebergCatalogSection({ catalog, activeTable, onSelectTable, onDelete }
     <div className="border-b border-navy-800">
       {/* Catalog header */}
       <div className="flex items-center gap-2 px-3 py-2 group">
-        <Layers size={12} className="text-dblue-400 shrink-0" />
+        <Layers size={12} className="text-primary shrink-0" />
         <span className="text-xs font-medium text-white truncate flex-1">{catalog.name}</span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={handleTest} title="Test connection" className="p-1 rounded hover:bg-navy-700 text-surface-500 hover:text-dblue-400 transition-colors">
-            {testing ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+          <button onClick={handleTest} title="Test connection" className="p-1 rounded hover:bg-navy-700 text-white/40 hover:text-primary transition-colors">
+            {testing ? <Loader2 size={11} className="animate-spin" /> : <IconRefresh size={11} />}
           </button>
-          <button onClick={onDelete} title="Remove" className="p-1 rounded hover:bg-navy-700 text-surface-500 hover:text-red-400 transition-colors">
-            <Trash2 size={11} />
+          <button onClick={onDelete} title="Remove" className="p-1 rounded hover:bg-navy-700 text-white/40 hover:text-red-400 transition-colors">
+            <IconDelete size={11} />
           </button>
         </div>
-        {testOk === true && <CheckCircle2 size={11} className="text-emerald-400 shrink-0" />}
-        {testOk === false && <AlertCircle size={11} className="text-red-400 shrink-0" />}
+        {testOk === true && <IconCheckCircle size={11} className="text-emerald-400 shrink-0" />}
+        {testOk === false && <IconErrorCircle size={11} className="text-red-400 shrink-0" />}
       </div>
       {/* Namespace browser */}
       <IcebergCatalogBrowser

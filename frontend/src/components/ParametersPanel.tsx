@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, X } from 'lucide-react'
+import { IconAdd, IconClose, IconDelete } from './icons'
 import type { PipelineParameter } from '../types'
 
 interface ParametersPanelProps {
@@ -62,8 +62,8 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold text-surface-600 uppercase tracking-wider">Pipeline Parameters</p>
-          <p className="text-xs text-surface-400 mt-0.5">
+          <p className="text-xs font-semibold text-white/30 uppercase tracking-wider">Pipeline Parameters</p>
+          <p className="text-xs text-white/60 mt-0.5">
             Use <code className="font-mono bg-surface-100 px-1 py-0.5 rounded text-dblue-600">{'{{param_name}}'}</code> in transform configs
           </p>
         </div>
@@ -72,7 +72,7 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
             onClick={() => setAdding(true)}
             className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-dblue-600 hover:bg-dblue-50 rounded transition-colors"
           >
-            <Plus size={12} /> Add
+            <IconAdd size={12} /> Add
           </button>
         )}
       </div>
@@ -80,8 +80,8 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
       {/* Existing parameters */}
       {parameters.length === 0 && !adding && (
         <div className="text-center py-6">
-          <p className="text-xs text-surface-400">No parameters defined.</p>
-          <p className="text-xs text-surface-400 mt-1">
+          <p className="text-xs text-white/60">No parameters defined.</p>
+          <p className="text-xs text-white/60 mt-1">
             Add parameters to make this pipeline reusable with different values.
           </p>
         </div>
@@ -97,30 +97,30 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <code className="text-xs font-mono font-semibold text-dblue-600">{param.name}</code>
-                  <span className="text-xs text-surface-400 bg-surface-200 px-1.5 py-0.5 rounded">
+                  <span className="text-xs text-white/60 bg-surface-200 px-1.5 py-0.5 rounded">
                     {PARAM_TYPES.find(t => t.value === param.type)?.label ?? param.type}
                   </span>
                 </div>
                 {param.description && (
-                  <p className="text-xs text-surface-500 mt-0.5 truncate">{param.description}</p>
+                  <p className="text-xs text-white/40 mt-0.5 truncate">{param.description}</p>
                 )}
                 {(param.type === 'select' || param.type === 'multi_select') && param.options && param.options.length > 0 && (
-                  <p className="text-xs text-surface-400 mt-0.5 truncate">
+                  <p className="text-xs text-white/60 mt-0.5 truncate">
                     Options: {param.options.join(', ')}
                   </p>
                 )}
                 {param.default_value && (
-                  <p className="text-xs text-surface-400 mt-0.5">
-                    Default: <code className="font-mono text-surface-600">{param.default_value}</code>
+                  <p className="text-xs text-white/60 mt-0.5">
+                    Default: <code className="font-mono text-white/30">{param.default_value}</code>
                   </p>
                 )}
               </div>
               <button
                 onClick={() => handleDelete(param.name)}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded text-surface-400 hover:text-red-500 transition-all shrink-0"
+                className="opacity-0 group-hover:opacity-100 p-1 rounded text-white/60 hover:text-red-500 transition-all shrink-0"
                 title="Delete parameter"
               >
-                <Trash2 size={12} />
+                <IconDelete size={12} />
               </button>
             </div>
           </div>
@@ -137,7 +137,7 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
           )}
 
           <div>
-            <label className="block text-xs font-medium text-surface-600 mb-1">Name <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-medium text-white/30 mb-1">Name <span className="text-red-500">*</span></label>
             <input
               autoFocus
               type="text"
@@ -148,7 +148,7 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-surface-600 mb-1">Type</label>
+            <label className="block text-xs font-medium text-white/30 mb-1">Type</label>
             <select
               value={draft.type}
               onChange={(e) => setDraft({ ...draft, type: e.target.value as PipelineParameter['type'], options: undefined, default_value: '' })}
@@ -163,9 +163,9 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
           {/* Options — only for select / multi_select */}
           {(draft.type === 'select' || draft.type === 'multi_select') && (
             <div>
-              <label className="block text-xs font-medium text-surface-600 mb-1">
+              <label className="block text-xs font-medium text-white/30 mb-1">
                 Options <span className="text-red-500">*</span>
-                <span className="ml-1 text-surface-400 font-normal">(comma-separated)</span>
+                <span className="ml-1 text-white/60 font-normal">(comma-separated)</span>
               </label>
               <input
                 type="text"
@@ -178,7 +178,7 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
           )}
 
           <div>
-            <label className="block text-xs font-medium text-surface-600 mb-1">Default Value</label>
+            <label className="block text-xs font-medium text-white/30 mb-1">Default Value</label>
             {draft.type === 'boolean' ? (
               <select
                 value={draft.default_value}
@@ -209,7 +209,7 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
             )}
           </div>
           <div>
-            <label className="block text-xs font-medium text-surface-600 mb-1">Description</label>
+            <label className="block text-xs font-medium text-white/30 mb-1">Description</label>
             <input
               type="text"
               value={draft.description}
@@ -221,9 +221,9 @@ export default function ParametersPanel({ parameters, onChange }: ParametersPane
           <div className="flex justify-end gap-2 pt-1">
             <button
               onClick={handleCancel}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs text-surface-500 hover:text-surface-700 transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 text-xs text-white/40 hover:text-surface-700 transition-colors"
             >
-              <X size={11} /> Cancel
+              <IconClose size={11} /> Cancel
             </button>
             <button
               onClick={handleAdd}

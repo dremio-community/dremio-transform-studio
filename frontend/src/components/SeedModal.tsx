@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
-import { X, Upload, CheckCircle2, XCircle, Loader2, Sprout } from 'lucide-react'
+import { Upload, Loader2, Sprout } from 'lucide-react'
+import { IconCheckCircle, IconClose, IconErrorCircle } from './icons'
 import type { SeedResult } from '../types'
 import { seedTable } from '../api/client'
 
@@ -80,7 +81,7 @@ export default function SeedModal({ onClose }: SeedModalProps) {
             <Sprout size={16} className="text-emerald-400" />
             <h2 className="text-sm font-semibold text-white">Seed Table from CSV</h2>
           </div>
-          <button onClick={onClose} className="text-surface-400 hover:text-white"><X size={15} /></button>
+          <button onClick={onClose} className="text-surface-400 hover:text-white"><IconClose size={15} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
@@ -147,8 +148,8 @@ export default function SeedModal({ onClose }: SeedModalProps) {
             <div className={`p-4 rounded-lg border ${result.success ? 'border-emerald-800 bg-emerald-900/20' : 'border-red-800 bg-red-900/20'}`}>
               <div className="flex items-center gap-2 mb-1">
                 {result.success
-                  ? <CheckCircle2 size={16} className="text-emerald-400" />
-                  : <XCircle size={16} className="text-red-400" />}
+                  ? <IconCheckCircle size={16} className="text-emerald-400" />
+                  : <IconErrorCircle size={16} className="text-red-400" />}
                 <span className="text-sm font-semibold text-white">
                   {result.success ? `${result.rows_inserted.toLocaleString()} rows seeded into ${result.table_name}` : 'Seed failed'}
                 </span>

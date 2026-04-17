@@ -1,12 +1,7 @@
 import { useState, useCallback, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  ArrowLeft, Plus, ShieldCheck, LayoutDashboard, Monitor,
-  History, BookOpen, Play, Trash2, Pencil, CheckCircle2,
-  AlertTriangle, XCircle, Loader2, ChevronRight, ChevronDown,
-  Clock, BarChart2, Database, CheckSquare, X, Bell, BellOff,
-  ToggleLeft, ToggleRight, Search, ChevronLeft,
-} from 'lucide-react'
+import { ArrowLeft, ShieldCheck, LayoutDashboard, Monitor, History, BookOpen, Loader2, Clock, BarChart2, CheckSquare, Bell, BellOff, ToggleLeft, ToggleRight } from 'lucide-react'
+import { IconAdd, IconCaretDown, IconCaretLeft, IconCaretRight, IconCheckCircle, IconClose, IconDatasetRun, IconDelete, IconEdit, IconEntityNamespace, IconErrorCircle, IconSearch, IconWarning } from './icons'
 import clsx from 'clsx'
 import type { DQMonitor, DQRule, DQScanResult, DQRuleResult } from '../api/client'
 import type { ColumnSchema, CatalogEntry } from '../types'
@@ -100,10 +95,10 @@ function ScoreRing({ score, size = 48 }: { score?: number | null; size?: number 
 }
 
 function RuleStatusIcon({ status }: { status: DQRuleResult['status'] }) {
-  if (status === 'passed') return <CheckCircle2 size={13} className="text-emerald-500" />
-  if (status === 'warned') return <AlertTriangle size={13} className="text-amber-500" />
-  if (status === 'failed') return <XCircle size={13} className="text-red-500" />
-  return <AlertTriangle size={13} className="text-gray-400" />
+  if (status === 'passed') return <IconCheckCircle size={13} className="text-emerald-500" />
+  if (status === 'warned') return <IconWarning size={13} className="text-amber-500" />
+  if (status === 'failed') return <IconErrorCircle size={13} className="text-red-500" />
+  return <IconWarning size={13} className="text-gray-400" />
 }
 
 function RuleResultsTable({ results }: { results: DQRuleResult[] }) {
@@ -112,7 +107,7 @@ function RuleResultsTable({ results }: { results: DQRuleResult[] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
-          <tr className="bg-navy-800/60 text-surface-400">
+          <tr className="bg-navy-800/60 text-white/60">
             <th className="text-left px-3 py-2 font-medium">Rule</th>
             <th className="text-left px-3 py-2 font-medium">Status</th>
             <th className="text-right px-3 py-2 font-medium">Score</th>
@@ -138,7 +133,7 @@ function RuleResultsTable({ results }: { results: DQRuleResult[] }) {
               <td className="px-3 py-2 text-right font-mono">
                 <span style={{ color: scoreColor(r.pass_rate) }}>{r.pass_rate.toFixed(1)}%</span>
               </td>
-              <td className="px-3 py-2 text-surface-400 max-w-xs truncate">{r.message}</td>
+              <td className="px-3 py-2 text-white/60 max-w-xs truncate">{r.message}</td>
             </tr>
           ))}
         </tbody>
@@ -189,7 +184,7 @@ function CatalogTreePicker({ onSelect }: { onSelect: (table: string) => void }) 
   return (
     <div className="flex flex-col h-full">
       <div className="relative mb-2">
-        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-500" />
+        <IconSearch size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40" />
         <input
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
@@ -199,11 +194,11 @@ function CatalogTreePicker({ onSelect }: { onSelect: (table: string) => void }) 
       </div>
       <div className="flex-1 overflow-y-auto space-y-0.5">
         {nsLoading ? (
-          <div className="flex items-center gap-2 text-xs text-surface-400 p-2">
+          <div className="flex items-center gap-2 text-xs text-white/60 p-2">
             <Loader2 size={12} className="animate-spin" /> Loading catalog…
           </div>
         ) : filteredNs.length === 0 ? (
-          <div className="text-xs text-surface-500 italic p-2">No namespaces found</div>
+          <div className="text-xs text-white/55 italic p-2">No namespaces found</div>
         ) : (
           filteredNs.map(ns => (
             <NamespaceRow key={ns} ns={ns} expanded={expanded.has(ns)} onToggle={() => toggleNs(ns)} onSelect={onSelect} />
@@ -230,24 +225,24 @@ function NamespaceRow({
         onClick={onToggle}
         className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-navy-800/60 text-left transition-colors"
       >
-        {expanded ? <ChevronDown size={11} className="text-surface-400 shrink-0" /> : <ChevronRight size={11} className="text-surface-400 shrink-0" />}
-        <Database size={11} className="text-dblue-400 shrink-0" />
+        {expanded ? <IconCaretDown size={11} className="text-white/60 shrink-0" /> : <IconCaretRight size={11} className="text-white/60 shrink-0" />}
+        <IconEntityNamespace size={11} className="text-primary shrink-0" />
         <span className="text-xs text-white truncate">{ns}</span>
-        {isLoading && <Loader2 size={10} className="animate-spin text-surface-500 ml-auto" />}
+        {isLoading && <Loader2 size={10} className="animate-spin text-white/40 ml-auto" />}
       </button>
       {expanded && !isLoading && (
         <div className="ml-5 border-l border-navy-800/60 pl-1 space-y-0.5">
           {tables.length === 0 ? (
-            <div className="text-xs text-surface-500 italic px-2 py-1">No tables</div>
+            <div className="text-xs text-white/55 italic px-2 py-1">No tables</div>
           ) : (
             tables.map((t: CatalogEntry) => (
               <button
                 key={t.name}
                 onClick={() => onSelect(`${ns}.${t.name}`)}
-                className="w-full flex items-center gap-1.5 px-2 py-1 rounded hover:bg-dblue-500/20 hover:text-dblue-400 text-left transition-colors"
+                className="w-full flex items-center gap-1.5 px-2 py-1 rounded hover:bg-dblue-500/20 hover:text-primary text-left transition-colors"
               >
-                <CheckSquare size={10} className="text-surface-500 shrink-0" />
-                <span className="text-xs text-surface-300 truncate">{t.name}</span>
+                <CheckSquare size={10} className="text-white/40 shrink-0" />
+                <span className="text-xs text-white/70 truncate">{t.name}</span>
               </button>
             ))
           )}
@@ -387,10 +382,10 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
         <div className="flex items-center justify-between px-6 py-4 border-b border-navy-800 shrink-0">
           <div>
             <h2 className="text-sm font-semibold text-white">{monitor ? 'Edit Monitor' : 'New DQ Monitor'}</h2>
-            <p className="text-xs text-surface-400 mt-0.5">Step {step} of 3 — {stepLabel(step)}</p>
+            <p className="text-xs text-white/60 mt-0.5">Step {step} of 3 — {stepLabel(step)}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors">
-            <X size={14} />
+          <button onClick={onClose} className="p-1.5 rounded text-white/60 hover:text-white hover:bg-navy-700 transition-colors">
+            <IconClose size={14} />
           </button>
         </div>
 
@@ -405,14 +400,14 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
                   step === s
                     ? 'bg-dblue-500 text-white'
                     : s < step
-                      ? 'bg-navy-700 text-surface-300 hover:bg-navy-600 cursor-pointer'
-                      : 'bg-navy-800/40 text-surface-500 cursor-default',
+                      ? 'bg-navy-700 text-white/70 hover:bg-white/15 cursor-pointer'
+                      : 'bg-navy-800/40 text-white/40 cursor-default',
                 )}
               >
                 <span className="w-4 h-4 rounded-full flex items-center justify-center bg-white/10 text-[10px]">{s}</span>
                 {stepLabel(s)}
               </button>
-              {i < 2 && <ChevronRight size={12} className="text-surface-600 mx-1" />}
+              {i < 2 && <IconCaretRight size={12} className="text-white/30 mx-1" />}
             </div>
           ))}
         </div>
@@ -424,7 +419,7 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
             <div className="flex-1 overflow-hidden flex flex-col p-5 gap-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-surface-300 mb-1.5">Table Path <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-medium text-white/70 mb-1.5">Table Path <span className="text-red-400">*</span></label>
                   <input
                     value={tableName}
                     onChange={e => setTableName(e.target.value)}
@@ -433,7 +428,7 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-surface-300 mb-1.5">Display Name</label>
+                  <label className="block text-xs font-medium text-white/70 mb-1.5">Display Name</label>
                   <input
                     value={displayName}
                     onChange={e => setDisplayName(e.target.value)}
@@ -442,8 +437,8 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
                   />
                 </div>
               </div>
-              <div className="flex-1 bg-navy-800/40 border border-navy-700/60 rounded-lg p-3 overflow-hidden flex flex-col">
-                <div className="text-xs font-medium text-surface-300 mb-2">Browse Catalog</div>
+              <div className="flex-1 bg-white/6 border border-white/10 rounded-lg p-3 overflow-hidden flex flex-col">
+                <div className="text-xs font-medium text-white/70 mb-2">Browse Catalog</div>
                 <div className="flex-1 overflow-hidden">
                   <CatalogTreePicker onSelect={handleTableSelect} />
                 </div>
@@ -456,11 +451,11 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
             <div className="flex-1 overflow-hidden flex gap-0">
               {/* Left: selected rules */}
               <div className="w-72 shrink-0 border-r border-navy-800 flex flex-col p-4">
-                <div className="text-xs font-semibold text-surface-300 mb-2">
+                <div className="text-xs font-semibold text-white/70 mb-2">
                   Active Rules ({selectedRules.length})
                 </div>
                 {selectedRules.length === 0 ? (
-                  <div className="border border-dashed border-navy-700 rounded-lg p-4 text-center text-xs text-surface-500">
+                  <div className="border border-dashed border-navy-700 rounded-lg p-4 text-center text-xs text-white/55">
                     Pick rules from the catalog →
                   </div>
                 ) : (
@@ -468,20 +463,20 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
                     {selectedRules.map((sr, i) => {
                       const ruleDef = ruleMap[sr.rule_id]
                       return (
-                        <div key={i} className="px-3 py-2 bg-navy-800/60 border border-navy-700/60 rounded-lg">
+                        <div key={i} className="px-3 py-2 bg-white/8 border border-white/12 rounded-lg">
                           <div className="flex items-center gap-1.5 mb-1">
-                            <CheckSquare size={11} className="text-dblue-400 shrink-0" />
+                            <CheckSquare size={11} className="text-primary shrink-0" />
                             <span className="text-xs text-white font-medium flex-1 truncate">{ruleDef?.name ?? sr.rule_id}</span>
-                            <button onClick={() => removeRule(i)} className="p-0.5 text-surface-500 hover:text-red-400 transition-colors">
-                              <X size={11} />
+                            <button onClick={() => removeRule(i)} className="p-0.5 text-white/40 hover:text-red-400 transition-colors">
+                              <IconClose size={11} />
                             </button>
                           </div>
                           {sr.config && Object.keys(sr.config).length > 0 && (
-                            <div className="text-[10px] text-surface-500 font-mono truncate">
+                            <div className="text-[10px] text-white/60 font-mono truncate">
                               {Object.entries(sr.config).map(([k, v]) => `${k}=${v}`).join(', ')}
                             </div>
                           )}
-                          <div className="text-[10px] text-surface-500 mt-0.5">weight: {sr.weight}</div>
+                          <div className="text-[10px] text-white/60 mt-0.5">weight: {sr.weight}</div>
                         </div>
                       )
                     })}
@@ -492,9 +487,9 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
               {/* Right: rule catalog */}
               <div className="flex-1 overflow-hidden flex flex-col p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-semibold text-surface-300 flex-1">Rule Catalog</span>
+                  <span className="text-xs font-semibold text-white/70 flex-1">Rule Catalog</span>
                   <div className="relative">
-                    <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-surface-500" />
+                    <IconSearch size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-white/40" />
                     <input
                       value={ruleSearch}
                       onChange={e => setRuleSearch(e.target.value)}
@@ -522,10 +517,10 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
                           <span className={clsx('text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded', CATEGORY_COLORS[rule.category] ?? 'bg-gray-800 text-gray-400')}>
                             {rule.category}
                           </span>
-                          {already && <CheckCircle2 size={10} className="text-dblue-400 ml-auto" />}
+                          {already && <IconCheckCircle size={10} className="text-primary ml-auto" />}
                         </div>
                         <div className="text-xs text-white font-medium leading-tight">{rule.name}</div>
-                        <div className="text-[10px] text-surface-500 mt-0.5 leading-tight line-clamp-2">{rule.description}</div>
+                        <div className="text-[10px] text-white/60 mt-0.5 leading-tight line-clamp-2">{rule.description}</div>
                       </button>
                     )
                   })}
@@ -539,7 +534,7 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
               {/* Schedule */}
               <div>
-                <label className="block text-xs font-semibold text-surface-300 mb-2">Scan Schedule</label>
+                <label className="block text-xs font-semibold text-white/70 mb-2">Scan Schedule</label>
                 <div className="grid grid-cols-2 gap-2 mb-2">
                   {SCHEDULE_PRESETS.map(p => (
                     <button
@@ -548,20 +543,20 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
                       className={clsx(
                         'px-3 py-2 rounded-lg border text-xs text-left transition-colors',
                         schedulePreset === p.value
-                          ? 'border-dblue-500 bg-dblue-950/40 text-dblue-400'
-                          : 'border-navy-700 bg-navy-800/40 text-surface-300 hover:border-navy-600',
+                          ? 'border-dblue-500 bg-dblue-950/40 text-primary'
+                          : 'border-navy-700 bg-navy-800/40 text-white/70 hover:border-white/15',
                       )}
                     >
                       {p.label}
                       {p.value && p.value !== '__custom__' && (
-                        <span className="block text-[10px] text-surface-500 font-mono mt-0.5">{p.value}</span>
+                        <span className="block text-[10px] text-white/60 font-mono mt-0.5">{p.value}</span>
                       )}
                     </button>
                   ))}
                 </div>
                 {schedulePreset === '__custom__' && (
                   <div>
-                    <label className="block text-xs text-surface-400 mb-1">Custom cron expression</label>
+                    <label className="block text-xs text-white/70 mb-1">Custom cron expression</label>
                     <input
                       value={customCron}
                       onChange={e => setCustomCron(e.target.value)}
@@ -573,18 +568,18 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
               </div>
 
               {/* Alert threshold */}
-              <div className="bg-navy-800/40 border border-navy-700/60 rounded-xl p-4 space-y-3">
+              <div className="bg-white/6 border border-white/10 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-xs font-semibold text-white flex items-center gap-1.5">
-                      {alertEnabled ? <Bell size={12} className="text-amber-400" /> : <BellOff size={12} className="text-surface-500" />}
+                      {alertEnabled ? <Bell size={12} className="text-amber-400" /> : <BellOff size={12} className="text-white/40" />}
                       Score Alert
                     </div>
-                    <div className="text-[10px] text-surface-500 mt-0.5">Notify when DQ score drops below threshold</div>
+                    <div className="text-[10px] text-white/60 mt-0.5">Notify when DQ score drops below threshold</div>
                   </div>
                   <button
                     onClick={() => setAlertEnabled(v => !v)}
-                    className={clsx('transition-colors', alertEnabled ? 'text-dblue-400' : 'text-surface-500 hover:text-surface-300')}
+                    className={clsx('transition-colors', alertEnabled ? 'text-primary' : 'text-white/40 hover:text-white/70')}
                   >
                     {alertEnabled ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
                   </button>
@@ -592,7 +587,7 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
                 {alertEnabled && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs text-surface-300">Threshold</label>
+                      <label className="text-xs text-white/70">Threshold</label>
                       <span className="text-xs font-bold font-mono" style={{ color: scoreColor(alertThreshold) }}>{alertThreshold}%</span>
                     </div>
                     <input
@@ -601,7 +596,7 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
                       onChange={e => setAlertThreshold(parseInt(e.target.value))}
                       className="w-full accent-dblue-500"
                     />
-                    <div className="flex justify-between text-[10px] text-surface-500 mt-0.5">
+                    <div className="flex justify-between text-[10px] text-white/60 mt-0.5">
                       <span>0%</span><span>50%</span><span>100%</span>
                     </div>
                   </div>
@@ -611,10 +606,10 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
               {/* Enable / disable monitor */}
               <div className="flex items-center justify-between py-2">
                 <div>
-                  <div className="text-xs font-semibold text-surface-300">Monitor Enabled</div>
-                  <div className="text-[10px] text-surface-500 mt-0.5">Disable to pause all scheduled scans</div>
+                  <div className="text-xs font-semibold text-white/70">Monitor Enabled</div>
+                  <div className="text-[10px] text-white/60 mt-0.5">Disable to pause all scheduled scans</div>
                 </div>
-                <button onClick={() => setEnabled(v => !v)} className={clsx('transition-colors', enabled ? 'text-emerald-400' : 'text-surface-500')}>
+                <button onClick={() => setEnabled(v => !v)} className={clsx('transition-colors', enabled ? 'text-emerald-400' : 'text-white/40')}>
                   {enabled ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
                 </button>
               </div>
@@ -628,32 +623,32 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
             {step > 1 && (
               <button
                 onClick={() => setStep(s => (s - 1) as MonitorWizardStep)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-surface-400 hover:text-white border border-navy-700 rounded-lg transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white/60 hover:text-white border border-navy-700 rounded-lg transition-colors"
               >
-                <ChevronLeft size={12} /> Back
+                <IconCaretLeft size={12} /> Back
               </button>
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={onClose} className="px-4 py-2 text-xs text-surface-400 hover:text-white transition-colors">
+            <button onClick={onClose} className="px-4 py-2 text-xs text-white/60 hover:text-white transition-colors">
               Cancel
             </button>
             {step < 3 ? (
               <button
                 onClick={() => step === 1 ? handleStep1Next() : setStep(3)}
                 disabled={step === 1 && !tableName.trim()}
-                className="flex items-center gap-1.5 px-4 py-2 bg-dblue-500 hover:bg-dblue-600 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-sidebar-primary text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {step === 1 && schemaLoading && <Loader2 size={12} className="animate-spin" />}
-                Next <ChevronRight size={12} />
+                Next <IconCaretRight size={12} />
               </button>
             ) : (
               <button
                 onClick={handleSave}
                 disabled={saving || !tableName.trim()}
-                className="flex items-center gap-1.5 px-4 py-2 bg-dblue-500 hover:bg-dblue-600 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-sidebar-primary text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                {saving ? <Loader2 size={12} className="animate-spin" /> : <IconCheckCircle size={12} />}
                 {monitor ? 'Save Changes' : 'Create Monitor'}
               </button>
             )}
@@ -667,12 +662,12 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
           <div className="w-full max-w-sm mx-4 bg-navy-900 border border-navy-700 rounded-xl shadow-2xl">
             <div className="px-5 py-4 border-b border-navy-800">
               <h3 className="text-sm font-semibold text-white">{addingRule.name}</h3>
-              <p className="text-xs text-surface-400 mt-0.5">{addingRule.description}</p>
+              <p className="text-xs text-white/60 mt-0.5">{addingRule.description}</p>
             </div>
             <div className="px-5 py-4 space-y-3 max-h-80 overflow-y-auto">
               {(addingRule.config_schema ?? []).filter(f => f.type !== 'readonly').map(field => (
                 <div key={field.key}>
-                  <label className="block text-xs font-medium text-surface-300 mb-1">
+                  <label className="block text-xs font-medium text-white/70 mb-1">
                     {field.label} {field.required && <span className="text-red-400">*</span>}
                   </label>
                   {field.type === 'column' && columnNames.length > 0 ? (
@@ -704,7 +699,7 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
                 </div>
               ))}
               <div>
-                <label className="block text-xs font-medium text-surface-300 mb-1">Weight (1 = equal)</label>
+                <label className="block text-xs font-medium text-white/70 mb-1">Weight (1 = equal)</label>
                 <input
                   type="number" min="0.1" max="10" step="0.5"
                   value={ruleWeight}
@@ -714,8 +709,8 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
               </div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-navy-800">
-              <button onClick={() => setAddingRule(null)} className="px-3 py-1.5 text-xs text-surface-400 hover:text-white transition-colors">Cancel</button>
-              <button onClick={confirmAddRule} className="px-3 py-1.5 bg-dblue-500 hover:bg-dblue-600 text-white text-xs font-semibold rounded-lg transition-colors">Add Rule</button>
+              <button onClick={() => setAddingRule(null)} className="px-3 py-1.5 text-xs text-white/60 hover:text-white transition-colors">Cancel</button>
+              <button onClick={confirmAddRule} className="px-3 py-1.5 bg-primary hover:bg-sidebar-primary text-white text-xs font-semibold rounded-lg transition-colors">Add Rule</button>
             </div>
           </div>
         </div>
@@ -749,8 +744,8 @@ function OverviewSection({
           { label: 'Passing (≥ 90%)', value: passing, color: 'text-emerald-400' },
           { label: 'Failing (< 70%)', value: failing, color: 'text-red-400' },
         ].map(card => (
-          <div key={card.label} className="bg-navy-800/60 border border-navy-700/60 rounded-xl p-4">
-            <div className="text-xs text-surface-400 mb-1">{card.label}</div>
+          <div key={card.label} className="bg-white/8 border border-white/12 rounded-xl p-4">
+            <div className="text-xs text-white/60 uppercase tracking-wide font-medium mb-1">{card.label}</div>
             <div
               className={clsx('text-2xl font-bold font-mono', !card.isColor && card.color)}
               style={card.isColor ? { color: card.color as string } : undefined}
@@ -763,12 +758,12 @@ function OverviewSection({
 
       {/* Monitor health grid */}
       <div>
-        <h3 className="text-xs font-semibold text-surface-300 mb-3">Monitor Health</h3>
+        <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-3">Monitor Health</h3>
         {monitors.length === 0 ? (
           <div className="border border-dashed border-navy-700 rounded-xl p-8 text-center">
-            <ShieldCheck size={32} className="text-surface-600 mx-auto mb-3" />
-            <div className="text-sm text-surface-400">No monitors yet</div>
-            <div className="text-xs text-surface-500 mt-1">Create a monitor to start tracking data quality</div>
+            <ShieldCheck size={32} className="text-white/30 mx-auto mb-3" />
+            <div className="text-sm text-white/60">No monitors yet</div>
+            <div className="text-xs text-white/55 mt-1">Create a monitor to start tracking data quality</div>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3">
@@ -778,12 +773,12 @@ function OverviewSection({
                 <button
                   key={m.id}
                   onClick={() => onSelectMonitor(m.id)}
-                  className="text-left bg-navy-800/40 border border-navy-700/60 rounded-xl p-4 hover:border-dblue-500/60 hover:bg-navy-800/60 transition-colors"
+                  className="text-left bg-white/6 border border-white/10 rounded-xl p-4 hover:border-primary/50 hover:bg-white/10 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-semibold text-white truncate">{m.display_name}</div>
-                      <div className="text-[10px] text-surface-500 font-mono truncate mt-0.5">{m.table_name}</div>
+                      <div className="text-[10px] text-white/50 font-mono truncate mt-0.5">{m.table_name}</div>
                     </div>
                     <ScoreRing score={m.last_score} size={44} />
                   </div>
@@ -795,12 +790,12 @@ function OverviewSection({
                       {m.enabled ? 'active' : 'paused'}
                     </span>
                     {m.last_scan_at && (
-                      <span className="text-[10px] text-surface-500">
+                      <span className="text-[10px] text-white/50">
                         {new Date(m.last_scan_at).toLocaleDateString()}
                       </span>
                     )}
                     {m.schedule_cron && (
-                      <Clock size={9} className="text-surface-500 ml-auto" />
+                      <Clock size={9} className="text-white/40 ml-auto" />
                     )}
                   </div>
                   {trend}
@@ -830,7 +825,7 @@ function MonitorsSection({
   if (monitorsLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <Loader2 size={20} className="animate-spin text-surface-400" />
+        <Loader2 size={20} className="animate-spin text-white/60" />
       </div>
     )
   }
@@ -839,14 +834,14 @@ function MonitorsSection({
     <div className="flex-1 overflow-y-auto p-6">
       {monitors.length === 0 ? (
         <div className="border border-dashed border-navy-700 rounded-xl p-10 text-center">
-          <Monitor size={32} className="text-surface-600 mx-auto mb-3" />
-          <div className="text-sm text-surface-400 mb-1">No monitors yet</div>
-          <div className="text-xs text-surface-500 mb-4">Set up your first data quality monitor</div>
+          <Monitor size={32} className="text-white/30 mx-auto mb-3" />
+          <div className="text-sm text-white/60 mb-1">No monitors yet</div>
+          <div className="text-xs text-white/55 mb-4">Set up your first data quality monitor</div>
           <button
             onClick={onCreateMonitor}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-dblue-500 hover:bg-dblue-600 text-white text-xs font-semibold rounded-lg transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-sidebar-primary text-white text-xs font-semibold rounded-lg transition-colors"
           >
-            <Plus size={13} /> New Monitor
+            <IconAdd size={13} /> New Monitor
           </button>
         </div>
       ) : (
@@ -855,12 +850,12 @@ function MonitorsSection({
             <button
               key={m.id}
               onClick={() => onSelectMonitor(m.id)}
-              className="w-full text-left bg-navy-800/40 border border-navy-700/60 rounded-xl p-4 hover:border-dblue-500/60 hover:bg-navy-800/60 transition-colors flex items-center gap-4"
+              className="w-full text-left bg-white/6 border border-white/10 rounded-xl p-4 hover:border-primary/50 hover:bg-white/10 transition-colors flex items-center gap-4"
             >
               <ScoreRing score={m.last_score} size={48} />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-white">{m.display_name}</div>
-                <div className="text-xs text-surface-500 font-mono mt-0.5">{m.table_name}</div>
+                <div className="text-xs text-white/60 font-mono mt-0.5">{m.table_name}</div>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                   <span className={clsx(
                     'text-[9px] px-1.5 py-0.5 rounded-full font-semibold',
@@ -869,12 +864,12 @@ function MonitorsSection({
                     {m.enabled ? 'active' : 'paused'}
                   </span>
                   {(() => { try { return JSON.parse(m.rules_json ?? '[]').length } catch { return 0 } })() > 0 && (
-                    <span className="text-[10px] text-surface-500">
+                    <span className="text-[10px] text-white/60">
                       {(() => { try { return JSON.parse(m.rules_json ?? '[]').length } catch { return 0 } })()} rules
                     </span>
                   )}
                   {m.schedule_cron && (
-                    <span className="text-[10px] text-surface-500 flex items-center gap-0.5">
+                    <span className="text-[10px] text-white/60 flex items-center gap-0.5">
                       <Clock size={9} /> {m.schedule_cron}
                     </span>
                   )}
@@ -887,12 +882,12 @@ function MonitorsSection({
               </div>
               <div className="shrink-0 text-right">
                 {m.last_scan_at && (
-                  <div className="text-[10px] text-surface-500">
+                  <div className="text-[10px] text-white/60">
                     Last scan<br />{new Date(m.last_scan_at).toLocaleDateString()}
                   </div>
                 )}
               </div>
-              <ChevronRight size={14} className="text-surface-500 shrink-0" />
+              <IconCaretRight size={14} className="text-white/40 shrink-0" />
             </button>
           ))}
         </div>
@@ -915,7 +910,7 @@ function HistorySection() {
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <Loader2 size={20} className="animate-spin text-surface-400" />
+        <Loader2 size={20} className="animate-spin text-white/60" />
       </div>
     )
   }
@@ -924,9 +919,9 @@ function HistorySection() {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <History size={32} className="text-surface-600 mx-auto mb-3" />
-          <div className="text-sm text-surface-400">No scan history yet</div>
-          <div className="text-xs text-surface-500 mt-1">Run a scan to see results here</div>
+          <History size={32} className="text-white/30 mx-auto mb-3" />
+          <div className="text-sm text-white/60">No scan history yet</div>
+          <div className="text-xs text-white/55 mt-1">Run a scan to see results here</div>
         </div>
       </div>
     )
@@ -934,9 +929,9 @@ function HistorySection() {
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col p-6">
-      <div className="bg-navy-800/40 border border-navy-700/60 rounded-xl overflow-hidden flex flex-col flex-1">
+      <div className="bg-white/6 border border-white/10 rounded-xl overflow-hidden flex flex-col flex-1">
         {/* Table header */}
-        <div className="grid grid-cols-[1fr_1fr_80px_80px_90px_90px_80px] gap-2 px-4 py-2.5 bg-navy-800/60 text-[10px] font-semibold text-surface-400 uppercase tracking-wide shrink-0">
+        <div className="grid grid-cols-[1fr_1fr_80px_80px_90px_90px_80px] gap-2 px-4 py-2.5 bg-navy-800/60 text-[10px] font-semibold text-white/60 uppercase tracking-wide shrink-0">
           <div>Monitor</div>
           <div>Table</div>
           <div>Score</div>
@@ -960,10 +955,10 @@ function HistorySection() {
                   className="w-full grid grid-cols-[1fr_1fr_80px_80px_90px_90px_80px] gap-2 px-4 py-2.5 hover:bg-navy-800/30 text-left transition-colors items-center"
                 >
                   <div className="text-xs text-white font-medium truncate">{scan.display_name}</div>
-                  <div className="text-[10px] text-surface-500 font-mono truncate">{scan.table_name}</div>
+                  <div className="text-[10px] text-white/60 font-mono truncate">{scan.table_name}</div>
                   <div><ScoreBadge score={scan.overall_score} /></div>
                   <div><StatusBadge status={scan.status} /></div>
-                  <div className="text-[10px] text-surface-400">
+                  <div className="text-[10px] text-white/60">
                     {ruleResults.length > 0 ? (
                       <span>
                         <span className="text-emerald-400">{passed}✓</span>
@@ -971,8 +966,8 @@ function HistorySection() {
                       </span>
                     ) : '—'}
                   </div>
-                  <div className="text-[10px] text-surface-500">{new Date(scan.scanned_at).toLocaleString()}</div>
-                  <div className="text-[10px] text-surface-500">{scan.duration_ms != null ? `${scan.duration_ms}ms` : '—'}</div>
+                  <div className="text-[10px] text-white/60">{new Date(scan.scanned_at).toLocaleString()}</div>
+                  <div className="text-[10px] text-white/60">{scan.duration_ms != null ? `${scan.duration_ms}ms` : '—'}</div>
                 </button>
                 {isExpanded && (
                   <div className="border-t border-navy-800/40 bg-navy-900/60">
@@ -1034,7 +1029,7 @@ function RulesSection({ rules, monitors, onAddRuleToMonitor }: {
     <div className="flex-1 overflow-y-auto p-6">
       <div className="flex items-center gap-3 mb-4">
         <div className="relative flex-1 max-w-xs">
-          <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-500" />
+          <IconSearch size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -1042,7 +1037,7 @@ function RulesSection({ rules, monitors, onAddRuleToMonitor }: {
             className="w-full pl-8 pr-3 py-2 text-xs bg-navy-800 border border-navy-700 rounded-lg text-white placeholder-surface-600 focus:outline-none focus:ring-1 focus:ring-dblue-500"
           />
         </div>
-        <span className="text-xs text-surface-500">{filtered.length} rules</span>
+        <span className="text-xs text-white/55">{filtered.length} rules</span>
       </div>
 
       <div className="space-y-6">
@@ -1052,20 +1047,20 @@ function RulesSection({ rules, monitors, onAddRuleToMonitor }: {
               <span className={clsx('text-[10px] font-bold uppercase px-2 py-0.5 rounded', CATEGORY_COLORS[cat] ?? 'bg-gray-800 text-gray-400')}>
                 {cat}
               </span>
-              <span className="text-xs text-surface-500">{byCategory[cat]?.length ?? 0} rules</span>
+              <span className="text-xs text-white/55">{byCategory[cat]?.length ?? 0} rules</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {(byCategory[cat] ?? []).map(rule => (
-                <div key={rule.id} className="bg-navy-800/40 border border-navy-700/60 rounded-xl p-4">
+                <div key={rule.id} className="bg-white/6 border border-white/10 rounded-xl p-4">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="text-xs font-semibold text-white">{rule.name}</div>
                     <div className="relative shrink-0">
                       <button
                         onClick={() => setAddingTo(addingTo === rule.id ? null : rule.id)}
                         disabled={monitors.length === 0}
-                        className="flex items-center gap-1 px-2 py-1 text-[10px] bg-dblue-500/20 hover:bg-dblue-500/40 text-dblue-400 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex items-center gap-1 px-2 py-1 text-[10px] bg-dblue-500/20 hover:bg-dblue-500/40 text-primary rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        <Plus size={9} /> Add to…
+                        <IconAdd size={9} /> Add to…
                       </button>
                       {addingTo === rule.id && (
                         <div className="absolute right-0 top-full mt-1 z-10 w-48 bg-navy-800 border border-navy-700 rounded-lg shadow-xl overflow-hidden">
@@ -1083,11 +1078,11 @@ function RulesSection({ rules, monitors, onAddRuleToMonitor }: {
                       )}
                     </div>
                   </div>
-                  <div className="text-[10px] text-surface-500 leading-relaxed">{rule.description}</div>
+                  <div className="text-[10px] text-white/60 leading-relaxed">{rule.description}</div>
                   {rule.config_schema && rule.config_schema.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {rule.config_schema.map(f => (
-                        <span key={f.key} className="text-[9px] px-1.5 py-0.5 bg-navy-700/60 text-surface-400 rounded font-mono">
+                        <span key={f.key} className="text-[9px] px-1.5 py-0.5 bg-navy-700/60 text-white/60 rounded font-mono">
                           {f.key}
                         </span>
                       ))}
@@ -1153,10 +1148,10 @@ function MonitorDetailSection({
       {/* Sub-header */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-navy-800 shrink-0">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Database size={14} className="text-dblue-400 shrink-0" />
+          <IconEntityNamespace size={14} className="text-primary shrink-0" />
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-white truncate">{monitor.display_name}</h3>
-            <p className="text-xs text-surface-400 font-mono truncate">{monitor.table_name}</p>
+            <p className="text-xs text-white/60 font-mono truncate">{monitor.table_name}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -1175,17 +1170,17 @@ function MonitorDetailSection({
           </button>
           <button
             onClick={() => onEdit(monitor)}
-            className="p-1.5 rounded text-surface-400 hover:text-white hover:bg-navy-700 transition-colors"
+            className="p-1.5 rounded text-white/60 hover:text-white hover:bg-navy-700 transition-colors"
             title="Edit monitor"
           >
-            <Pencil size={13} />
+            <IconEdit size={13} />
           </button>
           <button
             onClick={() => scanMut.mutate()}
             disabled={scanMut.isPending}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-dblue-500 hover:bg-dblue-600 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-sidebar-primary text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
           >
-            {scanMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+            {scanMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <IconDatasetRun size={12} />}
             Scan Now
           </button>
         </div>
@@ -1200,7 +1195,7 @@ function MonitorDetailSection({
             <div className="text-center">
               <div className="text-xs font-semibold text-white">DQ Score</div>
               {monitor.last_scan_at && (
-                <div className="text-[10px] text-surface-500 mt-0.5">
+                <div className="text-[10px] text-white/60 mt-0.5">
                   {new Date(monitor.last_scan_at).toLocaleString()}
                 </div>
               )}
@@ -1210,7 +1205,7 @@ function MonitorDetailSection({
           {/* Schedule info */}
           {monitor.schedule_cron && (
             <div className="bg-navy-800/40 rounded-lg px-3 py-2.5">
-              <div className="text-[10px] text-surface-500 mb-0.5">Schedule</div>
+              <div className="text-[10px] text-white/60 mb-0.5">Schedule</div>
               <div className="text-xs text-white font-mono">{monitor.schedule_cron}</div>
             </div>
           )}
@@ -1227,9 +1222,9 @@ function MonitorDetailSection({
 
           {/* Active rules */}
           <div>
-            <div className="text-xs font-semibold text-surface-300 mb-2">Rules ({configuredRules.length})</div>
+            <div className="text-xs font-semibold text-white/70 mb-2">Rules ({configuredRules.length})</div>
             {configuredRules.length === 0 ? (
-              <div className="text-xs text-surface-500 italic">No rules configured</div>
+              <div className="text-xs text-white/55 italic">No rules configured</div>
             ) : (
               <div className="space-y-1.5">
                 {configuredRules.map((cr, i) => {
@@ -1239,7 +1234,7 @@ function MonitorDetailSection({
                     <div key={i} className="flex items-center gap-2 px-2 py-1.5 bg-navy-800/40 rounded">
                       {latestResult
                         ? <RuleStatusIcon status={latestResult.status} />
-                        : <CheckSquare size={11} className="text-surface-500" />
+                        : <CheckSquare size={11} className="text-white/40" />
                       }
                       <span className="text-xs text-white flex-1 truncate">{ruleDef?.name ?? cr.rule_id}</span>
                       {latestResult && (
@@ -1260,7 +1255,7 @@ function MonitorDetailSection({
               onClick={() => onDelete(monitor.id)}
               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 border border-red-800/50 text-red-400 hover:bg-red-950/40 rounded-lg text-xs transition-colors"
             >
-              <Trash2 size={11} /> Delete Monitor
+              <IconDelete size={11} /> Delete Monitor
             </button>
           </div>
         </div>
@@ -1270,10 +1265,10 @@ function MonitorDetailSection({
           {/* Latest scan results */}
           {latest && (
             <div className="mb-6">
-              <h4 className="text-xs font-semibold text-surface-300 mb-3 flex items-center gap-1.5">
-                <BarChart2 size={12} className="text-dblue-400" />
+              <h4 className="text-xs font-semibold text-white/70 mb-3 flex items-center gap-1.5">
+                <BarChart2 size={12} className="text-primary" />
                 Latest Scan Results
-                <span className="text-surface-500 font-normal ml-1">
+                <span className="text-white/40 font-normal ml-1">
                   {new Date(latest.scanned_at).toLocaleString()}
                 </span>
               </h4>
@@ -1291,16 +1286,16 @@ function MonitorDetailSection({
 
           {/* Scan history */}
           <div>
-            <h4 className="text-xs font-semibold text-surface-300 mb-3 flex items-center gap-1.5">
-              <Clock size={12} className="text-surface-400" />
+            <h4 className="text-xs font-semibold text-white/70 mb-3 flex items-center gap-1.5">
+              <Clock size={12} className="text-white/60" />
               Scan History ({scanHistory.length})
             </h4>
             {historyLoading ? (
-              <div className="flex items-center gap-2 text-xs text-surface-400">
+              <div className="flex items-center gap-2 text-xs text-white/60">
                 <Loader2 size={12} className="animate-spin" /> Loading…
               </div>
             ) : scanHistory.length === 0 ? (
-              <div className="text-xs text-surface-500 italic">No scans yet — click Scan Now to run the first one</div>
+              <div className="text-xs text-white/55 italic">No scans yet — click Scan Now to run the first one</div>
             ) : (
               <div className="space-y-2">
                 {scanHistory.map(scan => <ScanHistoryRow key={scan.id} scan={scan} />)}
@@ -1324,12 +1319,12 @@ function ScanHistoryRow({ scan }: { scan: DQScanResult }) {
         onClick={() => setExpanded(v => !v)}
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-navy-800/30 text-left transition-colors"
       >
-        {expanded ? <ChevronDown size={12} className="text-surface-400 shrink-0" /> : <ChevronRight size={12} className="text-surface-400 shrink-0" />}
-        <span className="text-xs text-surface-400 font-mono shrink-0">{new Date(scan.scanned_at).toLocaleString()}</span>
+        {expanded ? <IconCaretDown size={12} className="text-white/60 shrink-0" /> : <IconCaretRight size={12} className="text-white/60 shrink-0" />}
+        <span className="text-xs text-white/60 font-mono shrink-0">{new Date(scan.scanned_at).toLocaleString()}</span>
         <StatusBadge status={scan.status} />
         <ScoreBadge score={scan.overall_score} />
         {scan.duration_ms != null && (
-          <span className="text-xs text-surface-500 ml-auto shrink-0">{scan.duration_ms}ms</span>
+          <span className="text-xs text-white/40 ml-auto shrink-0">{scan.duration_ms}ms</span>
         )}
       </button>
       {expanded && (
@@ -1427,19 +1422,19 @@ export default function DataQualityHub({ onClose }: Props) {
       <div className="flex items-center gap-3 px-4 py-3 border-b border-navy-800 bg-navy-950 shrink-0">
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 text-xs text-surface-400 hover:text-white transition-colors px-2 py-1.5 rounded-lg hover:bg-navy-800"
+          className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors px-2 py-1.5 rounded-lg hover:bg-navy-800"
         >
           <ArrowLeft size={13} /> Back
         </button>
         <div className="h-4 w-px bg-navy-700" />
-        <ShieldCheck size={16} className="text-dblue-400" />
+        <ShieldCheck size={16} className="text-primary" />
         <span className="text-sm font-semibold text-white">Data Quality Hub</span>
         <div className="flex-1" />
         <button
           onClick={() => { setEditingMonitor(null); setShowWizard(true) }}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-dblue-500 hover:bg-dblue-600 text-white text-xs font-semibold rounded-lg transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-sidebar-primary text-white text-xs font-semibold rounded-lg transition-colors"
         >
-          <Plus size={13} /> New Monitor
+          <IconAdd size={13} /> New Monitor
         </button>
       </div>
 
@@ -1456,8 +1451,8 @@ export default function DataQualityHub({ onClose }: Props) {
                 className={clsx(
                   'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left',
                   activeSection === item.id && !selectedMonitorId
-                    ? 'bg-dblue-500/20 text-dblue-400'
-                    : 'text-surface-400 hover:text-white hover:bg-navy-800/60',
+                    ? 'bg-dblue-500/20 text-primary'
+                    : 'text-white/60 hover:text-white hover:bg-navy-800/60',
                 )}
               >
                 {item.icon}
@@ -1469,15 +1464,15 @@ export default function DataQualityHub({ onClose }: Props) {
           {/* Divider + monitor mini-list */}
           <div className="px-3 mb-2">
             <div className="h-px bg-navy-800" />
-            <div className="text-[10px] font-semibold text-surface-500 uppercase tracking-wider mt-3 mb-1.5 px-1">Monitors</div>
+            <div className="text-[10px] font-semibold text-white/60 uppercase tracking-wider mt-3 mb-1.5 px-1">Monitors</div>
           </div>
           <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
             {monitorsLoading ? (
               <div className="flex items-center justify-center py-4">
-                <Loader2 size={14} className="animate-spin text-surface-500" />
+                <Loader2 size={14} className="animate-spin text-white/40" />
               </div>
             ) : monitors.length === 0 ? (
-              <div className="text-[10px] text-surface-500 italic px-3 py-2">No monitors yet</div>
+              <div className="text-[10px] text-white/60 italic px-3 py-2">No monitors yet</div>
             ) : (
               monitors.map(m => (
                 <button
@@ -1486,8 +1481,8 @@ export default function DataQualityHub({ onClose }: Props) {
                   className={clsx(
                     'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors group',
                     selectedMonitorId === m.id
-                      ? 'bg-dblue-500/20 text-dblue-400'
-                      : 'text-surface-400 hover:text-white hover:bg-navy-800/60',
+                      ? 'bg-dblue-500/20 text-primary'
+                      : 'text-white/60 hover:text-white hover:bg-navy-800/60',
                   )}
                 >
                   <div className="shrink-0">
@@ -1495,7 +1490,7 @@ export default function DataQualityHub({ onClose }: Props) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[11px] font-medium truncate">{m.display_name}</div>
-                    {!m.enabled && <div className="text-[9px] text-surface-600">paused</div>}
+                    {!m.enabled && <div className="text-[9px] text-white/30">paused</div>}
                   </div>
                 </button>
               ))
@@ -1558,11 +1553,11 @@ export default function DataQualityHub({ onClose }: Props) {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
           <div className="w-full max-w-sm mx-4 bg-navy-900 border border-navy-700 rounded-xl shadow-2xl p-6">
             <h3 className="text-sm font-semibold text-white mb-2">Delete Monitor</h3>
-            <p className="text-xs text-surface-400 mb-5">
+            <p className="text-xs text-white/60 mb-5">
               This will permanently delete the monitor and all its scan history. This action cannot be undone.
             </p>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-xs text-surface-400 hover:text-white transition-colors">
+              <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-xs text-white/60 hover:text-white transition-colors">
                 Cancel
               </button>
               <button
@@ -1570,7 +1565,7 @@ export default function DataQualityHub({ onClose }: Props) {
                 disabled={deleteMut.isPending}
                 className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
               >
-                {deleteMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                {deleteMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <IconDelete size={12} />}
                 Delete
               </button>
             </div>

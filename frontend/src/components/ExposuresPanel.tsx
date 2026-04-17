@@ -1,5 +1,6 @@
 import React from 'react'
-import { Plus, Trash2, ExternalLink } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
+import { IconAdd, IconDelete } from './icons'
 import type { Exposure, ExposureToolType } from '../types'
 
 interface ExposuresPanelProps {
@@ -63,9 +64,9 @@ export default function ExposuresPanel({ exposures, onExposuresChange }: Exposur
         </p>
         <button
           onClick={add}
-          className="flex items-center gap-1 px-2 py-1 text-xs bg-navy-700 text-white rounded hover:bg-navy-600 shrink-0 ml-2"
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-navy-700 text-white rounded hover:bg-white/15 shrink-0 ml-2"
         >
-          <Plus size={12} />
+          <IconAdd size={12} />
           Add
         </button>
       </div>
@@ -103,7 +104,7 @@ export default function ExposuresPanel({ exposures, onExposuresChange }: Exposur
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}
-                    className="text-gray-400 hover:text-dblue-500"
+                    className="text-gray-400 hover:text-primary"
                     title="Open URL"
                   >
                     <ExternalLink size={11} />
@@ -113,7 +114,7 @@ export default function ExposuresPanel({ exposures, onExposuresChange }: Exposur
                   onClick={e => { e.stopPropagation(); remove(exp.id) }}
                   className="text-gray-300 hover:text-red-400 ml-1"
                 >
-                  <Trash2 size={12} />
+                  <IconDelete size={12} />
                 </button>
               </div>
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, X, GitBranch, AlertTriangle, ArrowRight } from 'lucide-react'
+import { GitBranch, ArrowRight } from 'lucide-react'
+import { IconAdd, IconClose, IconWarning } from './icons'
 import type { Pipeline } from '../types'
 import { updatePipelineDependencies, fetchDag } from '../api/client'
 
@@ -76,7 +77,7 @@ export default function DependencyPanel({ pipeline, allPipelines, onDependencies
       {/* Cycle warning */}
       {cycles.length > 0 && (
         <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded px-3 py-2 text-xs text-red-700">
-          <AlertTriangle size={13} className="mt-0.5 shrink-0 text-red-400" />
+          <IconWarning size={13} className="mt-0.5 shrink-0 text-red-400" />
           <div>
             <strong>Circular dependency detected!</strong>
             {cycles.map((cycle, i) => (
@@ -129,7 +130,7 @@ export default function DependencyPanel({ pipeline, allPipelines, onDependencies
                 className="text-gray-300 hover:text-red-400 shrink-0"
                 title="Remove dependency"
               >
-                <X size={13} />
+                <IconClose size={13} />
               </button>
             </div>
           ))}
@@ -143,7 +144,7 @@ export default function DependencyPanel({ pipeline, allPipelines, onDependencies
           disabled={available.length === 0}
           className="flex items-center gap-1 px-3 py-1.5 text-xs border border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-dblue-400 hover:text-dblue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors w-full justify-center"
         >
-          <Plus size={12} />
+          <IconAdd size={12} />
           {available.length === 0 ? 'No more pipelines to add' : 'Add Upstream Pipeline'}
         </button>
       ) : (
@@ -151,7 +152,7 @@ export default function DependencyPanel({ pipeline, allPipelines, onDependencies
           <div className="bg-dblue-50 px-3 py-1.5 flex items-center justify-between">
             <span className="text-xs font-medium text-dblue-700">Pick upstream pipeline</span>
             <button onClick={() => setPickingDep(false)} className="text-gray-400 hover:text-gray-600">
-              <X size={13} />
+              <IconClose size={13} />
             </button>
           </div>
           <div className="max-h-48 overflow-y-auto">

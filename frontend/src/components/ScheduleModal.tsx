@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Clock, Loader2, Trash2, CheckCircle, XCircle, Play, AlarmClock } from 'lucide-react'
+import { Clock, Loader2, AlarmClock } from 'lucide-react'
+import { IconCheckCircle, IconClose, IconDatasetRun, IconDelete, IconErrorCircle } from './icons'
 import clsx from 'clsx'
 import {
   fetchPipelineSchedules,
@@ -131,19 +132,19 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-navy-950">
           <div className="flex items-center gap-2.5">
-            <Clock size={16} className="text-dblue-400" />
+            <Clock size={16} className="text-primary" />
             <span className="font-semibold text-white text-sm">Schedule Pipeline</span>
-            <span className="text-surface-400 text-xs font-mono truncate max-w-[160px]">{pipelineName}</span>
+            <span className="text-white/60 text-xs font-mono truncate max-w-[160px]">{pipelineName}</span>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-            <X size={16} />
+            <IconClose size={16} />
           </button>
         </div>
 
         <div className="p-5 space-y-5">
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-8 text-surface-400 gap-2 text-sm">
+            <div className="flex items-center justify-center py-8 text-white/60 gap-2 text-sm">
               <Loader2 size={15} className="animate-spin" /> Loading…
             </div>
           ) : existingSchedule ? (
@@ -159,7 +160,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                       'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold',
                       existingSchedule.enabled
                         ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-surface-200 text-surface-500'
+                        : 'bg-surface-200 text-white/40'
                     )}>
                       <span className={clsx(
                         'w-1.5 h-1.5 rounded-full',
@@ -185,7 +186,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
 
                 {/* Cron expression — inline edit */}
                 <div>
-                  <label className="block text-xs font-semibold text-surface-500 mb-1.5">Schedule (cron)</label>
+                  <label className="block text-xs font-semibold text-white/40 mb-1.5">Schedule (cron)</label>
                   <div className="flex gap-2">
                     <input
                       className="flex-1 px-2.5 py-1.5 text-xs font-mono border border-surface-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500"
@@ -213,7 +214,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                     </button>
                   </div>
                   {cronError && <p className="mt-1 text-xs text-red-500">{cronError}</p>}
-                  <p className="mt-1 text-xs text-surface-400">
+                  <p className="mt-1 text-xs text-white/60">
                     {describeCron(cronInput || existingSchedule.cron_expression)}
                   </p>
                 </div>
@@ -228,7 +229,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                         'px-2.5 py-1 rounded-full text-xs border transition-colors',
                         cronInput === p.cron || (!cronInput && existingSchedule.cron_expression === p.cron)
                           ? 'bg-dblue-500 text-white border-dblue-500'
-                          : 'border-surface-200 text-surface-600 hover:border-dblue-400 hover:text-dblue-600'
+                          : 'border-surface-200 text-white/30 hover:border-dblue-400 hover:text-dblue-600'
                       )}
                     >
                       {p.label}
@@ -238,7 +239,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
 
                 {/* Last run */}
                 <div className="flex items-center gap-3 pt-1 border-t border-surface-200">
-                  <div className="text-xs text-surface-500">
+                  <div className="text-xs text-white/40">
                     Last run: <span className="font-medium text-surface-700">{relativeTime(existingSchedule.last_run_at)}</span>
                   </div>
                   {existingSchedule.last_run_status && (
@@ -247,8 +248,8 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                       existingSchedule.last_run_status === 'success' ? 'text-emerald-600' : 'text-red-600'
                     )}>
                       {existingSchedule.last_run_status === 'success'
-                        ? <CheckCircle size={12} />
-                        : <XCircle size={12} />}
+                        ? <IconCheckCircle size={12} />
+                        : <IconErrorCircle size={12} />}
                       {existingSchedule.last_run_status}
                     </div>
                   )}
@@ -270,7 +271,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
 
                 {/* Retry config */}
                 <div className="pt-1 border-t border-surface-200">
-                  <label className="block text-xs font-semibold text-surface-500 mb-1.5">
+                  <label className="block text-xs font-semibold text-white/40 mb-1.5">
                     Retry on failure
                   </label>
                   <div className="flex items-center gap-3">
@@ -281,14 +282,14 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                       onChange={(e) => setMaxRetriesInput(Number(e.target.value))}
                       className="flex-1 accent-dblue-500"
                     />
-                    <span className="text-xs font-mono w-16 text-surface-600">
+                    <span className="text-xs font-mono w-16 text-white/30">
                       {(maxRetriesInput !== 0 ? maxRetriesInput : (existingSchedule.max_retries ?? 0)) === 0
                         ? 'No retry'
                         : `${maxRetriesInput !== 0 ? maxRetriesInput : existingSchedule.max_retries}× retry`}
                     </span>
                   </div>
                   {(maxRetriesInput !== 0 ? maxRetriesInput : (existingSchedule.max_retries ?? 0)) > 0 && (
-                    <p className="text-xs text-surface-400 mt-1">
+                    <p className="text-xs text-white/60 mt-1">
                       Backoff: 1m → 2m → 4m → 8m → 16m before alerting
                     </p>
                   )}
@@ -297,7 +298,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                 {/* SLA deadline */}
                 <div className="pt-1 border-t border-surface-200">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="flex items-center gap-1.5 text-xs font-semibold text-surface-500">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-white/40">
                       <AlarmClock size={12} />
                       SLA Deadline
                     </label>
@@ -317,16 +318,16 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                   {slaEnabled && (
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-surface-500 shrink-0">Alert if not done by</span>
+                        <span className="text-xs text-white/40 shrink-0">Alert if not done by</span>
                         <input
                           type="time"
                           value={slaTime}
                           onChange={(e) => setSlaTime(e.target.value)}
                           className="px-2 py-1 text-xs font-mono border border-surface-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500"
                         />
-                        <span className="text-xs text-surface-400">UTC</span>
+                        <span className="text-xs text-white/60">UTC</span>
                       </div>
-                      <p className="text-xs text-surface-400">
+                      <p className="text-xs text-white/60">
                         Sends a notification if the pipeline hasn't completed successfully by this time each day.
                       </p>
                     </div>
@@ -340,7 +341,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                 disabled={deleteMut.isPending}
                 className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-700 disabled:opacity-50"
               >
-                {deleteMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                {deleteMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <IconDelete size={12} />}
                 Remove schedule
               </button>
             </div>
@@ -349,13 +350,13 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
 
             /* ── No schedule yet ───────────────────────────────────── */
             <div className="space-y-4">
-              <p className="text-sm text-surface-500">
+              <p className="text-sm text-white/40">
                 Set a cron schedule to run this pipeline automatically.
               </p>
 
               {/* Presets */}
               <div>
-                <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">
                   Quick Presets
                 </label>
                 <div className="flex flex-wrap gap-1.5">
@@ -367,7 +368,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                         'px-2.5 py-1 rounded-full text-xs border transition-colors',
                         cronInput === p.cron
                           ? 'bg-dblue-500 text-white border-dblue-500'
-                          : 'border-surface-200 text-surface-600 hover:border-dblue-400 hover:text-dblue-600'
+                          : 'border-surface-200 text-white/30 hover:border-dblue-400 hover:text-dblue-600'
                       )}
                     >
                       {p.label}
@@ -378,9 +379,9 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
 
               {/* Custom cron */}
               <div>
-                <label className="block text-xs font-semibold text-surface-500 mb-1">
+                <label className="block text-xs font-semibold text-white/40 mb-1">
                   Cron Expression
-                  <span className="ml-1 font-normal text-surface-400">(minute hour day month weekday)</span>
+                  <span className="ml-1 font-normal text-white/60">(minute hour day month weekday)</span>
                 </label>
                 <input
                   className={clsx(
@@ -393,13 +394,13 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                 />
                 {cronError
                   ? <p className="mt-1 text-xs text-red-500">{cronError}</p>
-                  : <p className="mt-1 text-xs text-surface-400">{describeCron(cronInput)}</p>
+                  : <p className="mt-1 text-xs text-white/60">{describeCron(cronInput)}</p>
                 }
               </div>
 
               {/* Retry on failure */}
               <div>
-                <label className="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">
                   Retry on failure
                 </label>
                 <div className="flex items-center gap-3">
@@ -410,12 +411,12 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                     onChange={(e) => setMaxRetriesInput(Number(e.target.value))}
                     className="flex-1 accent-dblue-500"
                   />
-                  <span className="text-xs font-mono w-16 text-surface-600">
+                  <span className="text-xs font-mono w-16 text-white/30">
                     {maxRetriesInput === 0 ? 'No retry' : `${maxRetriesInput}× retry`}
                   </span>
                 </div>
                 {maxRetriesInput > 0 && (
-                  <p className="text-xs text-surface-400 mt-1">
+                  <p className="text-xs text-white/60 mt-1">
                     Exponential backoff: 1m → 2m → 4m → … before alerting
                   </p>
                 )}
@@ -424,7 +425,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
               {/* SLA Deadline */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-surface-500 uppercase tracking-wider">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-white/40 uppercase tracking-wider">
                     <AlarmClock size={12} />
                     SLA Deadline
                   </label>
@@ -444,16 +445,16 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
                 {slaEnabled && (
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-surface-500 shrink-0">Alert if not done by</span>
+                      <span className="text-xs text-white/40 shrink-0">Alert if not done by</span>
                       <input
                         type="time"
                         value={slaTime}
                         onChange={(e) => setSlaTime(e.target.value)}
                         className="px-2 py-1 text-xs font-mono border border-surface-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500"
                       />
-                      <span className="text-xs text-surface-400">UTC</span>
+                      <span className="text-xs text-white/60">UTC</span>
                     </div>
-                    <p className="text-xs text-surface-400">
+                    <p className="text-xs text-white/60">
                       Sends a notification if the pipeline hasn't completed successfully by this time each day.
                     </p>
                   </div>
@@ -481,7 +482,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
 
               {createMut.isError && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 text-red-700 text-xs">
-                  <XCircle size={13} className="shrink-0 mt-0.5" />
+                  <IconErrorCircle size={13} className="shrink-0 mt-0.5" />
                   {(createMut.error as Error).message}
                 </div>
               )}
@@ -493,7 +494,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-surface-100 bg-surface-50">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs font-medium text-surface-500 hover:text-surface-700 transition-colors"
+            className="px-3 py-1.5 text-xs font-medium text-white/40 hover:text-surface-700 transition-colors"
           >
             {existingSchedule ? 'Close' : 'Cancel'}
           </button>
@@ -503,7 +504,7 @@ export default function ScheduleModal({ pipelineId, pipelineName, onClose }: Pro
               disabled={createMut.isPending || !!cronError}
               className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold bg-dblue-500 text-white rounded hover:bg-dblue-600 transition-colors disabled:opacity-50"
             >
-              {createMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
+              {createMut.isPending ? <Loader2 size={12} className="animate-spin" /> : <IconDatasetRun size={12} />}
               Create Schedule
             </button>
           )}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { IconCheckCircle, IconClose, IconErrorCircle } from './icons'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createIcebergCatalog, testIcebergCatalog } from '../api/client'
 import type { IcebergCatalog } from '../types'
@@ -72,10 +73,10 @@ export default function AddCatalogModal({ onClose }: Props) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-navy-700">
           <div>
             <h2 className="text-white font-semibold text-sm">Add Iceberg REST Catalog</h2>
-            <p className="text-surface-400 text-xs mt-0.5">Connect to Polaris, Unity Catalog, AWS Glue, or any Iceberg REST endpoint</p>
+            <p className="text-white/60 text-xs mt-0.5">Connect to Polaris, Unity Catalog, AWS Glue, or any Iceberg REST endpoint</p>
           </div>
-          <button onClick={onClose} className="text-surface-400 hover:text-white transition-colors">
-            <X size={16} />
+          <button onClick={onClose} className="text-white/60 hover:text-white transition-colors">
+            <IconClose size={16} />
           </button>
         </div>
 
@@ -125,7 +126,7 @@ export default function AddCatalogModal({ onClose }: Props) {
             <select
               value={form.auth_type}
               onChange={(e) => set('auth_type', e.target.value as IcebergCatalog['auth_type'])}
-              className="w-full bg-navy-800 border border-navy-600 text-white text-xs rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-dblue-500"
+              className="w-full bg-navy-800 border border-white/15 text-white text-xs rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-dblue-500"
             >
               <option value="none">None</option>
               <option value="bearer">Bearer token</option>
@@ -228,8 +229,8 @@ export default function AddCatalogModal({ onClose }: Props) {
               testResult.ok ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'
             )}>
               {testResult.ok
-                ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" />
-                : <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                ? <IconCheckCircle size={13} className="shrink-0 mt-0.5" />
+                : <IconErrorCircle size={13} className="shrink-0 mt-0.5" />
               }
               <span>{testResult.ok ? 'Connection successful!' : testResult.error ?? 'Connection failed'}</span>
             </div>
@@ -240,14 +241,14 @@ export default function AddCatalogModal({ onClose }: Props) {
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-navy-700">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-surface-400 hover:text-white transition-colors"
+            className="px-4 py-2 text-xs font-medium text-white/60 hover:text-white transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={!form.name || !form.url || createMut.isPending || !!testingId}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-dblue-500 hover:bg-dblue-600 disabled:opacity-40 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-primary hover:bg-sidebar-primary disabled:opacity-40 rounded-lg transition-colors"
           >
             {(createMut.isPending || testingId) && <Loader2 size={12} className="animate-spin" />}
             {createMut.isPending ? 'Saving…' : testingId ? 'Testing…' : 'Save & test'}
@@ -268,12 +269,12 @@ function Field({ label, required, hint, children }: {
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="flex items-center gap-1 text-xs font-medium text-surface-300">
+      <label className="flex items-center gap-1 text-xs font-medium text-white/70">
         {label}
         {required && <span className="text-red-400">*</span>}
       </label>
       {children}
-      {hint && <p className="text-xs text-surface-500">{hint}</p>}
+      {hint && <p className="text-xs text-white/40">{hint}</p>}
     </div>
   )
 }
@@ -292,7 +293,7 @@ function Input({ value, onChange, placeholder, mono, password }: {
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className={clsx(
-        'w-full bg-navy-800 border border-navy-600 text-white text-xs rounded px-3 py-2',
+        'w-full bg-navy-800 border border-white/15 text-white text-xs rounded px-3 py-2',
         'placeholder-surface-600 focus:outline-none focus:ring-1 focus:ring-dblue-500 focus:border-dblue-500',
         mono && 'font-mono'
       )}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Clock, RotateCcw } from 'lucide-react'
+import { Clock } from 'lucide-react'
+import { IconRefresh } from './icons'
 import clsx from 'clsx'
 
 import type { Pipeline, VersionEntry } from '../types'
@@ -59,7 +60,7 @@ export default function VersionHistory({ pipelineId, currentVersion, onRestore }
 
   if (isLoading) {
     return (
-      <div className="p-6 text-center text-surface-400 text-xs">
+      <div className="p-6 text-center text-white/60 text-xs">
         Loading history...
       </div>
     )
@@ -76,8 +77,8 @@ export default function VersionHistory({ pipelineId, currentVersion, onRestore }
   if (sorted.length === 0) {
     return (
       <div className="p-6 flex flex-col items-center gap-3 text-center">
-        <Clock size={28} className="text-surface-300" />
-        <p className="text-xs text-surface-400">No version history yet.<br />Save the pipeline to create a version.</p>
+        <Clock size={28} className="text-white/70" />
+        <p className="text-xs text-white/60">No version history yet.<br />Save the pipeline to create a version.</p>
       </div>
     )
   }
@@ -108,15 +109,15 @@ export default function VersionHistory({ pipelineId, currentVersion, onRestore }
                   </span>
                 )}
               </div>
-              <span className="text-xs text-surface-400 flex items-center gap-1">
+              <span className="text-xs text-white/60 flex items-center gap-1">
                 <Clock size={10} />
                 {relativeTime(entry.created_at)}
               </span>
             </div>
 
             {/* Message */}
-            <p className="text-xs text-surface-600 leading-relaxed">
-              {entry.message || <span className="italic text-surface-400">No message</span>}
+            <p className="text-xs text-white/30 leading-relaxed">
+              {entry.message || <span className="italic text-white/60">No message</span>}
             </p>
 
             {/* Restore controls */}
@@ -124,7 +125,7 @@ export default function VersionHistory({ pipelineId, currentVersion, onRestore }
               <div className="mt-1">
                 {isConfirming ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-surface-500">Are you sure?</span>
+                    <span className="text-xs text-white/40">Are you sure?</span>
                     <button
                       onClick={() => handleConfirmRestore(entry.version)}
                       disabled={restoring}
@@ -135,7 +136,7 @@ export default function VersionHistory({ pipelineId, currentVersion, onRestore }
                     <button
                       onClick={handleCancelRestore}
                       disabled={restoring}
-                      className="text-xs font-medium text-surface-500 hover:text-surface-700 px-2 py-1 rounded transition-colors"
+                      className="text-xs font-medium text-white/40 hover:text-surface-700 px-2 py-1 rounded transition-colors"
                     >
                       No
                     </button>
@@ -143,9 +144,9 @@ export default function VersionHistory({ pipelineId, currentVersion, onRestore }
                 ) : (
                   <button
                     onClick={() => handleRestoreClick(entry.version)}
-                    className="flex items-center gap-1 text-xs text-surface-500 hover:text-blue-600 transition-colors"
+                    className="flex items-center gap-1 text-xs text-white/40 hover:text-blue-600 transition-colors"
                   >
-                    <RotateCcw size={11} />
+                    <IconRefresh size={11} />
                     Restore
                   </button>
                 )}

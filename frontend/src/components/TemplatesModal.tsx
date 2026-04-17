@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { X, Loader2, ChevronRight, ArrowLeft } from 'lucide-react'
+import { Loader2, ArrowLeft } from 'lucide-react'
+import { IconCaretRight, IconClose } from './icons'
 import clsx from 'clsx'
 import { fetchTemplates, deployTemplate } from '../api/client'
 import type { PipelineTemplate } from '../api/client'
@@ -53,17 +54,17 @@ export default function TemplatesModal({ onClose, onDeployed }: Props) {
                 {selectedTemplate ? selectedTemplate.name : 'Pipeline Templates'}
               </p>
               {!selectedTemplate && (
-                <p className="text-xs text-surface-400">{templates.length} pre-built templates — one click to deploy</p>
+                <p className="text-xs text-white/60">{templates.length} pre-built templates — one click to deploy</p>
               )}
             </div>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-            <X size={16} />
+            <IconClose size={16} />
           </button>
         </div>
 
         {isLoading ? (
-          <div className="flex-1 flex items-center justify-center text-surface-400 gap-2">
+          <div className="flex-1 flex items-center justify-center text-white/60 gap-2">
             <Loader2 size={16} className="animate-spin" /> Loading templates…
           </div>
 
@@ -169,7 +170,7 @@ export default function TemplatesModal({ onClose, onDeployed }: Props) {
                         <p className="text-xs text-gray-400">{tmpl.steps.length} steps · {tmpl.output_mode}</p>
                       </div>
                     </div>
-                    <ChevronRight size={14} className="text-gray-300 group-hover:text-dblue-500 transition-colors shrink-0 mt-1" />
+                    <IconCaretRight size={14} className="text-gray-300 group-hover:text-primary transition-colors shrink-0 mt-1" />
                   </div>
                   <p className="text-xs text-gray-500 line-clamp-2">{tmpl.description}</p>
                   <div className="flex flex-wrap gap-1 mt-2">

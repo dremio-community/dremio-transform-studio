@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  GitPullRequest, CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp,
-  AlertTriangle, User, Calendar, MessageSquare, Plus, Minus,
-} from 'lucide-react'
+import { GitPullRequest, Clock, User, Calendar, MessageSquare, Minus } from 'lucide-react'
+import { IconAdd, IconCaretDown, IconCaretUp, IconCheckCircle, IconErrorCircle, IconWarning } from './icons'
 import {
   fetchApprovals,
   approveApproval,
@@ -71,9 +69,9 @@ function StepDiff({
       {rows.map((r, i) => {
         const label = r.step.label || r.step.transform_type
         const cfg = {
-          added:     { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: <Plus size={10} className="text-emerald-400" />, text: 'text-emerald-300' },
+          added:     { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: <IconAdd size={10} className="text-emerald-400" />, text: 'text-emerald-300' },
           removed:   { bg: 'bg-red-500/10',     border: 'border-red-500/30',     icon: <Minus size={10} className="text-red-400" />,    text: 'text-red-300' },
-          changed:   { bg: 'bg-amber-500/10',   border: 'border-amber-500/30',   icon: <AlertTriangle size={10} className="text-amber-400" />, text: 'text-amber-300' },
+          changed:   { bg: 'bg-amber-500/10',   border: 'border-amber-500/30',   icon: <IconWarning size={10} className="text-amber-400" />, text: 'text-amber-300' },
           unchanged: { bg: 'bg-transparent',    border: 'border-transparent',    icon: null,                                             text: 'text-surface-500' },
         }[r.status]
 
@@ -125,8 +123,8 @@ function ApprovalCard({
   const isPending = approval.status === 'pending'
   const statusCfg = {
     pending:  { color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/30',   icon: Clock },
-    approved: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: CheckCircle2 },
-    rejected: { color: 'text-red-400',     bg: 'bg-red-500/10',     border: 'border-red-500/30',     icon: XCircle },
+    approved: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: IconCheckCircle },
+    rejected: { color: 'text-red-400',     bg: 'bg-red-500/10',     border: 'border-red-500/30',     icon: IconErrorCircle },
   }[approval.status]
 
   const StatusIcon = statusCfg.icon
@@ -158,7 +156,7 @@ function ApprovalCard({
             </span>
           </div>
         </div>
-        {expanded ? <ChevronUp size={14} className="text-surface-500 shrink-0" /> : <ChevronDown size={14} className="text-surface-500 shrink-0" />}
+        {expanded ? <IconCaretUp size={14} className="text-surface-500 shrink-0" /> : <IconCaretDown size={14} className="text-surface-500 shrink-0" />}
       </div>
 
       {/* Expanded diff view */}
@@ -197,7 +195,7 @@ function ApprovalCard({
                   disabled={approveMut.isPending}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
                 >
-                  <CheckCircle2 size={12} />
+                  <IconCheckCircle size={12} />
                   {approveMut.isPending ? 'Approving…' : 'Approve'}
                 </button>
                 <button
@@ -205,7 +203,7 @@ function ApprovalCard({
                   disabled={rejectMut.isPending}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 text-white text-xs font-medium transition-colors disabled:opacity-50"
                 >
-                  <XCircle size={12} />
+                  <IconErrorCircle size={12} />
                   {rejectMut.isPending ? 'Rejecting…' : 'Reject'}
                 </button>
                 <button

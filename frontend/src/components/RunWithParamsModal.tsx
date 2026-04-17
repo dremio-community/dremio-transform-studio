@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { X, Play, Zap } from 'lucide-react'
+import { Zap } from 'lucide-react'
+import { IconClose, IconDatasetRun } from './icons'
 import type { PipelineParameter } from '../types'
 
 interface RunWithParamsModalProps {
@@ -27,13 +28,13 @@ export default function RunWithParamsModal({ parameters, mode, onRun, onCancel }
       <div className="bg-white rounded-xl shadow-2xl w-[420px] mx-4 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 bg-navy-950 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {mode === 'preview' ? <Play size={14} className="text-emerald-400" /> : <Zap size={14} className="text-dblue-400" />}
+            {mode === 'preview' ? <IconDatasetRun size={14} className="text-emerald-400" /> : <Zap size={14} className="text-dblue-400" />}
             <span className="text-sm font-semibold text-white capitalize">
               {mode === 'preview' ? 'Preview' : 'Execute'} with Parameters
             </span>
           </div>
           <button onClick={onCancel} className="text-gray-400 hover:text-white transition-colors">
-            <X size={15} />
+            <IconClose size={15} />
           </button>
         </div>
         <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
@@ -154,7 +155,7 @@ export default function RunWithParamsModal({ parameters, mode, onRun, onCancel }
                 : 'flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-dblue-500 text-white rounded-lg hover:bg-dblue-600 transition-colors'
             }
           >
-            {mode === 'preview' ? <Play size={12} /> : <Zap size={12} />}
+            {mode === 'preview' ? <IconDatasetRun size={12} /> : <Zap size={12} />}
             {mode === 'preview' ? 'Preview' : 'Execute'}
           </button>
         </div>

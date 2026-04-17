@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Layers, AlertCircle, Loader2, KeyRound } from 'lucide-react'
+import { Layers, Loader2, KeyRound } from 'lucide-react'
+import { IconErrorCircle } from './icons'
 import { login, setToken, fetchSsoProviders, type SsoProvider } from '../api/client'
 
 interface LoginModalProps {
@@ -53,7 +54,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
             <Layers size={24} className="text-white" />
           </div>
           <h1 className="text-xl font-bold text-white tracking-tight">Transform Studio</h1>
-          <p className="text-surface-400 text-sm mt-1">for Dremio</p>
+          <p className="text-white/60 text-sm mt-1">for Dremio</p>
         </div>
 
         {/* SSO Buttons */}
@@ -65,7 +66,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                 onClick={() => handleSsoLogin(p.provider_name)}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-navy-800 hover:bg-navy-700 border border-navy-700 text-white text-sm font-medium rounded-xl transition-colors"
               >
-                <KeyRound size={14} className="text-dblue-400" />
+                <KeyRound size={14} className="text-primary" />
                 Sign in with {p.display_name}
               </button>
             ))}
@@ -73,7 +74,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
             {/* Divider */}
             <div className="relative flex items-center py-2">
               <div className="flex-grow border-t border-navy-700" />
-              <span className="mx-3 text-xs text-surface-500">or</span>
+              <span className="mx-3 text-xs text-white/40">or</span>
               <div className="flex-grow border-t border-navy-700" />
             </div>
           </div>
@@ -83,17 +84,17 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
         <form onSubmit={handleSubmit} className="bg-navy-900 rounded-xl border border-navy-700 shadow-2xl overflow-hidden">
           <div className="px-6 py-5 border-b border-navy-800">
             <h2 className="text-sm font-semibold text-white">Sign In</h2>
-            <p className="text-xs text-surface-400 mt-0.5">Enter your credentials to continue</p>
+            <p className="text-xs text-white/60 mt-0.5">Enter your credentials to continue</p>
           </div>
           <div className="px-6 py-5 space-y-4">
             {error && (
               <div className="flex items-center gap-2 bg-red-950/60 border border-red-800/50 rounded-lg px-3 py-2.5 text-xs text-red-400">
-                <AlertCircle size={13} className="shrink-0" />
+                <IconErrorCircle size={13} className="shrink-0" />
                 {error}
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-surface-300 mb-1.5">Username</label>
+              <label className="block text-xs font-medium text-white/70 mb-1.5">Username</label>
               <input
                 autoFocus
                 type="text"
@@ -104,7 +105,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-surface-300 mb-1.5">Password</label>
+              <label className="block text-xs font-medium text-white/70 mb-1.5">Password</label>
               <input
                 type="password"
                 value={password}
@@ -118,7 +119,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
             <button
               type="submit"
               disabled={loading || !username.trim() || !password}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-dblue-500 hover:bg-dblue-600 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-sidebar-primary text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -132,7 +133,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
           </div>
         </form>
 
-        <p className="text-center text-xs text-surface-600 mt-4">
+        <p className="text-center text-xs text-white/30 mt-4">
           Default credentials: admin / admin
         </p>
       </div>

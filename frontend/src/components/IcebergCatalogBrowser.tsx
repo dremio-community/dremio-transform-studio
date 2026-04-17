@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, ChevronDown, Folder, Table2, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { IconCaretRight, IconCaretDown, IconEntityFolderBlue, IconEntityIcebergTable } from './icons'
 import clsx from 'clsx'
 import { fetchIcebergNamespaces, fetchIcebergChildren } from '../api/client'
 import type { IcebergCatalog, CatalogEntry } from '../types'
@@ -46,10 +47,10 @@ function IcebergEntryNode({
         style={{ paddingLeft: `${10 + depth * 12}px` }}
         className={clsx(
           'flex items-center gap-1.5 w-full pr-3 py-1.5 text-xs transition-colors',
-          isActive ? 'bg-dblue-500/20 text-dblue-400 font-medium' : 'text-surface-500 hover:bg-navy-800 hover:text-white'
+          isActive ? 'bg-primary/20 text-primary font-medium' : 'text-white/70 hover:bg-sidebar-accent hover:text-white'
         )}
       >
-        <Table2 size={10} className="shrink-0 text-surface-600" />
+        <IconEntityIcebergTable size={10} className="shrink-0" />
         <span className="truncate">{entry.name}</span>
       </button>
     )
@@ -60,10 +61,10 @@ function IcebergEntryNode({
       <button
         onClick={() => setOpen((v) => !v)}
         style={{ paddingLeft: `${10 + depth * 12}px` }}
-        className="flex items-center gap-1.5 w-full pr-3 py-1.5 text-xs text-surface-300 hover:bg-navy-800 hover:text-white transition-colors"
+        className="flex items-center gap-1.5 w-full pr-3 py-1.5 text-xs text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
       >
-        {open ? <ChevronDown size={10} className="shrink-0" /> : <ChevronRight size={10} className="shrink-0" />}
-        <Folder size={10} className="shrink-0 text-amber-500" />
+        {open ? <IconCaretDown size={10} className="shrink-0 text-white/40" /> : <IconCaretRight size={10} className="shrink-0 text-white/40" />}
+        <IconEntityFolderBlue size={10} className="shrink-0" />
         <span className="truncate">{entry.name}</span>
       </button>
       {open && (

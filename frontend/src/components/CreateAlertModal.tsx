@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { X, Plus, Trash2, Save } from 'lucide-react'
+import { Save } from 'lucide-react'
+import { IconAdd, IconClose, IconDelete } from './icons'
 import clsx from 'clsx'
 import type {
   Alert, AlertType,
@@ -290,7 +291,7 @@ function DataQualityForm({
                 onClick={() => removeCheck(i)}
                 className="absolute top-2 right-2 text-gray-300 hover:text-red-400 transition-colors"
               >
-                <Trash2 size={12} />
+                <IconDelete size={12} />
               </button>
 
               {check.type === 'row_count_min' && (
@@ -561,7 +562,7 @@ export default function CreateAlertModal({ existing, onClose, onSaved }: Props) 
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
           <h2 className="font-semibold text-gray-800">{existing ? 'Edit Alert' : 'New Alert'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={18} />
+            <IconClose size={18} />
           </button>
         </div>
 

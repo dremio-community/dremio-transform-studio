@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Copy, Check } from 'lucide-react'
+import { IconCheck, IconCopy } from './icons'
 
 interface Props {
   sql: string
@@ -48,12 +48,12 @@ export default function SqlPreview({ sql }: Props) {
         >
           {copied ? (
             <>
-              <Check size={12} className="text-green-400" />
+              <IconCheck size={12} className="text-green-400" />
               <span className="text-green-400">Copied</span>
             </>
           ) : (
             <>
-              <Copy size={12} />
+              <IconCopy size={12} />
               Copy
             </>
           )}

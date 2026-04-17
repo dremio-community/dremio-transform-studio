@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { X, CheckCircle2, XCircle, Loader2, SkipForward, GitMerge, ChevronRight } from 'lucide-react'
+import { Loader2, SkipForward, GitMerge } from 'lucide-react'
+import { IconCaretRight, IconCheckCircle, IconClose, IconErrorCircle } from './icons'
 import type { DagExecuteResult, DagPipelineResult } from '../types'
 import { executeWithDeps } from '../api/client'
 
@@ -43,9 +44,9 @@ export default function DagRunModal({
   }
 
   const statusIcon = (r: DagPipelineResult) => {
-    if (r.skipped) return <SkipForward size={16} className="text-surface-400" />
-    if (r.success) return <CheckCircle2 size={16} className="text-emerald-400" />
-    return <XCircle size={16} className="text-red-400" />
+    if (r.skipped) return <SkipForward size={16} className="text-white/60" />
+    if (r.success) return <IconCheckCircle size={16} className="text-emerald-400" />
+    return <IconErrorCircle size={16} className="text-red-400" />
   }
 
   const resultFor = (name: string): DagPipelineResult | undefined =>
@@ -57,17 +58,17 @@ export default function DagRunModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-navy-800">
           <div className="flex items-center gap-2">
-            <GitMerge size={16} className="text-dblue-400" />
+            <GitMerge size={16} className="text-primary" />
             <h2 className="text-sm font-semibold text-white">Run with Dependencies</h2>
           </div>
-          <button onClick={onClose} className="text-surface-400 hover:text-white">
-            <X size={15} />
+          <button onClick={onClose} className="text-white/60 hover:text-white">
+            <IconClose size={15} />
           </button>
         </div>
 
         {/* Chain preview */}
         <div className="px-5 py-4 border-b border-navy-800">
-          <p className="text-xs text-surface-400 mb-3">
+          <p className="text-xs text-white/60 mb-3">
             Pipelines will run in order. If any step fails, subsequent steps are skipped.
           </p>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -76,7 +77,7 @@ export default function DagRunModal({
                 <div className={`flex items-center gap-2 px-2.5 py-1 rounded text-xs ${
                   name === pipelineName
                     ? 'bg-dblue-500 text-white font-semibold'
-                    : 'bg-navy-800 text-surface-300'
+                    : 'bg-navy-800 text-white/70'
                 }`}>
                   {result && (() => {
                     const r = resultFor(name)
@@ -87,7 +88,7 @@ export default function DagRunModal({
                   {name}
                 </div>
                 {i < chainNames.length - 1 && (
-                  <ChevronRight size={14} className="text-surface-600" />
+                  <IconCaretRight size={14} className="text-white/30" />
                 )}
               </React.Fragment>
             ))}
@@ -113,7 +114,7 @@ export default function DagRunModal({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white font-medium">{r.pipeline_name}</p>
                     {r.skipped && (
-                      <p className="text-xs text-surface-400 mt-0.5">Skipped — upstream failure</p>
+                      <p className="text-xs text-white/60 mt-0.5">Skipped — upstream failure</p>
                     )}
                     {!r.skipped && r.success && (
                       <p className="text-xs text-emerald-400 mt-0.5">
@@ -133,7 +134,7 @@ export default function DagRunModal({
             <div className="mt-4 pt-4 border-t border-navy-800 flex gap-4 text-xs">
               <span className="text-emerald-400">{result.succeeded} succeeded</span>
               {result.failed > 0 && <span className="text-red-400">{result.failed} failed</span>}
-              {result.skipped > 0 && <span className="text-surface-400">{result.skipped} skipped</span>}
+              {result.skipped > 0 && <span className="text-white/60">{result.skipped} skipped</span>}
             </div>
           </div>
         )}
@@ -148,7 +149,7 @@ export default function DagRunModal({
         <div className="px-5 py-4 border-t border-navy-800 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs text-surface-300 hover:text-white rounded border border-navy-700 hover:border-navy-600 transition-colors"
+            className="px-3 py-1.5 text-xs text-white/70 hover:text-white rounded border border-navy-700 hover:border-white/15 transition-colors"
           >
             {result ? 'Close' : 'Cancel'}
           </button>

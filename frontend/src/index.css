@@ -2,13 +2,159 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════
+   Dremio Design System — CSS Custom Properties
+   Mirrors theme.css from dremio-design-system.
+   Used for inline style={{ color: 'var(--primary)' }} references
+   and any vanilla CSS that can't use Tailwind classes.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Primary palette ─────────────────────────────────────── */
+  --grey-0:   #FFFFFF;
+  --grey-25:  #FBFBFB;
+  --grey-50:  #F6F7F8;
+  --grey-75:  #EEEFF1;
+  --grey-100: #E4E6E9;
+  --grey-150: #D2D6DA;
+  --grey-200: #B0B7BF;
+  --grey-300: #939DA7;
+  --grey-400: #7B8288;
+  --grey-500: #505862;
+  --grey-600: #454C52;
+  --grey-700: #32383E;
+  --grey-800: #202124;
+  --grey-900: #101214;
+
+  --primary-25:  #F1FAFB;
+  --primary-50:  #E9F5F9;
+  --primary-100: #C6E9EF;
+  --primary-150: #B4E3E9;
+  --primary-200: #8ED4DF;
+  --primary-250: #26C8D1;
+  --primary-300: #43B8C9;
+  --primary-400: #2E92A1;
+  --primary-450: #008489;
+  --primary-500: #206771;
+  --primary-600: #285056;
+  --primary-700: #14373C;
+  --primary-800: #0D2528;
+
+  --danger-50:  #FDEDED;
+  --danger-200: #FF7575;
+  --danger-300: #FF5252;
+  --danger-400: #CA3F32;
+  --danger-500: #AD3021;
+  --danger-700: #3B2626;
+
+  --warning-50:  #FFF4E5;
+  --warning-150: #FFB85D;
+  --warning-200: #FFA940;
+  --warning-900: #443728;
+
+  --success-50:  #EDF7ED;
+  --success-200: #8BD282;
+  --success-300: #5ABD4A;
+  --success-700: #293A2A;
+
+  --fyi-50:  #E9F5F9;
+  --fyi-300: #5AB3FF;
+  --fyi-400: #0684F9;
+  --fyi-700: #1C3146;
+
+  /* ── Semantic tokens ─────────────────────────────────────── */
+  --foreground:           var(--grey-800);
+  --secondary-foreground: var(--grey-500);
+  --muted-foreground:     var(--grey-200);
+  --foreground-on-dark:   var(--grey-0);
+  --accent:               var(--primary-450);
+  --accent-foreground:    var(--grey-0);
+
+  --card:                 var(--grey-0);
+  --card-foreground:      var(--grey-800);
+  --popover:              var(--grey-0);
+  --popover-foreground:   var(--grey-800);
+  --background:           var(--grey-50);
+  --background-hover:     var(--primary-25);
+  --selected:             var(--primary-50);
+  --selected-hover:       var(--primary-100);
+  --grey-hover:           var(--grey-75);
+  --tooltip:              var(--grey-700);
+  --tooltip-foreground:   var(--grey-0);
+  --background-chip:      var(--grey-50);
+
+  --destructive:          var(--danger-400);
+  --destructive-foreground: var(--grey-0);
+  --destructive-hover:    var(--danger-500);
+  --primary:              var(--primary-300);
+  --primary-foreground:   var(--grey-0);
+  --sidebar-primary:      var(--primary-400);
+  --sidebar-primary-foreground: var(--grey-0);
+  --secondary:            transparent;
+
+  --status-error:         var(--danger-400);
+  --status-warning:       var(--warning-200);
+  --status-success:       var(--success-300);
+  --status-info:          var(--fyi-400);
+  --status-error-bg:      var(--danger-50);
+  --status-warning-bg:    var(--warning-50);
+  --status-success-bg:    var(--success-50);
+  --status-info-bg:       var(--fyi-50);
+
+  --muted:                var(--grey-75);
+  --border:               var(--grey-150);
+  --border-hover:         var(--grey-200);
+  --ring:                 var(--primary-400);
+  --input:                var(--grey-0);
+  --input-background:     var(--grey-0);
+  --switch-background:    var(--grey-150);
+
+  --icon-default:         var(--grey-500);
+  --icon-disabled:        var(--grey-150);
+  --icon-on-dark:         var(--grey-0);
+  --icon-nav:             var(--grey-0);
+  --icon-hover:           var(--primary-450);
+
+  --sidebar:                    #2A394A;
+  --sidebar-foreground:         var(--grey-0);
+  --sidebar-accent:             #485767;
+  --sidebar-accent-foreground:  var(--grey-0);
+  --sidebar-border:             var(--grey-500);
+  --sidebar-ring:               var(--primary-400);
+
+  --nav-org-default: var(--grey-900);
+  --nav-org-hover:   var(--grey-700);
+
+  /* Shadows */
+  --elevation-sm:           0px 2px 4px rgba(16, 18, 20, 0.1);
+  --elevation-dropdown:     4px 4px 16px 0px rgba(16, 18, 20, 0.1);
+  --elevation-header:       0px 1px 8px 0px rgba(16, 18, 20, 0.1);
+  --elevation-footer:       0px -1px 8px 0px rgba(16, 18, 20, 0.1);
+
+  /* Syntax highlighting */
+  --syntax-keyword:  #0059BA;
+  --syntax-datatype: #850D8F;
+  --syntax-string:   #077D82;
+  --syntax-number:   #4E50AF;
+  --syntax-function: #BE4C20;
+  --syntax-comment:  #8C6B1E;
+  --syntax-null:     #CF2D75;
+
+  /* Border radius */
+  --radius:        8px;
+  --radius-button: 4px;
+  --radius-card:   8px;
+}
+
+/* ── Base styles ──────────────────────────────────────────────── */
 @layer base {
   html, body, #root {
     height: 100%;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 
   * {
@@ -16,7 +162,7 @@
   }
 }
 
-/* Transform card — clamp description to 2 lines, expand on hover */
+/* ── Transform card expand-on-hover ──────────────────────────── */
 .transform-card .transform-desc {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -30,10 +176,11 @@
   overflow: visible;
 }
 
+/* ── Thin scrollbar ──────────────────────────────────────────── */
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #d1d5db transparent;
+    scrollbar-color: #D2D6DA transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
@@ -43,7 +190,7 @@
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: #d1d5db;
+    background-color: #D2D6DA;
     border-radius: 3px;
   }
 }

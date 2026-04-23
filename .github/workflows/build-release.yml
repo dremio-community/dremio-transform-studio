@@ -9,6 +9,11 @@ on:
     tags:
       - 'v*'
 
+# Workflow-level permission ensures GITHUB_TOKEN can attach files to releases
+# even in org repos where the default token is read-only.
+permissions:
+  contents: write
+
 jobs:
 
   # ────────────────────────────────────────────────────────────

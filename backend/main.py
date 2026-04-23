@@ -3295,6 +3295,22 @@ async def mcp_messages(
     return {"ok": True}
 
 
+@app.get("/api/mcp-config", tags=["system"], summary="Return Claude Desktop MCP configuration for this server instance")
+async def get_mcp_config(request: Request):
+    """Returns the JSON snippet to paste into claude_desktop_config.json, using the actual host/port this server is running on."""
+    base = str(request.base_url).rstrip("/")
+    sse_url = f"{base}/mcp/sse"
+    config = {
+        "mcpServers": {
+            "transform-studio": {
+                "url": sse_url,
+                "transport": "sse"
+            }
+        }
+    }
+    return config
+
+
 # ── Audit Log ─────────────────────────────────────────────────────────────────
 
 @app.get("/api/audit-log", tags=["audit"])

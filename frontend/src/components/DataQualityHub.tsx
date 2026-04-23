@@ -1,7 +1,7 @@
 import { useState, useCallback, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ShieldCheck, LayoutDashboard, Monitor, History, BookOpen, Loader2, Clock, BarChart2, CheckSquare, Bell, BellOff, ToggleLeft, ToggleRight } from 'lucide-react'
-import { IconAdd, IconCaretDown, IconCaretLeft, IconCaretRight, IconCheckCircle, IconClose, IconDatasetRun, IconDelete, IconEdit, IconEntityNamespace, IconErrorCircle, IconSearch, IconWarning } from './icons'
+import { ArrowLeft, ShieldCheck, LayoutDashboard, Monitor, History, BookOpen, Loader2, Clock, BarChart2, Bell, BellOff, ToggleLeft, ToggleRight } from 'lucide-react'
+import { IconAdd, IconCaretDown, IconCaretLeft, IconCaretRight, IconCheckCircle, IconClose, IconDatasetRun, IconDelete, IconEdit, IconEntityFolderBlue, IconEntityNamespace, IconEntityTable, IconErrorCircle, IconSearch, IconWarning } from './icons'
 import clsx from 'clsx'
 import type { DQMonitor, DQRule, DQScanResult, DQRuleResult } from '../api/client'
 import type { ColumnSchema, CatalogEntry } from '../types'
@@ -159,7 +159,6 @@ function StatusBadge({ status }: { status: string }) {
 // ── Catalog tree picker ───────────────────────────────────────────────────────
 
 function CatalogTreePicker({ onSelect }: { onSelect: (table: string) => void }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [searchTerm, setSearchTerm] = useState('')
 
   const { data: namespaces = [], isLoading: nsLoading } = useQuery({
@@ -167,15 +166,6 @@ function CatalogTreePicker({ onSelect }: { onSelect: (table: string) => void }) 
     queryFn: fetchNamespaces,
     staleTime: 60_000,
   })
-
-  const toggleNs = (ns: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (next.has(ns)) next.delete(ns)
-      else next.add(ns)
-      return next
-    })
-  }
 
   const filteredNs = searchTerm
     ? namespaces.filter(ns => ns.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -201,7 +191,7 @@ function CatalogTreePicker({ onSelect }: { onSelect: (table: string) => void }) 
           <div className="text-xs text-white/55 italic p-2">No namespaces found</div>
         ) : (
           filteredNs.map(ns => (
-            <NamespaceRow key={ns} ns={ns} expanded={expanded.has(ns)} onToggle={() => toggleNs(ns)} onSelect={onSelect} />
+            <CatalogNode key={ns} name={ns} path={ns} isNamespace onSelect={onSelect} depth={0} />
           ))
         )}
       </div>
@@ -209,41 +199,65 @@ function CatalogTreePicker({ onSelect }: { onSelect: (table: string) => void }) 
   )
 }
 
-function NamespaceRow({
-  ns, expanded, onToggle, onSelect,
-}: { ns: string; expanded: boolean; onToggle: () => void; onSelect: (t: string) => void }) {
-  const { data: tables = [], isLoading } = useQuery({
-    queryKey: ['catalog-tables-dq', ns],
-    queryFn: () => fetchTables(ns),
-    enabled: expanded,
+function CatalogNode({
+  name, path, isNamespace, type, onSelect, depth,
+}: {
+  name: string
+  path: string
+  isNamespace?: boolean
+  type?: 'DATASET' | 'CONTAINER'
+  onSelect: (t: string) => void
+  depth: number
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const isContainer = isNamespace || type === 'CONTAINER'
+
+  const { data: children = [], isLoading } = useQuery({
+    queryKey: ['catalog-children-dq', path],
+    queryFn: () => fetchTables(path),
+    enabled: expanded && isContainer,
     staleTime: 60_000,
   })
+
+  if (!isContainer) {
+    return (
+      <button
+        onClick={() => onSelect(path)}
+        className="w-full flex items-center gap-1.5 px-2 py-1 rounded hover:bg-dblue-500/20 hover:text-primary text-left transition-colors"
+      >
+        <IconEntityTable size={11} className="text-white/50 shrink-0" />
+        <span className="text-xs text-white/70 truncate">{name}</span>
+      </button>
+    )
+  }
 
   return (
     <div>
       <button
-        onClick={onToggle}
+        onClick={() => setExpanded(e => !e)}
         className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-navy-800/60 text-left transition-colors"
       >
         {expanded ? <IconCaretDown size={11} className="text-white/60 shrink-0" /> : <IconCaretRight size={11} className="text-white/60 shrink-0" />}
-        <IconEntityNamespace size={11} className="text-primary shrink-0" />
-        <span className="text-xs text-white truncate">{ns}</span>
+        {isNamespace
+          ? <IconEntityNamespace size={11} className="text-primary shrink-0" />
+          : <IconEntityFolderBlue size={11} className="shrink-0" />}
+        <span className="text-xs text-white truncate">{name}</span>
         {isLoading && <Loader2 size={10} className="animate-spin text-white/40 ml-auto" />}
       </button>
       {expanded && !isLoading && (
         <div className="ml-5 border-l border-navy-800/60 pl-1 space-y-0.5">
-          {tables.length === 0 ? (
-            <div className="text-xs text-white/55 italic px-2 py-1">No tables</div>
+          {children.length === 0 ? (
+            <div className="text-xs text-white/55 italic px-2 py-1">Empty</div>
           ) : (
-            tables.map((t: CatalogEntry) => (
-              <button
-                key={t.name}
-                onClick={() => onSelect(`${ns}.${t.name}`)}
-                className="w-full flex items-center gap-1.5 px-2 py-1 rounded hover:bg-dblue-500/20 hover:text-primary text-left transition-colors"
-              >
-                <CheckSquare size={10} className="text-white/40 shrink-0" />
-                <span className="text-xs text-white/70 truncate">{t.name}</span>
-              </button>
+            children.map((child: CatalogEntry) => (
+              <CatalogNode
+                key={child.name}
+                name={child.name}
+                path={`${path}.${child.name}`}
+                type={child.type}
+                onSelect={onSelect}
+                depth={depth + 1}
+              />
             ))
           )}
         </div>
@@ -465,7 +479,7 @@ function MonitorWizard({ monitor, rules, onSave, onClose, saving }: MonitorWizar
                       return (
                         <div key={i} className="px-3 py-2 bg-white/8 border border-white/12 rounded-lg">
                           <div className="flex items-center gap-1.5 mb-1">
-                            <CheckSquare size={11} className="text-primary shrink-0" />
+                            <IconEntityTable size={11} className="text-primary shrink-0" />
                             <span className="text-xs text-white font-medium flex-1 truncate">{ruleDef?.name ?? sr.rule_id}</span>
                             <button onClick={() => removeRule(i)} className="p-0.5 text-white/40 hover:text-red-400 transition-colors">
                               <IconClose size={11} />
@@ -1234,7 +1248,7 @@ function MonitorDetailSection({
                     <div key={i} className="flex items-center gap-2 px-2 py-1.5 bg-navy-800/40 rounded">
                       {latestResult
                         ? <RuleStatusIcon status={latestResult.status} />
-                        : <CheckSquare size={11} className="text-white/40" />
+                        : <IconEntityTable size={11} className="text-white/40" />
                       }
                       <span className="text-xs text-white flex-1 truncate">{ruleDef?.name ?? cr.rule_id}</span>
                       {latestResult && (

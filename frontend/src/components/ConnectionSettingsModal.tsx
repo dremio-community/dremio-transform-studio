@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Wifi, Bell, HardDrive, Upload, Shield, Users, Lock, Unlock, KeyRound } from 'lucide-react'
+import { Loader2, Wifi, Bell, HardDrive, Upload, Shield, Users, Lock, Unlock, KeyRound, Plug, Copy, Check } from 'lucide-react'
 import { IconAdd, IconCaretDown, IconCaretUp, IconCheckCircle, IconClose, IconDatasetDownload, IconDelete, IconErrorCircle } from './icons'
 import clsx from 'clsx'
 import {
@@ -30,7 +30,7 @@ interface Props {
   onSaved?: () => void
 }
 
-type ModalTab = 'connection' | 'notifications' | 'storage' | 'security' | 'sso'
+type ModalTab = 'connection' | 'notifications' | 'storage' | 'security' | 'sso' | 'mcp'
 
 const CLOUD_HOSTS = [
   { label: 'Dremio Cloud (US)', value: 'api.dremio.cloud' },
@@ -314,6 +314,17 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
             )}
           >
             <KeyRound size={13} /> SSO
+          </button>
+          <button
+            onClick={() => setActiveTab('mcp')}
+            className={clsx(
+              'flex items-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+              activeTab === 'mcp'
+                ? 'text-dblue-600 border-dblue-500'
+                : 'text-gray-400 border-transparent hover:text-gray-600'
+            )}
+          >
+            <Plug size={13} /> MCP
           </button>
         </div>
 
@@ -1187,6 +1198,65 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
         </div>
         )}
 
+        {/* ── MCP Tab ── */}
+        {activeTab === 'mcp' && <McpTab />}
+
+      </div>
+    </div>
+  )
+}
+
+function McpTab() {
+  const [config, setConfig] = useState<string>('')
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/mcp-config')
+      .then(r => r.json())
+      .then(data => setConfig(JSON.stringify(data, null, 2)))
+      .catch(() => setConfig('{ "error": "Could not load config" }'))
+  }, [])
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(config)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="p-6 space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold text-gray-800 mb-1">MCP Server — Claude Desktop Integration</h3>
+        <p className="text-xs text-gray-500">
+          Transform Studio exposes an MCP server at <code className="bg-gray-100 px-1 rounded">/mcp/sse</code>. Paste the config below into your <code className="bg-gray-100 px-1 rounded">claude_desktop_config.json</code> to connect Claude Desktop to this instance.
+        </p>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">claude_desktop_config.json snippet</span>
+          <button
+            onClick={handleCopy}
+            className="flex items-center gap-1.5 text-xs text-dblue-600 hover:text-dblue-700 font-medium transition-colors"
+          >
+            {copied ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+          </button>
+        </div>
+        <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono text-gray-700 overflow-x-auto whitespace-pre">
+          {config || 'Loading…'}
+        </pre>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1.5">
+        <p className="text-xs font-semibold text-blue-800">Where to find claude_desktop_config.json</p>
+        <p className="text-xs text-blue-700"><span className="font-medium">Mac:</span> ~/Library/Application Support/Claude/claude_desktop_config.json</p>
+        <p className="text-xs text-blue-700"><span className="font-medium">Windows:</span> %APPDATA%\Claude\claude_desktop_config.json</p>
+        <p className="text-xs text-blue-600 mt-1">After saving the file, restart Claude Desktop for changes to take effect.</p>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <p className="text-xs font-semibold text-amber-800 mb-1">Desktop app note</p>
+        <p className="text-xs text-amber-700">The desktop app picks a free port on startup (8000, 8001, …). The URL above reflects the <strong>current</strong> port — if you restart the app and the port changes, come back here to get the updated config.</p>
       </div>
     </div>
   )

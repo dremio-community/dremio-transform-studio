@@ -2161,7 +2161,7 @@ export default function App() {
       })()}
 
       {showAddCatalog && <AddCatalogModal onClose={() => { setShowAddCatalog(false); setSidebarTab('iceberg') }} />}
-      {showConnectionSettings && <ConnectionSettingsModal onClose={() => setShowConnectionSettings(false)} onSaved={() => setCatalogKey(k => k + 1)} />}
+      {showConnectionSettings && <ConnectionSettingsModal onClose={() => setShowConnectionSettings(false)} onSaved={() => { qc.removeQueries({ queryKey: ['namespaces'] }); qc.removeQueries({ queryKey: ['tables'] }); setCatalogKey(k => k + 1) }} />}
       {showSchedule && activePipelineId && (
         <ScheduleModal
           pipelineId={activePipelineId}

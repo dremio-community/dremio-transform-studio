@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { v4 as uuidv4 } from 'uuid'
-import { Save, Zap, Code2, Loader2, Layers, CalendarClock, Upload, Power, BarChart2, Clock, User, LogOut, Users, Bell, GitBranch, GitMerge, FlaskConical, Sprout, FileText, Activity, GitPullRequest, SlidersHorizontal, Link, Radio, ShieldCheck, Share2, KeyRound, Package, LayoutTemplate, ScrollText } from 'lucide-react'
+import { Save, Zap, Code2, Loader2, Layers, CalendarClock, Upload, Power, BarChart2, Clock, User, LogOut, Users, Bell, GitBranch, GitMerge, FlaskConical, Sprout, FileText, Activity, GitPullRequest, SlidersHorizontal, Link, Radio, ShieldCheck, Share2, KeyRound, Package, LayoutTemplate, ScrollText, Bot } from 'lucide-react'
 import { IconAdd, IconCheckCircle, IconClose, IconCopy, IconDatasetDownload, IconDatasetRun, IconDelete, IconEdit, IconEntityNamespace, IconErrorCircle, IconRefresh, IconSearch, IconSettings } from './components/icons'
 import clsx from 'clsx'
 import { Button } from './components/ui/button'
@@ -51,6 +51,8 @@ import CustomSqlEditor from './components/CustomSqlEditor'
 import AlertsPage from './components/AlertsPage'
 import AuditLogPage from './components/AuditLogPage'
 import DataQualityHub from './components/DataQualityHub'
+import IngestionHub from './components/IngestionHub'
+import AgentPanel from './components/AgentPanel'
 import DataProfilePanel from './components/DataProfilePanel'
 import IcebergCatalogBrowser from './components/IcebergCatalogBrowser'
 import PipelineBuilder from './components/PipelineBuilder'
@@ -161,6 +163,7 @@ export default function App() {
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('dremio')
   const [showAddCatalog, setShowAddCatalog] = useState(false)
   const [showConnectionSettings, setShowConnectionSettings] = useState(false)
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'connection' | 'notifications' | 'storage' | 'security' | 'sso' | 'mcp' | 'agent'>('connection')
   const [catalogKey, setCatalogKey] = useState(0)
   const [showSchedule, setShowSchedule] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -174,6 +177,8 @@ export default function App() {
   const [showAlerts, setShowAlerts] = useState(false)
   const [showDashboard, setShowDashboard] = useState(false)
   const [showDqHub, setShowDqHub] = useState(false)
+  const [showIngestionHub, setShowIngestionHub] = useState(false)
+  const [showAgentPanel, setShowAgentPanel] = useState(false)
   const [showDupeNameWarning, setShowDupeNameWarning] = useState(false)
 
   // ── Folders & tags state ──────────────────────────────────────────────────
@@ -883,6 +888,24 @@ export default function App() {
 
         {isLoading && <Loader2 size={14} className="animate-spin text-primary" />}
 
+        <Tooltip text="Ingestion Hub">
+          <button
+            onClick={() => setShowIngestionHub(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dblue-500/20 hover:bg-dblue-500/40 text-primary hover:text-white border border-dblue-500/40 hover:border-dblue-500/70 transition-all font-semibold text-xs"
+          >
+            <Zap size={15} />
+            Ingest
+          </button>
+        </Tooltip>
+        <Tooltip text="AI Agent">
+          <button
+            onClick={() => setShowAgentPanel(p => !p)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all font-semibold text-xs ${showAgentPanel ? 'bg-dblue-500 text-white border-dblue-500' : 'bg-dblue-500/20 hover:bg-dblue-500/40 text-primary hover:text-white border-dblue-500/40 hover:border-dblue-500/70'}`}
+          >
+            <Bot size={15} />
+            Agent
+          </button>
+        </Tooltip>
         <Tooltip text="Data Quality Hub">
           <button
             onClick={() => setShowDqHub(true)}
@@ -1966,7 +1989,31 @@ export default function App() {
       {/* Alerts page — full-page overlay */}
       {showAlerts && <AlertsPage onClose={() => setShowAlerts(false)} />}
       {showDqHub && <DataQualityHub onClose={() => setShowDqHub(false)} />}
+      {showIngestionHub && <IngestionHub onClose={() => setShowIngestionHub(false)} />}
       {showAuditLog && <AuditLogPage onClose={() => setShowAuditLog(false)} />}
+      {showAgentPanel && (
+        <AgentPanel
+          onClose={() => setShowAgentPanel(false)}
+          onOpenSettings={() => { setSettingsInitialTab('agent'); setShowConnectionSettings(true) }}
+          pipelineState={{
+            source_table: localSourceTable,
+            output_table: localOutputTable,
+            steps: localSteps.map(s => ({ id: s.id, type: s.transform_type, label: s.label, config: s.config })),
+          }}
+          onPipelineStateChange={(state) => {
+            if (state.source_table !== undefined) setLocalSourceTable(state.source_table)
+            if (state.output_table !== undefined) setLocalOutputTable(state.output_table)
+            if (state.steps) {
+              setLocalSteps(state.steps.map((s, i) => ({
+                id: s.id || `agent-step-${i}`,
+                transform_type: s.type || '',
+                label: s.label || s.type || '',
+                config: s.config || {},
+              })))
+            }
+          }}
+        />
+      )}
 
       {/* Share modal */}
       {shareModalPipelineId && (() => {
@@ -2161,7 +2208,7 @@ export default function App() {
       })()}
 
       {showAddCatalog && <AddCatalogModal onClose={() => { setShowAddCatalog(false); setSidebarTab('iceberg') }} />}
-      {showConnectionSettings && <ConnectionSettingsModal onClose={() => setShowConnectionSettings(false)} onSaved={() => { qc.removeQueries({ queryKey: ['namespaces'] }); qc.removeQueries({ queryKey: ['tables'] }); setCatalogKey(k => k + 1) }} />}
+      {showConnectionSettings && <ConnectionSettingsModal onClose={() => { setShowConnectionSettings(false); setSettingsInitialTab('connection') }} onSaved={() => { qc.removeQueries({ queryKey: ['namespaces'] }); qc.removeQueries({ queryKey: ['tables'] }); setCatalogKey(k => k + 1) }} initialTab={settingsInitialTab} />}
       {showSchedule && activePipelineId && (
         <ScheduleModal
           pipelineId={activePipelineId}

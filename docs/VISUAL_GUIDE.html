@@ -139,8 +139,10 @@
   <a class="toc-item" href="#templates"><span class="toc-num">19</span> Templates</a>
   <a class="toc-item" href="#dbt"><span class="toc-num">20</span> dbt Compatibility</a>
   <a class="toc-item" href="#seed"><span class="toc-num">21</span> Seed from CSV</a>
-  <a class="toc-item" href="#settings"><span class="toc-num">22</span> Settings</a>
-  <a class="toc-item" href="#stopping"><span class="toc-num">23</span> Stopping the App</a>
+  <a class="toc-item" href="#ingestion"><span class="toc-num">22</span> Ingestion Hub</a>
+  <a class="toc-item" href="#agent"><span class="toc-num">23</span> AI Agent</a>
+  <a class="toc-item" href="#settings"><span class="toc-num">24</span> Settings</a>
+  <a class="toc-item" href="#stopping"><span class="toc-num">25</span> Stopping the App</a>
   <a class="toc-item" href="#tips"><span class="toc-num">✦</span> Pro Tips</a>
 </nav>
 
@@ -658,11 +660,104 @@
     </div>
   </section>
 
-  <!-- 22 SETTINGS -->
-  <section class="section" id="settings">
+  <!-- 22 INGESTION HUB -->
+  <section class="section" id="ingestion">
     <div class="section-header">
       <div class="step-badge">22</div>
-      <div><h2>Settings</h2><p>Five tabs covering connection, notifications, storage, security, and SSO.</p></div>
+      <div><h2>Ingestion Hub</h2><p>Continuous ingestion from cloud storage into Iceberg tables using Dremio PIPE — no manual scheduling needed.</p></div>
+    </div>
+    <div class="callout callout-info">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body"><strong>Dremio Enterprise &amp; Cloud only:</strong> CREATE PIPE is a feature of Dremio Enterprise Software and Dremio Cloud. It is not available in Dremio OSS.</div>
+    </div>
+    <p style="margin-bottom:20px;">The Ingestion Hub manages <strong>Dremio Pipes</strong> — persistent, auto-triggered ingestion jobs that watch an S3 (or compatible) location and continuously COPY new files into a target Iceberg table. New files landing in the source path are detected via AWS SQS notifications and ingested automatically, with deduplication.</p>
+    <div class="two-col">
+      <div class="feature-card">
+        <div class="icon">🪣</div>
+        <h4>Create a Pipe</h4>
+        <p>Fill in <strong>Pipe Name</strong>, <strong>Dremio Source Name</strong> (the Dremio source object, e.g. <code>my_s3_source</code>), <strong>Folder Path</strong> within that source, and the <strong>Target Table</strong> (must be an existing Iceberg table). Select <strong>AWS SQS</strong> as the notification provider and paste the <strong>SQS Queue ARN</strong> that receives S3 event notifications.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">⚙️</div>
+        <h4>Pipe Options</h4>
+        <p>Choose the <strong>File Format</strong> (Parquet, JSON, CSV, Avro, ORC) and set the <strong>Dedup Lookback Period</strong> (0–90 days, default 14). The lookback window prevents re-ingesting files that were already processed within that window.</p>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="feature-card">
+        <div class="icon">▶️</div>
+        <h4>Manage Pipes</h4>
+        <p>Each pipe card shows the source path and target table. Use the <strong>Pause / Resume</strong> toggle to temporarily halt ingestion without deleting the pipe, <strong>Trigger</strong> to force an immediate run, and <strong>Delete</strong> to remove the pipe from Dremio entirely.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔗</div>
+        <h4>S3 → SQS Setup</h4>
+        <p>In AWS, configure your S3 bucket to publish <strong>s3:ObjectCreated:*</strong> events to an SQS queue. Grant Dremio permission to read from that queue. Paste the queue ARN (<code>arn:aws:sqs:…</code>) into the form — Dremio polls it for new-file notifications.</p>
+      </div>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Field</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Dremio Source Name</strong></td><td>The name of the source as it appears in Dremio (e.g. <code>my_s3_source</code>). Used in the <code>FROM '@source_name/path'</code> clause.</td></tr>
+        <tr><td><strong>Folder Path</strong></td><td>Path within the source to watch, starting with <code>/</code> (e.g. <code>/raw/orders/</code>).</td></tr>
+        <tr><td><strong>Target Table</strong></td><td>Fully-qualified Iceberg table to append into (e.g. <code>my_catalog.schema.orders</code>).</td></tr>
+        <tr><td><strong>Notification Provider</strong></td><td>Currently AWS SQS. Required by Dremio for event-driven ingestion.</td></tr>
+        <tr><td><strong>SQS Queue ARN</strong></td><td>The ARN of the SQS queue receiving S3 event notifications.</td></tr>
+        <tr><td><strong>Dedup Lookback</strong></td><td>Days to look back when deduplicating file names (0 = no dedup, max 90).</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 23 AI AGENT -->
+  <section class="section" id="agent">
+    <div class="section-header">
+      <div class="step-badge">23</div>
+      <div><h2>AI Agent</h2><p>Conversational assistant that reads your catalog, builds pipelines, and explains data — all via natural language.</p></div>
+    </div>
+    <p style="margin-bottom:20px;">The AI Agent is a fixed right-sidebar chat panel powered by your choice of <strong>Anthropic Claude</strong>, an <strong>OpenAI-compatible endpoint</strong>, or a local <strong>Ollama</strong> model. It has direct access to 8 built-in tools — catalog browsing, schema inspection, pipeline CRUD, SQL preview and execution, and more — so it can take real actions, not just suggest them.</p>
+    <div class="two-col">
+      <div class="feature-card">
+        <div class="icon">⚙️</div>
+        <h4>Enable the Agent</h4>
+        <p>Open <strong>Settings → Agent</strong>, toggle <em>Enable Agent</em> on, choose your provider (Anthropic / OpenAI / Ollama), enter your API key, and optionally change the model. The default is <code>claude-sonnet-4-6</code> for Anthropic. Save — the Agent toolbar button lights up.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">💬</div>
+        <h4>Chat Panel</h4>
+        <p>Click the <strong>Agent</strong> button in the toolbar (top right) to open the 420px sidebar. Type a question or instruction and press Enter. Responses stream in real-time. Tool calls are shown in collapsible accordions so you can see exactly what the agent queried or changed.</p>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="feature-card">
+        <div class="icon">🛠️</div>
+        <h4>Built-in Tools</h4>
+        <p>The agent can <strong>browse the catalog</strong>, <strong>inspect table schemas</strong>, <strong>list transforms</strong>, <strong>get/create/update/delete pipelines</strong>, <strong>preview SQL</strong>, and <strong>execute pipelines</strong> — all from conversation. It reads your current pipeline state and can write changes back.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔄</div>
+        <h4>Pipeline State Sync</h4>
+        <p>The agent is wired to the live pipeline state. If you ask it to "add a filter for active customers", it updates the step list in the builder in real time. Conversely, changes you make in the UI are visible to the agent on its next tool call.</p>
+      </div>
+    </div>
+    <table class="data-table">
+      <thead><tr><th>Provider</th><th>Models</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Anthropic</strong></td><td>claude-sonnet-4-6, claude-opus-4-7, claude-haiku-4-5</td><td>Default. Best tool-use accuracy. Requires Anthropic API key.</td></tr>
+        <tr><td><strong>OpenAI</strong></td><td>gpt-4o, gpt-4o-mini, or any compatible model</td><td>Also works with Azure OpenAI and other OpenAI-compatible APIs.</td></tr>
+        <tr><td><strong>Ollama</strong></td><td>Any locally-installed model (e.g. llama3, mistral)</td><td>100% local — no API key. Point to your Ollama base URL.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout callout-tip">
+      <div class="callout-icon">✅</div>
+      <div class="callout-body"><strong>Example prompts:</strong> "What tables are in the iceberg_minio source?", "Create a pipeline that filters orders to the last 30 days and writes to a new view", "Show me the schema for the employees table and add a column that extracts the year from start_date".</div>
+    </div>
+  </section>
+
+  <!-- 24 SETTINGS -->
+  <section class="section" id="settings">
+    <div class="section-header">
+      <div class="step-badge">24</div>
+      <div><h2>Settings</h2><p>Seven tabs covering connection, notifications, storage, security, SSO, MCP server, and AI Agent.</p></div>
     </div>
     <div class="two-col">
       <div class="screenshot-wrap">
@@ -692,14 +787,16 @@
         <tr><td><strong>Storage</strong></td><td>SQLite DB path, Download Backup, Restore from Backup.</td></tr>
         <tr><td><strong>Security</strong></td><td>Toggle auth on/off live, see role descriptions and sharing rules.</td></tr>
         <tr><td><strong>SSO</strong></td><td>Add OIDC providers (Okta, Azure AD, Google Workspace, custom).</td></tr>
+        <tr><td><strong>MCP</strong></td><td>Enable/disable the built-in MCP server, view the SSE endpoint URL and the 22 available tools.</td></tr>
+        <tr><td><strong>Agent</strong></td><td>Enable the AI Agent, choose provider (Anthropic / OpenAI / Ollama), enter API key, select model.</td></tr>
       </tbody>
     </table>
   </section>
 
-  <!-- 23 STOPPING THE APP -->
+  <!-- 25 STOPPING THE APP -->
   <section class="section" id="stopping">
     <div class="section-header">
-      <div class="step-badge">23</div>
+      <div class="step-badge">25</div>
       <div><h2>Stopping the App</h2><p>The desktop installer includes a dedicated Quit button in the toolbar.</p></div>
     </div>
     <p>When running the <strong>desktop app</strong> (Mac .dmg or Windows .exe), the toolbar shows a <strong style="color:#f87171;">⏻ Quit</strong> button — the red power icon at the far right. Click it to gracefully shut down the embedded server and close the application.</p>
@@ -730,7 +827,7 @@
       <div class="feature-card"><div class="icon">💾</div><h4>Backup &amp; Restore</h4><p><strong>Settings → Storage → Download Backup</strong> saves your full SQLite database. Use Restore to migrate between machines or recover from issues.</p></div>
     </div>
     <div style="margin-top:48px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 13px;">
-      <p>Dremio Transform Studio &nbsp;·&nbsp; v1.10 &nbsp;·&nbsp; <a href="https://github.com/dremio-community/dremio-transform-studio" style="color: var(--blue-light);">github.com/dremio-community/dremio-transform-studio</a></p>
+      <p>Dremio Transform Studio &nbsp;·&nbsp; v1.12 &nbsp;·&nbsp; <a href="https://github.com/dremio-community/dremio-transform-studio" style="color: var(--blue-light);">github.com/dremio-community/dremio-transform-studio</a></p>
     </div>
   </section>
 

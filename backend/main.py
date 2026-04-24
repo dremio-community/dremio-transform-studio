@@ -16,7 +16,7 @@ import shutil
 import tempfile
 
 import uuid as _uuid_mod
-from fastapi import FastAPI, HTTPException, Query, Depends, UploadFile, File, Form, Request
+from fastapi import FastAPI, HTTPException, Query, Depends, UploadFile, File, Form, Request, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel
@@ -3309,6 +3309,269 @@ async def get_mcp_config(request: Request):
         }
     }
     return config
+
+
+# ── Ingestion Hub ─────────────────────────────────────────────────────────────
+
+def _quote_ingestion_table(table_name: str) -> str:
+    """Quote each segment of a dot-separated table path."""
+    return ".".join(f'"{p}"' for p in table_name.split("."))
+
+
+def _build_copy_into_sql(source_path: str, target_table: str, file_format: str, options: dict) -> str:
+    quoted = _quote_ingestion_table(target_table)
+    sql = f"COPY INTO {quoted}\nFROM '{source_path}'\nFILE_FORMAT '{file_format.upper()}'"
+    opts = []
+    if options.get("on_error"):
+        opts.append(f"ON_ERROR '{options['on_error'].upper()}'")
+    if opts:
+        sql += "\n(" + ", ".join(opts) + ")"
+    return sql
+
+
+@app.get("/api/ingestion/jobs", tags=["ingestion"])
+async def list_ingestion_jobs(current_user: dict = Depends(get_current_user)):
+    return await store.list_ingestion_jobs()
+
+
+@app.delete("/api/ingestion/jobs/{job_id}", status_code=204, response_model=None, tags=["ingestion"])
+async def delete_ingestion_job(job_id: str, current_user: dict = Depends(get_current_user)):
+    if not await store.delete_ingestion_job(job_id):
+        raise HTTPException(status_code=404, detail="Job not found")
+
+
+@app.post("/api/ingestion/jobs", tags=["ingestion"])
+async def run_copy_into(body: dict = Body(...), current_user: dict = Depends(get_current_user)):
+    """Run a COPY INTO ingestion job immediately."""
+    source_path = body.get("source_path", "").strip()
+    target_table = body.get("target_table", "").strip()
+    file_format = body.get("file_format", "PARQUET").upper()
+    name = body.get("name") or f"Copy {target_table.split('.')[-1]}"
+    options = body.get("options", {})
+
+    if not source_path or not target_table:
+        raise HTTPException(status_code=400, detail="source_path and target_table are required")
+
+    job = await store.create_ingestion_job({
+        "name": name, "source_path": source_path, "target_table": target_table,
+        "file_format": file_format, "options_json": str(options),
+    })
+
+    sql = _build_copy_into_sql(source_path, target_table, file_format, options)
+    try:
+        from dremio_client import dremio_client as dc
+        rows = await dc.run_query(sql)
+        inserted = 0
+        skipped = 0
+        for r in rows:
+            row_dict = dict(r) if not isinstance(r, dict) else r
+            inserted += int(row_dict.get("records_loaded", row_dict.get("rows_loaded", row_dict.get("num_records_inserted", 0))) or 0)
+            skipped += int(row_dict.get("records_rejected", row_dict.get("rows_rejected", row_dict.get("num_records_rejected", 0))) or 0)
+        return await store.finish_ingestion_job(job["id"], "success", inserted, skipped)
+    except Exception as e:
+        return await store.finish_ingestion_job(job["id"], "failed", error=str(e))
+
+
+@app.get("/api/ingestion/pipes", tags=["ingestion"])
+async def list_ingestion_pipes(current_user: dict = Depends(get_current_user)):
+    return await store.list_ingestion_pipes()
+
+
+@app.post("/api/ingestion/pipes", status_code=201, tags=["ingestion"])
+async def create_ingestion_pipe(body: dict = Body(...), current_user: dict = Depends(get_current_user)):
+    """Create a Dremio autoingest PIPE (Dremio Enterprise and Cloud, Iceberg tables only).
+
+    Required: name, source_location (Dremio source name, e.g. 's3_source'),
+              source_path (folder within source, e.g. '/incoming/orders/'),
+              target_table, notification_provider (e.g. 'AWS_SQS'),
+              notification_queue_reference (e.g. SQS ARN).
+    Optional: file_format (default PARQUET), dedup_lookback_period (0-90 days, default 14).
+    """
+    name = body.get("name", "").strip()
+    source_location = body.get("source_location", "").strip()
+    source_path = body.get("source_path", "").strip()
+    target_table = body.get("target_table", "").strip()
+    file_format = body.get("file_format", "PARQUET").upper()
+    dedup = int(body.get("dedup_lookback_period", 14))
+    notification_provider = body.get("notification_provider", "").strip().upper()
+    notification_queue_ref = body.get("notification_queue_reference", "").strip()
+
+    if not name or not source_location or not target_table:
+        raise HTTPException(status_code=400, detail="name, source_location and target_table are required")
+    if not notification_provider or not notification_queue_ref:
+        raise HTTPException(status_code=400, detail="notification_provider and notification_queue_reference are required")
+
+    quoted = _quote_ingestion_table(target_table)
+    # source_path is appended to @source_location; omit trailing slash from location
+    from_clause = f"'@{source_location}{source_path}'"
+    copy_sql = f"COPY INTO {quoted}\n    FROM {from_clause}\n    FILE_FORMAT '{file_format}'"
+    sql = (
+        f"CREATE PIPE {name}\n"
+        f"  DEDUPE_LOOKBACK_PERIOD {dedup}\n"
+        f"  NOTIFICATION_PROVIDER {notification_provider}\n"
+        f"  NOTIFICATION_QUEUE_REFERENCE \"{notification_queue_ref}\"\n"
+        f"  AS {copy_sql}"
+    )
+
+    try:
+        from dremio_client import dremio_client as dc
+        await dc.run_ddl(sql)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Dremio error: {e}")
+
+    pipe = await store.create_ingestion_pipe({
+        "name": name,
+        "source_location": source_location,
+        "source_path": source_path,
+        "target_table": target_table,
+        "file_format": file_format,
+        "dedup_lookback_period": dedup,
+        "notification_provider": notification_provider,
+        "notification_queue_reference": notification_queue_ref,
+    })
+    return pipe
+
+
+@app.delete("/api/ingestion/pipes/{pipe_id}", status_code=204, response_model=None, tags=["ingestion"])
+async def delete_ingestion_pipe(pipe_id: str, current_user: dict = Depends(get_current_user)):
+    pipe = await store.get_ingestion_pipe(pipe_id)
+    if not pipe:
+        raise HTTPException(status_code=404, detail="Pipe not found")
+    try:
+        from dremio_client import dremio_client as dc
+        await dc.run_ddl(f"DROP PIPE {pipe['name']}")
+    except Exception:
+        pass
+    await store.delete_ingestion_pipe(pipe_id)
+
+
+@app.put("/api/ingestion/pipes/{pipe_id}/pause", tags=["ingestion"])
+async def pause_ingestion_pipe(pipe_id: str, current_user: dict = Depends(get_current_user)):
+    pipe = await store.get_ingestion_pipe(pipe_id)
+    if not pipe:
+        raise HTTPException(status_code=404, detail="Pipe not found")
+    try:
+        from dremio_client import dremio_client as dc
+        await dc.run_ddl(f"ALTER PIPE {pipe['name']} SET PIPE_EXECUTION_RUNNING = FALSE")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Dremio error: {e}")
+    return await store.update_ingestion_pipe(pipe_id, {"enabled": False})
+
+
+@app.put("/api/ingestion/pipes/{pipe_id}/resume", tags=["ingestion"])
+async def resume_ingestion_pipe(pipe_id: str, current_user: dict = Depends(get_current_user)):
+    pipe = await store.get_ingestion_pipe(pipe_id)
+    if not pipe:
+        raise HTTPException(status_code=404, detail="Pipe not found")
+    try:
+        from dremio_client import dremio_client as dc
+        await dc.run_ddl(f"ALTER PIPE {pipe['name']} SET PIPE_EXECUTION_RUNNING = TRUE")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Dremio error: {e}")
+    return await store.update_ingestion_pipe(pipe_id, {"enabled": True})
+
+
+@app.post("/api/ingestion/pipes/{pipe_id}/trigger", tags=["ingestion"])
+async def trigger_ingestion_pipe(pipe_id: str, current_user: dict = Depends(get_current_user)):
+    """Manually trigger a pipe to ingest pending files (ALTER PIPE ... SET PIPE_EXECUTION_RUNNING = TRUE)."""
+    pipe = await store.get_ingestion_pipe(pipe_id)
+    if not pipe:
+        raise HTTPException(status_code=404, detail="Pipe not found")
+    try:
+        from dremio_client import dremio_client as dc
+        # Ensure running, then force a refresh cycle
+        await dc.run_ddl(f"ALTER PIPE {pipe['name']} SET PIPE_EXECUTION_RUNNING = TRUE")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Dremio error: {e}")
+    import datetime as _dt
+    return await store.update_ingestion_pipe(pipe_id, {"last_triggered_at": _dt.datetime.utcnow().isoformat()})
+
+
+# ── AI Agent ──────────────────────────────────────────────────────────────────
+
+class AgentSettings(BaseModel):
+    enabled: bool = False
+    provider: str = "anthropic"
+    model: str = ""
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+
+
+@app.get("/api/agent/settings", tags=["agent"])
+async def get_agent_settings(current_user: dict = Depends(get_current_user)) -> dict:
+    enabled = await store.get_setting("agent_enabled") or "false"
+    provider = await store.get_setting("agent_provider") or "anthropic"
+    model = await store.get_setting("agent_model") or "claude-sonnet-4-6"
+    api_key = await store.get_setting("agent_api_key") or ""
+    base_url = await store.get_setting("agent_base_url") or ""
+    return {
+        "enabled": enabled == "true",
+        "provider": provider,
+        "model": model,
+        "api_key": "***" if api_key else "",
+        "base_url": base_url,
+    }
+
+
+@app.put("/api/agent/settings", tags=["agent"])
+async def update_agent_settings(body: AgentSettings, current_user: dict = Depends(get_current_user)) -> dict:
+    await store.set_setting("agent_enabled", "true" if body.enabled else "false")
+    await store.set_setting("agent_provider", body.provider)
+    await store.set_setting("agent_model", body.model or "")
+    if body.api_key and body.api_key != "***":
+        await store.set_setting("agent_api_key", body.api_key)
+    if body.base_url is not None:
+        await store.set_setting("agent_base_url", body.base_url)
+    return {"ok": True}
+
+
+class AgentChatRequest(BaseModel):
+    messages: List[dict]
+    pipeline_state: dict
+
+
+@app.post("/api/agent/chat", tags=["agent"])
+async def agent_chat(body: AgentChatRequest, current_user: dict = Depends(get_current_user)):
+    """Stream AI agent responses as SSE. Yields JSON event objects."""
+    enabled = await store.get_setting("agent_enabled") or "false"
+    if enabled != "true":
+        raise HTTPException(status_code=403, detail="AI Agent is disabled. Enable it in Settings → Agent.")
+
+    provider = await store.get_setting("agent_provider") or "anthropic"
+    model = await store.get_setting("agent_model") or ""
+    api_key = await store.get_setting("agent_api_key") or ""
+    base_url = await store.get_setting("agent_base_url") or ""
+
+    if not model:
+        raise HTTPException(status_code=400, detail="No model configured. Set a model in Settings → Agent.")
+
+    from agent import run_agent
+    import json as _j
+
+    pipeline_state = dict(body.pipeline_state)
+
+    async def event_stream():
+        try:
+            async for chunk in run_agent(
+                messages=body.messages,
+                pipeline_state=pipeline_state,
+                provider=provider,
+                model=model,
+                api_key=api_key or None,
+                base_url=base_url or None,
+            ):
+                yield f"data: {chunk}\n\n"
+            yield f"data: {_j.dumps({'type': 'pipeline_state', 'state': pipeline_state})}\n\n"
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            yield f"data: {_j.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ── Audit Log ─────────────────────────────────────────────────────────────────

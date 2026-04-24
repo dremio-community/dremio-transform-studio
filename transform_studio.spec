@@ -12,15 +12,18 @@ from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 block_cipher = None
 
 # Collect all uvicorn submodules (it uses dynamic imports heavily)
-uvicorn_hidden = collect_submodules('uvicorn')
-fastapi_hidden = collect_submodules('fastapi')
-pydantic_hidden = collect_submodules('pydantic')
-anyio_hidden   = collect_submodules('anyio')
-httpx_hidden   = collect_submodules('httpx')
+uvicorn_hidden   = collect_submodules('uvicorn')
+fastapi_hidden   = collect_submodules('fastapi')
+pydantic_hidden  = collect_submodules('pydantic')
+anyio_hidden     = collect_submodules('anyio')
+httpx_hidden     = collect_submodules('httpx')
+# AI agent providers — lazily imported inside functions so PyInstaller misses them
+anthropic_hidden = collect_submodules('anthropic')
+openai_hidden    = collect_submodules('openai')
 
 hidden_imports = (
     uvicorn_hidden + fastapi_hidden + pydantic_hidden +
-    anyio_hidden + httpx_hidden +
+    anyio_hidden + httpx_hidden + anthropic_hidden + openai_hidden +
     [
         'aiosqlite',
         'croniter',

@@ -1,7 +1,24 @@
 from __future__ import annotations
+import re
 from typing import Optional
 from models import TransformStep, PipelineParameter
 from transforms.library import clean, reshape, datetime_transforms, enrich, aggregate, string_transforms, custom_sql
+
+
+def _quote_table(table_name: str) -> str:
+    """Quote each dot-separated segment of a table path that contains special characters."""
+    segments = table_name.split(".")
+    quoted = []
+    for seg in segments:
+        # Already quoted — leave as-is
+        if seg.startswith('"') and seg.endswith('"'):
+            quoted.append(seg)
+        # Needs quoting: contains anything other than letters, digits, underscore
+        elif re.search(r'[^A-Za-z0-9_]', seg):
+            quoted.append(f'"{seg}"')
+        else:
+            quoted.append(seg)
+    return ".".join(quoted)
 
 _CODEGEN_MAP: dict = {}
 _CODEGEN_MAP.update(clean.CODEGEN_MAP)
@@ -380,7 +397,7 @@ def compile_pipeline(
     _param_values = param_values or {}
     _parameters = parameters or []
 
-    ctes = [f"_src AS (SELECT * FROM {source_table})"]
+    ctes = [f"_src AS (SELECT * FROM {_quote_table(source_table)})"]
 
     prev_alias = "_src"
     current_cols = list(initial_columns) if initial_columns else None

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Wifi, Bell, HardDrive, Upload, Shield, Users, Lock, Unlock, KeyRound, Plug, Copy, Check } from 'lucide-react'
+import { Loader2, Wifi, Bell, HardDrive, Upload, Shield, Users, Lock, Unlock, KeyRound, Plug, Copy, Check, Bot } from 'lucide-react'
 import { IconAdd, IconCaretDown, IconCaretUp, IconCheckCircle, IconClose, IconDatasetDownload, IconDelete, IconErrorCircle } from './icons'
 import clsx from 'clsx'
 import {
@@ -19,18 +19,22 @@ import {
   fetchSsoConfigs,
   upsertSsoConfig,
   deleteSsoConfig,
+  fetchAgentSettings,
+  updateAgentSettings,
   type ConnectionSettings,
   type NotificationSettings,
   type StorageSettings,
   type SsoConfig,
+  type AgentSettings,
 } from '../api/client'
 
 interface Props {
   onClose: () => void
   onSaved?: () => void
+  initialTab?: ModalTab
 }
 
-type ModalTab = 'connection' | 'notifications' | 'storage' | 'security' | 'sso' | 'mcp'
+type ModalTab = 'connection' | 'notifications' | 'storage' | 'security' | 'sso' | 'mcp' | 'agent'
 
 const CLOUD_HOSTS = [
   { label: 'Dremio Cloud (US)', value: 'api.dremio.cloud' },
@@ -55,8 +59,8 @@ const DEFAULT_NOTIFICATIONS: NotificationSettings = {
   notify_slack_webhook_url: '',
 }
 
-export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
-  const [activeTab, setActiveTab] = useState<ModalTab>('connection')
+export default function ConnectionSettingsModal({ onClose, onSaved, initialTab }: Props) {
+  const [activeTab, setActiveTab] = useState<ModalTab>(initialTab ?? 'connection')
 
   const [form, setForm] = useState<ConnectionSettings>({
     host: 'localhost',
@@ -245,7 +249,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-navy-950">
@@ -259,33 +263,33 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-100">
+        <div className="flex border-b border-gray-100 overflow-x-auto" style={{scrollbarWidth:'none'}}>
           <button
             onClick={() => setActiveTab('connection')}
             className={clsx(
-              'flex items-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+              'flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap',
               activeTab === 'connection'
                 ? 'text-dblue-600 border-dblue-500'
                 : 'text-gray-400 border-transparent hover:text-gray-600'
             )}
           >
-            <Wifi size={13} /> Connection
+            <Wifi size={13} /> Connect
           </button>
           <button
             onClick={() => setActiveTab('notifications')}
             className={clsx(
-              'flex items-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+              'flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap',
               activeTab === 'notifications'
                 ? 'text-dblue-600 border-dblue-500'
                 : 'text-gray-400 border-transparent hover:text-gray-600'
             )}
           >
-            <Bell size={13} /> Notifications
+            <Bell size={13} /> Alerts
           </button>
           <button
             onClick={() => setActiveTab('storage')}
             className={clsx(
-              'flex items-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+              'flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap',
               activeTab === 'storage'
                 ? 'text-dblue-600 border-dblue-500'
                 : 'text-gray-400 border-transparent hover:text-gray-600'
@@ -296,7 +300,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
           <button
             onClick={() => setActiveTab('security')}
             className={clsx(
-              'flex items-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+              'flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap',
               activeTab === 'security'
                 ? 'text-dblue-600 border-dblue-500'
                 : 'text-gray-400 border-transparent hover:text-gray-600'
@@ -307,7 +311,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
           <button
             onClick={() => setActiveTab('sso')}
             className={clsx(
-              'flex items-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+              'flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap',
               activeTab === 'sso'
                 ? 'text-dblue-600 border-dblue-500'
                 : 'text-gray-400 border-transparent hover:text-gray-600'
@@ -318,13 +322,24 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
           <button
             onClick={() => setActiveTab('mcp')}
             className={clsx(
-              'flex items-center gap-2 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px',
+              'flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap',
               activeTab === 'mcp'
                 ? 'text-dblue-600 border-dblue-500'
                 : 'text-gray-400 border-transparent hover:text-gray-600'
             )}
           >
             <Plug size={13} /> MCP
+          </button>
+          <button
+            onClick={() => setActiveTab('agent')}
+            className={clsx(
+              'flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap',
+              activeTab === 'agent'
+                ? 'text-dblue-600 border-dblue-500'
+                : 'text-gray-400 border-transparent hover:text-gray-600'
+            )}
+          >
+            <Bot size={13} /> Agent
           </button>
         </div>
 
@@ -1201,7 +1216,203 @@ export default function ConnectionSettingsModal({ onClose, onSaved }: Props) {
         {/* ── MCP Tab ── */}
         {activeTab === 'mcp' && <McpTab />}
 
+        {/* ── Agent Tab ── */}
+        {activeTab === 'agent' && <AgentTab />}
+
       </div>
+    </div>
+  )
+}
+
+const PROVIDER_DEFAULTS: Record<string, { models: string[]; baseUrl: string }> = {
+  anthropic: {
+    models: ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+    baseUrl: '',
+  },
+  openai: {
+    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'o1-preview'],
+    baseUrl: '',
+  },
+  ollama: {
+    models: ['llama3.2', 'llama3.1', 'mistral', 'codestral', 'qwen2.5-coder'],
+    baseUrl: 'http://localhost:11434/v1',
+  },
+  custom: { models: [], baseUrl: '' },
+}
+
+function AgentTab() {
+  const [form, setForm] = useState<AgentSettings>({
+    enabled: false,
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-6',
+    api_key: '',
+    base_url: '',
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchAgentSettings()
+      .then(s => setForm({ ...s, api_key: '' }))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleProviderChange = (provider: string) => {
+    const defaults = PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS.custom
+    setForm(f => ({
+      ...f,
+      provider,
+      model: defaults.models[0] || '',
+      base_url: defaults.baseUrl,
+    }))
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    setSaved(false)
+    try {
+      await updateAgentSettings(form)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <div className="p-6 flex items-center gap-2 text-sm text-gray-500"><Loader2 size={14} className="animate-spin" /> Loading…</div>
+
+  const providerInfo = PROVIDER_DEFAULTS[form.provider] || PROVIDER_DEFAULTS.custom
+  const suggestedModels = providerInfo.models
+
+  return (
+    <div className="p-6 space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold text-gray-800 mb-1">AI Agent</h3>
+        <p className="text-xs text-gray-500">
+          Enable an AI assistant that can read your Dremio catalog, build pipelines, and run previews using natural language. Supports Anthropic Claude, OpenAI, Ollama, and any OpenAI-compatible endpoint.
+        </p>
+      </div>
+
+      {/* Enable toggle */}
+      <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">Enable AI Agent</p>
+          <p className="text-xs text-gray-500 mt-0.5">Adds an Agent chat panel to the toolbar</p>
+        </div>
+        <button
+          onClick={() => setForm(f => ({ ...f, enabled: !f.enabled }))}
+          className={clsx(
+            'relative w-10 h-5 rounded-full transition-colors',
+            form.enabled ? 'bg-dblue-500' : 'bg-gray-300'
+          )}
+        >
+          <span className={clsx(
+            'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
+            form.enabled ? 'translate-x-5' : 'translate-x-0'
+          )} />
+        </button>
+      </div>
+
+      {/* Provider */}
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Provider</label>
+        <div className="flex gap-2 flex-wrap">
+          {(['anthropic', 'openai', 'ollama', 'custom'] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => handleProviderChange(p)}
+              className={clsx(
+                'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors capitalize',
+                form.provider === p
+                  ? 'bg-dblue-500 text-white border-dblue-500'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-dblue-400'
+              )}
+            >
+              {p === 'anthropic' ? 'Anthropic' : p === 'openai' ? 'OpenAI' : p === 'ollama' ? 'Ollama' : 'Custom'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Model */}
+      <div>
+        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Model</label>
+        {suggestedModels.length > 0 ? (
+          <select
+            value={form.model}
+            onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-dblue-400"
+          >
+            {suggestedModels.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        ) : (
+          <input
+            type="text"
+            value={form.model}
+            onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
+            placeholder="e.g. llama3.2"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-dblue-400"
+          />
+        )}
+      </div>
+
+      {/* API Key */}
+      {form.provider !== 'ollama' && (
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+            API Key {form.provider === 'custom' ? '(if required)' : ''}
+          </label>
+          <input
+            type="password"
+            value={form.api_key}
+            onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
+            placeholder={form.api_key === '' ? '(unchanged)' : ''}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-dblue-400"
+          />
+        </div>
+      )}
+
+      {/* Base URL */}
+      {(form.provider === 'ollama' || form.provider === 'custom') && (
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Base URL</label>
+          <input
+            type="text"
+            value={form.base_url}
+            onChange={e => setForm(f => ({ ...f, base_url: e.target.value }))}
+            placeholder="http://localhost:11434/v1"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-dblue-400"
+          />
+        </div>
+      )}
+
+      {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>}
+
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="flex items-center gap-2 px-4 py-2 bg-dblue-500 hover:bg-dblue-600 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+      >
+        {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
+        {saved ? 'Saved!' : 'Save Agent Settings'}
+      </button>
+
+      {form.provider === 'anthropic' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
+          Get your Anthropic API key at <span className="font-medium">console.anthropic.com</span> → API Keys.
+        </div>
+      )}
+      {form.provider === 'ollama' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
+          Ollama runs locally. Make sure Ollama is running and the model is pulled: <code className="bg-blue-100 px-1 rounded">ollama pull {form.model}</code>
+        </div>
+      )}
     </div>
   )
 }

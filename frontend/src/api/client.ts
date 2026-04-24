@@ -1038,3 +1038,114 @@ export async function exportAuditLogCsv(params: {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+// ── Ingestion Hub ──────────────────────────────────────────────────────────
+
+export interface IngestionJob {
+  id: string
+  name: string
+  source_path: string
+  target_table: string
+  file_format: string
+  status: 'running' | 'success' | 'failed'
+  rows_inserted: number | null
+  rows_skipped: number | null
+  error_message: string | null
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+}
+
+export interface IngestionPipe {
+  id: string
+  name: string
+  source_location: string
+  source_path: string
+  target_table: string
+  file_format: string
+  enabled: number
+  dedup_lookback_period: number
+  notification_provider: string
+  notification_queue_reference: string
+  last_triggered_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export async function fetchIngestionJobs(): Promise<IngestionJob[]> {
+  const res = await api.get('/api/ingestion/jobs')
+  return res.data
+}
+
+export async function runCopyInto(data: {
+  name?: string
+  source_path: string
+  target_table: string
+  file_format: string
+  options?: Record<string, string>
+}): Promise<IngestionJob> {
+  const res = await api.post('/api/ingestion/jobs', data)
+  return res.data
+}
+
+export async function deleteIngestionJob(jobId: string): Promise<void> {
+  await api.delete(`/api/ingestion/jobs/${jobId}`)
+}
+
+export async function fetchIngestionPipes(): Promise<IngestionPipe[]> {
+  const res = await api.get('/api/ingestion/pipes')
+  return res.data
+}
+
+export async function createIngestionPipe(data: {
+  name: string
+  source_location: string
+  source_path: string
+  target_table: string
+  file_format: string
+  dedup_lookback_period?: number
+  notification_provider: string
+  notification_queue_reference: string
+}): Promise<IngestionPipe> {
+  const res = await api.post('/api/ingestion/pipes', data)
+  return res.data
+}
+
+export async function deleteIngestionPipe(pipeId: string): Promise<void> {
+  await api.delete(`/api/ingestion/pipes/${pipeId}`)
+}
+
+export async function pauseIngestionPipe(pipeId: string): Promise<IngestionPipe> {
+  const res = await api.put(`/api/ingestion/pipes/${pipeId}/pause`)
+  return res.data
+}
+
+export async function resumeIngestionPipe(pipeId: string): Promise<IngestionPipe> {
+  const res = await api.put(`/api/ingestion/pipes/${pipeId}/resume`)
+  return res.data
+}
+
+export async function triggerIngestionPipe(pipeId: string): Promise<IngestionPipe> {
+  const res = await api.post(`/api/ingestion/pipes/${pipeId}/trigger`)
+  return res.data
+}
+
+// ── AI Agent ──────────────────────────────────────────────────────────────────
+
+export interface AgentSettings {
+  enabled: boolean
+  provider: string
+  model: string
+  api_key: string
+  base_url: string
+}
+
+export async function fetchAgentSettings(): Promise<AgentSettings> {
+  const res = await api.get('/api/agent/settings')
+  return res.data
+}
+
+export async function updateAgentSettings(data: Partial<AgentSettings>): Promise<{ ok: boolean }> {
+  const res = await api.put('/api/agent/settings', data)
+  return res.data
+}

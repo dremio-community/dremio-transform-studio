@@ -225,6 +225,10 @@ class PipelineStore:
                 "ALTER TABLE pipeline_schedules ADD COLUMN sla_enabled INTEGER DEFAULT 0",
                 "ALTER TABLE pipeline_schedules ADD COLUMN sla_time TEXT",
                 "ALTER TABLE pipeline_schedules ADD COLUMN sla_alerted_date TEXT",
+                # Pipe notification fields (correct CREATE PIPE syntax)
+                "ALTER TABLE ingestion_pipes ADD COLUMN source_location TEXT DEFAULT ''",
+                "ALTER TABLE ingestion_pipes ADD COLUMN notification_provider TEXT DEFAULT ''",
+                "ALTER TABLE ingestion_pipes ADD COLUMN notification_queue_reference TEXT DEFAULT ''",
             ]:
                 try:
                     await db.execute(col_sql)
@@ -321,6 +325,41 @@ class PipelineStore:
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_audit_log_time ON audit_log(event_time)"
             )
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS ingestion_jobs (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    source_path TEXT NOT NULL,
+                    target_table TEXT NOT NULL,
+                    file_format TEXT NOT NULL DEFAULT 'PARQUET',
+                    options_json TEXT DEFAULT '{}',
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    rows_inserted INTEGER,
+                    rows_skipped INTEGER,
+                    error_message TEXT,
+                    started_at TEXT,
+                    completed_at TEXT,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS ingestion_pipes (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    source_location TEXT NOT NULL DEFAULT '',
+                    source_path TEXT NOT NULL DEFAULT '',
+                    target_table TEXT NOT NULL,
+                    file_format TEXT NOT NULL DEFAULT 'PARQUET',
+                    options_json TEXT DEFAULT '{}',
+                    enabled INTEGER DEFAULT 1,
+                    dedup_lookback_period INTEGER DEFAULT 14,
+                    notification_provider TEXT NOT NULL DEFAULT '',
+                    notification_queue_reference TEXT NOT NULL DEFAULT '',
+                    last_triggered_at TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
             # Generate webhook_token for existing rows that don't have one
             await db.execute(
                 "UPDATE pipelines SET webhook_token = lower(hex(randomblob(16))) WHERE webhook_token IS NULL"
@@ -2287,6 +2326,133 @@ class PipelineStore:
             "id": user_id, "username": email, "is_admin": is_admin,
             "role": default_role, "sso_provider": provider_name, "sso_sub": sso_sub,
         }
+
+
+    # ── Ingestion Jobs ────────────────────────────────────────────────────────
+
+    async def list_ingestion_jobs(self, limit: int = 100) -> list:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(
+                "SELECT * FROM ingestion_jobs ORDER BY created_at DESC LIMIT ?", (limit,)
+            ) as cur:
+                rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_ingestion_job(self, job_id: str) -> Optional[dict]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM ingestion_jobs WHERE id = ?", (job_id,)) as cur:
+                row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def create_ingestion_job(self, data: dict) -> dict:
+        job_id = str(uuid.uuid4())
+        now = _now_iso()
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                """INSERT INTO ingestion_jobs
+                   (id, name, source_path, target_table, file_format, options_json,
+                    status, started_at, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, 'running', ?, ?)""",
+                (job_id, data["name"], data["source_path"], data["target_table"],
+                 data.get("file_format", "PARQUET"),
+                 data.get("options_json", "{}"), now, now),
+            )
+            await db.commit()
+        return await self.get_ingestion_job(job_id)
+
+    async def finish_ingestion_job(self, job_id: str, status: str, rows_inserted: Optional[int] = None,
+                                    rows_skipped: Optional[int] = None, error: Optional[str] = None) -> Optional[dict]:
+        now = _now_iso()
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                """UPDATE ingestion_jobs
+                   SET status = ?, rows_inserted = ?, rows_skipped = ?,
+                       error_message = ?, completed_at = ?
+                   WHERE id = ?""",
+                (status, rows_inserted, rows_skipped, error, now, job_id),
+            )
+            await db.commit()
+        return await self.get_ingestion_job(job_id)
+
+    async def delete_ingestion_job(self, job_id: str) -> bool:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute("SELECT id FROM ingestion_jobs WHERE id = ?", (job_id,)) as cur:
+                if not await cur.fetchone():
+                    return False
+            await db.execute("DELETE FROM ingestion_jobs WHERE id = ?", (job_id,))
+            await db.commit()
+        return True
+
+    # ── Ingestion Pipes ───────────────────────────────────────────────────────
+
+    async def list_ingestion_pipes(self) -> list:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM ingestion_pipes ORDER BY created_at DESC") as cur:
+                rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+    async def get_ingestion_pipe(self, pipe_id: str) -> Optional[dict]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM ingestion_pipes WHERE id = ?", (pipe_id,)) as cur:
+                row = await cur.fetchone()
+        return dict(row) if row else None
+
+    async def create_ingestion_pipe(self, data: dict) -> dict:
+        pipe_id = str(uuid.uuid4())
+        now = _now_iso()
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                """INSERT INTO ingestion_pipes
+                   (id, name, source_location, source_path, target_table, file_format, options_json,
+                    enabled, dedup_lookback_period, notification_provider, notification_queue_reference,
+                    created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)""",
+                (pipe_id, data["name"],
+                 data.get("source_location", ""), data.get("source_path", ""),
+                 data["target_table"], data.get("file_format", "PARQUET"),
+                 data.get("options_json", "{}"), data.get("dedup_lookback_period", 14),
+                 data.get("notification_provider", ""), data.get("notification_queue_reference", ""),
+                 now, now),
+            )
+            await db.commit()
+        return await self.get_ingestion_pipe(pipe_id)
+
+    async def update_ingestion_pipe(self, pipe_id: str, data: dict) -> Optional[dict]:
+        existing = await self.get_ingestion_pipe(pipe_id)
+        if not existing:
+            return None
+        now = _now_iso()
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                """UPDATE ingestion_pipes
+                   SET name = ?, source_path = ?, target_table = ?, file_format = ?,
+                       options_json = ?, enabled = ?, dedup_lookback_period = ?,
+                       last_triggered_at = COALESCE(?, last_triggered_at), updated_at = ?
+                   WHERE id = ?""",
+                (data.get("name", existing["name"]),
+                 data.get("source_path", existing["source_path"]),
+                 data.get("target_table", existing["target_table"]),
+                 data.get("file_format", existing["file_format"]),
+                 data.get("options_json", existing["options_json"]),
+                 1 if data.get("enabled", bool(existing["enabled"])) else 0,
+                 data.get("dedup_lookback_period", existing["dedup_lookback_period"]),
+                 data.get("last_triggered_at"), now, pipe_id),
+            )
+            await db.commit()
+        return await self.get_ingestion_pipe(pipe_id)
+
+    async def delete_ingestion_pipe(self, pipe_id: str) -> bool:
+        async with aiosqlite.connect(self._db_path) as db:
+            async with db.execute("SELECT id FROM ingestion_pipes WHERE id = ?", (pipe_id,)) as cur:
+                if not await cur.fetchone():
+                    return False
+            await db.execute("DELETE FROM ingestion_pipes WHERE id = ?", (pipe_id,))
+            await db.commit()
+        return True
 
 
 store = PipelineStore()

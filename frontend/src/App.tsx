@@ -909,9 +909,9 @@ export default function App() {
         <Tooltip text="Data Quality Hub">
           <button
             onClick={() => setShowDqHub(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dblue-500/20 hover:bg-dblue-500/40 text-primary hover:text-white border border-dblue-500/40 hover:border-dblue-500/70 transition-all font-semibold text-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dblue-500/20 hover:bg-dblue-500/40 text-primary hover:text-white border border-dblue-500/40 hover:border-dblue-500/70 transition-all font-semibold text-xs whitespace-nowrap"
           >
-            <ShieldCheck size={17} />
+            <ShieldCheck size={15} />
             DQ Hub
           </button>
         </Tooltip>

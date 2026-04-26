@@ -617,12 +617,19 @@
     <div class="two-col">
       <div class="screenshot-wrap">
         <img src="screenshots/18-dbt-import.png" alt="Import from dbt modal">
-        <div class="screenshot-caption">Import from dbt — drop a dbt project ZIP. Transform Studio resolves all Jinja (<code>&#123;&#123; ref() &#125;&#125;</code>, <code>&#123;&#123; source() &#125;&#125;</code>, <code>&#123;&#123; config() &#125;&#125;</code>) without dbt installed.</div>
+        <div class="screenshot-caption">Import from dbt — choose <strong>Single SQL step</strong> or <strong>Decompose CTEs</strong> before importing. The CTEs column shows how many steps each model will produce.</div>
       </div>
       <div class="screenshot-wrap">
-        <img src="screenshots/35-dbt-imported-pipeline.png" alt="Pipeline imported from dbt">
-        <div class="screenshot-caption">A pipeline created by importing a dbt model — each model becomes a Custom SQL step. Dependencies are wired automatically from <code>&#123;&#123; ref() &#125;&#125;</code> calls.</div>
+        <img src="screenshots/35-dbt-imported-pipeline.png" alt="Pipeline imported from dbt with Decompose CTEs">
+        <div class="screenshot-caption"><strong>Decompose CTEs mode</strong> — each <code>WITH</code> CTE becomes its own named pipeline step (<code>raw_customers</code> → <code>enriched</code> → <code>final</code>), wired together with <code>{input}</code>.</div>
       </div>
+    </div>
+    <div class="two-col">
+      <div class="screenshot-wrap">
+        <img src="screenshots/37-dbt-single-step.png" alt="Pipeline imported from dbt — single SQL step mode">
+        <div class="screenshot-caption"><strong>Single SQL step mode</strong> — the full resolved model SQL is imported as one Custom SQL step. Simple and fast; add visual steps on top after import.</div>
+      </div>
+      <div></div>
     </div>
     <div class="two-col">
       <div class="feature-card">
@@ -633,7 +640,11 @@
       <div class="feature-card">
         <div class="icon">⬆️</div>
         <h4>Import from dbt</h4>
-        <p>Click <strong>Import from dbt</strong> icon in toolbar. Drop a ZIP — resolves <code>&#123;&#123; ref() &#125;&#125;</code> → pipeline deps, maps materializations, converts schema.yml tests to pipeline tests. Preview models before confirming the import.</p>
+        <p>Click <strong>Import from dbt</strong> icon in toolbar. Drop a ZIP — resolves <code>&#123;&#123; ref() &#125;&#125;</code> → pipeline deps, maps materializations, converts schema.yml tests to pipeline tests. Preview models, then choose an import mode:</p>
+        <ul style="margin-top:8px;padding-left:18px;font-size:13px;line-height:1.7;">
+          <li><strong>Single SQL step</strong> — one Custom SQL step per model with the full resolved SQL</li>
+          <li><strong>Decompose CTEs</strong> — each <code>WITH</code> CTE becomes its own named step, connected with <code>{input}</code>. The CTEs column shows how many steps each model will produce.</li>
+        </ul>
       </div>
     </div>
   </section>

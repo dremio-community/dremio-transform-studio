@@ -1,6 +1,6 @@
 """
 Creates synthetic data VDS in local Dremio for DQ testing.
-Runs against: localhost:9047 (user: mark, pass: critter77)
+Runs against: localhost:9047 (user: mark, pass: Hoyasaxa7788&&**)
 
 Creates in the "@mark" home space as Virtual Datasets (VDS):
   1. dq_customers      — clean customer data (50 rows, good DQ)
@@ -12,7 +12,7 @@ Usage:
   cd backend
   # First update Transform Studio connection settings to point at local Dremio,
   # OR run with env vars:
-  DREMIO_USER=mark DREMIO_PASS=critter77 DREMIO_HOST=localhost python3 create_dq_test_data.py
+  DREMIO_USER=mark DREMIO_PASS=Hoyasaxa7788&&** DREMIO_HOST=localhost python3 create_dq_test_data.py
 """
 import asyncio
 import sys
@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 # Override settings before importing clients
 os.environ.setdefault("DREMIO_USER", "mark")
-os.environ.setdefault("DREMIO_PASS", "critter77")
+os.environ.setdefault("DREMIO_PASS", "Hoyasaxa7788&&**")
 os.environ.setdefault("DREMIO_HOST", "localhost")
 os.environ.setdefault("DREMIO_PORT", "9047")
 os.environ.setdefault("DREMIO_AUTH_TYPE", "password")

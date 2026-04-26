@@ -142,7 +142,10 @@ Click the **⬆ Upload icon** to import a dbt project ZIP. Transform Studio pars
 - Resolves `{{ ref() }}` → pipeline dependencies (wired automatically)
 - Converts `{{ config(materialized=...) }}` → output mode
 - Maps schema.yml tests → pipeline tests
-- Each model becomes a pipeline with one Custom SQL step
+
+**Import mode** (choose in the preview step):
+- **Single SQL step** — each model becomes one Custom SQL step with the full resolved SQL
+- **Decompose CTEs** — each `WITH` CTE becomes its own named pipeline step, wired together with `{input}`. Models without CTEs fall back to a single step automatically.
 
 ---
 

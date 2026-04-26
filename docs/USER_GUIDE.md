@@ -1382,7 +1382,17 @@ Click the **⬆ Upload icon** in the top toolbar to import a dbt project ZIP as 
 2. Drag your dbt project `.zip` file onto the drop zone (or click to browse)
 3. Transform Studio parses the project and shows a **preview table** — one row per model with source, output mode, dependencies, and test counts
 4. Optionally enter a **name prefix** to tag imported pipelines (e.g. `dbt_`)
-5. Click **Import N Pipelines** — pipelines are created instantly
+5. Choose an **import mode** (see below)
+6. Click **Import N Pipelines** — pipelines are created instantly
+
+**Import mode:**
+
+| Mode | What you get |
+|------|-------------|
+| **Single SQL step** | Each model becomes one Custom SQL step with the full resolved SQL. Simple and fast — best for models you plan to run as-is. |
+| **Decompose CTEs** | Each `WITH` CTE in the model SQL becomes its own named pipeline step, wired together with `{input}`. Models without CTEs fall back to a single step. Best when you want to edit, preview, or extend individual transformation stages visually. |
+
+The **CTEs** column in the preview table shows how many steps each model will decompose into when Decompose CTEs is selected.
 
 **What gets resolved automatically:**
 - `{{ source('schema', 'table') }}` → Dremio-quoted table reference (`"schema"."table"`)
@@ -1391,8 +1401,6 @@ Click the **⬆ Upload icon** in the top toolbar to import a dbt project ZIP as 
 - `{% if is_incremental() %}...{% endif %}` blocks → stripped (Transform Studio handles incremental natively)
 - schema.yml column tests → pipeline tests (`not_null`, `unique`, `accepted_values`, `relationships`)
 - `unique_key` and `incremental_strategy` from config → incremental settings
-
-**Each model becomes:** a pipeline with one Custom SQL step containing the resolved SQL. You can add visual transform steps on top after import, or run it as-is.
 
 **Warnings:** if a model uses custom macros (e.g. `dbt_utils`) that can't be resolved automatically, they are flagged as warnings in the preview — you can fix them manually in the Custom SQL step after import.
 

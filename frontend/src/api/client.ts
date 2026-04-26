@@ -915,8 +915,13 @@ export async function previewDbtImport(file: File): Promise<{
 export async function confirmDbtImport(
   models: any[],
   namePrefix?: string,
+  importMode?: string,
 ): Promise<{ created: any[]; skipped: string[]; errors: string[] }> {
-  const res = await api.post('/api/dbt/import/confirm', { models, name_prefix: namePrefix ?? null })
+  const res = await api.post('/api/dbt/import/confirm', {
+    models,
+    name_prefix: namePrefix ?? null,
+    import_mode: importMode ?? 'single_step',
+  })
   return res.data
 }
 

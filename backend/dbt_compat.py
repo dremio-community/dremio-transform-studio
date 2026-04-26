@@ -696,6 +696,207 @@ def _sql_to_custom_step(sql: str, source_table: str) -> str:
     return f"SELECT * FROM (\n{sql}\n) AS _imported"
 
 
+# ── CTE decomposition ────────────────────────────────────────────────────────
+
+def _parse_ctes(sql: str) -> Tuple[List[Tuple[str, str]], str]:
+    """
+    Parse a WITH…SELECT statement into its CTEs and final SELECT.
+    Returns ([(cte_name, cte_body), ...], final_select).
+    If no WITH clause, returns ([], original_sql).
+    Handles nested parens, single-quoted strings, double-quoted identifiers,
+    and -- / /* */ comments.
+    """
+    s = sql.strip()
+    if not s[:4].upper() == 'WITH':
+        return [], s
+
+    pos = 4  # skip 'WITH'
+    ctes: List[Tuple[str, str]] = []
+
+    while pos < len(s):
+        # skip whitespace
+        while pos < len(s) and s[pos].isspace():
+            pos += 1
+        if pos >= len(s):
+            break
+
+        # peek at next word
+        word_end = pos
+        while word_end < len(s) and (s[word_end].isalnum() or s[word_end] == '_'):
+            word_end += 1
+        word = s[pos:word_end].upper()
+
+        # if it's a statement keyword, we've reached the final SELECT
+        if word in ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE'):
+            break
+
+        cte_name = s[pos:word_end]
+        pos = word_end
+
+        # skip whitespace + RECURSIVE / AS
+        while pos < len(s) and s[pos].isspace():
+            pos += 1
+        if s[pos:pos+9].upper() == 'RECURSIVE':
+            pos += 9
+            while pos < len(s) and s[pos].isspace():
+                pos += 1
+        if s[pos:pos+2].upper() == 'AS':
+            pos += 2
+        while pos < len(s) and s[pos].isspace():
+            pos += 1
+
+        if pos >= len(s) or s[pos] != '(':
+            break
+
+        # scan balanced parens with awareness of strings/comments
+        depth = 0
+        body_start = pos + 1
+        i = pos
+        while i < len(s):
+            c = s[i]
+            if c == '(':
+                depth += 1; i += 1
+            elif c == ')':
+                depth -= 1; i += 1
+                if depth == 0:
+                    break
+            elif c == "'":
+                i += 1
+                while i < len(s) and s[i] != "'":
+                    if s[i] == '\\': i += 1
+                    i += 1
+                i += 1
+            elif c == '"':
+                i += 1
+                while i < len(s) and s[i] != '"':
+                    i += 1
+                i += 1
+            elif c == '-' and i + 1 < len(s) and s[i+1] == '-':
+                while i < len(s) and s[i] != '\n':
+                    i += 1
+            elif c == '/' and i + 1 < len(s) and s[i+1] == '*':
+                i += 2
+                while i < len(s) - 1 and not (s[i] == '*' and s[i+1] == '/'):
+                    i += 1
+                i += 2
+            else:
+                i += 1
+
+        body = s[body_start:i - 1].strip()
+        ctes.append((cte_name, body))
+        pos = i
+
+        # skip whitespace + optional comma
+        while pos < len(s) and s[pos].isspace():
+            pos += 1
+        if pos < len(s) and s[pos] == ',':
+            pos += 1
+
+    return ctes, s[pos:].strip()
+
+
+def _references_cte(sql: str, cte_name: str) -> bool:
+    return bool(re.search(r'\b' + re.escape(cte_name) + r'\b', sql, re.IGNORECASE))
+
+
+def decompose_sql_to_steps(sql: str, source_table: str) -> List[dict]:
+    """
+    Decompose a WITH…SELECT into individual custom_sql pipeline steps.
+    Each CTE becomes one step. For a CTE that references earlier CTEs:
+      - the most-recently-defined predecessor becomes {input}
+      - other referenced CTEs are inlined as subqueries
+    Falls back to a single step when there are no CTEs.
+    """
+    import uuid as _uuid
+
+    ctes, final_select = _parse_ctes(sql)
+
+    if not ctes:
+        return [{
+            "id": str(_uuid.uuid4()),
+            "transform_type": "custom_sql",
+            "config": {"sql": _sql_to_custom_step(sql, source_table)},
+            "label": "dbt model SQL",
+        }]
+
+    steps: List[dict] = []
+    cte_bodies: Dict[str, str] = {}  # name → body with real names (for inlining)
+
+    for idx, (cte_name, cte_body) in enumerate(ctes):
+        step_sql = cte_body
+
+        # pick the most-recently-defined predecessor referenced by this CTE
+        input_cte: Optional[str] = None
+        for name, _ in reversed(ctes[:idx]):
+            if _references_cte(step_sql, name):
+                input_cte = name
+                break
+
+        # inline all other referenced predecessors as subqueries
+        for name, _ in ctes[:idx]:
+            if name == input_cte:
+                continue
+            if _references_cte(step_sql, name):
+                resolved_body = cte_bodies.get(name, name)
+                step_sql = re.sub(
+                    r'\b' + re.escape(name) + r'\b',
+                    f'({resolved_body})',
+                    step_sql,
+                )
+
+        if input_cte is not None:
+            step_sql = re.sub(
+                r'\b' + re.escape(input_cte) + r'\b',
+                '{input}',
+                step_sql,
+            )
+        else:
+            step_sql = _sql_to_custom_step(step_sql, source_table)
+
+        # store a version with real names for later inlining
+        cte_bodies[cte_name] = step_sql.replace(
+            '{input}', input_cte if input_cte else source_table
+        )
+
+        steps.append({
+            "id": str(_uuid.uuid4()),
+            "transform_type": "custom_sql",
+            "config": {"sql": step_sql},
+            "label": cte_name,
+        })
+
+    # add the final SELECT if it's not trivially "SELECT * FROM last_cte"
+    last_name = ctes[-1][0]
+    trivial = re.compile(
+        r'^SELECT\s+\*\s+FROM\s+' + re.escape(last_name) + r'\s*$',
+        re.IGNORECASE,
+    )
+    if not trivial.match(final_select):
+        final_sql = re.sub(
+            r'\b' + re.escape(last_name) + r'\b',
+            '{input}',
+            final_select,
+            flags=re.IGNORECASE,
+        )
+        # inline any other CTE references in the final SELECT
+        for name, _ in ctes[:-1]:
+            if _references_cte(final_sql, name):
+                resolved_body = cte_bodies.get(name, name)
+                final_sql = re.sub(
+                    r'\b' + re.escape(name) + r'\b',
+                    f'({resolved_body})',
+                    final_sql,
+                )
+        steps.append({
+            "id": str(_uuid.uuid4()),
+            "transform_type": "custom_sql",
+            "config": {"sql": final_sql},
+            "label": "final select",
+        })
+
+    return steps
+
+
 # ── Main parse function ───────────────────────────────────────────────────────
 
 def parse_dbt_project(zip_bytes: bytes) -> Dict[str, Any]:
@@ -831,12 +1032,15 @@ def parse_dbt_project(zip_bytes: bytes) -> Dict[str, Any]:
                 display_base = re.sub(r"_[0-9a-f]{6}$", "", model_name)
                 display_name = display_base.replace("_", " ").title()
 
+                cte_count = len(_parse_ctes(sql)[0])
                 models.append({
                     "model_name": model_name,
                     "display_name": display_name,
                     "description": meta.get("description"),
                     "source_table": source_table,
                     "custom_sql": custom_sql_content,
+                    "resolved_sql": sql,   # Jinja-resolved, before {input} substitution
+                    "cte_count": cte_count,
                     "output_mode": output_mode,
                     "incremental_strategy": cfg.get("incremental_strategy"),
                     "unique_key": cfg.get("unique_key"),

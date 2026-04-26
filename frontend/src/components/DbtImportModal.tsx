@@ -15,6 +15,7 @@ interface DbtModelPreview {
   sources_used: [string, string][]
   tests: object[]
   warnings: string[]
+  cte_count: number
 }
 
 interface PreviewResult {
@@ -41,6 +42,7 @@ export default function DbtImportModal({ onClose, onImported }: Props) {
   const [preview, setPreview] = useState<PreviewResult | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [namePrefix, setNamePrefix] = useState('')
+  const [importMode, setImportMode] = useState<'single_step' | 'decompose_ctes'>('single_step')
   const [expandedWarnings, setExpandedWarnings] = useState<Set<string>>(new Set())
   const [result, setResult] = useState<{ created: number; skipped: string[]; errors: string[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -81,7 +83,7 @@ export default function DbtImportModal({ onClose, onImported }: Props) {
     if (!preview) return
     setStep('importing')
     try {
-      const res = await confirmDbtImport(preview.models, namePrefix || undefined)
+      const res = await confirmDbtImport(preview.models, namePrefix || undefined, importMode)
       setResult({
         created: res.created.length,
         skipped: res.skipped || [],
@@ -210,6 +212,30 @@ export default function DbtImportModal({ onClose, onImported }: Props) {
                 />
               </div>
 
+              {/* Import mode toggle */}
+              <div className="flex items-center gap-1 p-1 bg-navy-900 border border-white/10 rounded-lg self-start">
+                <button
+                  onClick={() => setImportMode('single_step')}
+                  className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  style={{
+                    background: importMode === 'single_step' ? '#3b82f6' : 'transparent',
+                    color: importMode === 'single_step' ? '#fff' : 'rgba(255,255,255,0.5)',
+                  }}
+                >
+                  Single SQL step
+                </button>
+                <button
+                  onClick={() => setImportMode('decompose_ctes')}
+                  className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  style={{
+                    background: importMode === 'decompose_ctes' ? '#3b82f6' : 'transparent',
+                    color: importMode === 'decompose_ctes' ? '#fff' : 'rgba(255,255,255,0.5)',
+                  }}
+                >
+                  Decompose CTEs
+                </button>
+              </div>
+
               {/* Model table */}
               <div className="border border-white/10 rounded-lg overflow-hidden">
                 <table className="w-full text-xs">
@@ -220,6 +246,9 @@ export default function DbtImportModal({ onClose, onImported }: Props) {
                       <th className="px-3 py-2 font-medium">Mode</th>
                       <th className="px-3 py-2 font-medium">Deps</th>
                       <th className="px-3 py-2 font-medium">Tests</th>
+                      {importMode === 'decompose_ctes' && (
+                        <th className="px-3 py-2 font-medium">CTEs</th>
+                      )}
                       <th className="px-3 py-2 font-medium"></th>
                     </tr>
                   </thead>
@@ -228,6 +257,7 @@ export default function DbtImportModal({ onClose, onImported }: Props) {
                       const modeInfo = MODE_LABELS[m.output_mode] ?? { label: m.output_mode.toUpperCase(), color: '#6b7280' }
                       const hasWarns = m.warnings.length > 0
                       const expanded = expandedWarnings.has(m.model_name)
+                      const colSpanCount = importMode === 'decompose_ctes' ? 7 : 6
                       return (
                         <React.Fragment key={m.model_name}>
                           <tr className={i % 2 === 0 ? 'bg-navy-800' : 'bg-white/5'}>
@@ -252,6 +282,13 @@ export default function DbtImportModal({ onClose, onImported }: Props) {
                             <td className="px-3 py-2 text-white/60">
                               {m.tests.length > 0 ? <span className="text-primary">{m.tests.length}</span> : '—'}
                             </td>
+                            {importMode === 'decompose_ctes' && (
+                              <td className="px-3 py-2 text-white/60">
+                                {(m.cte_count ?? 0) > 0
+                                  ? <span className="text-emerald-400">{m.cte_count}</span>
+                                  : <span className="text-white/30">—</span>}
+                              </td>
+                            )}
                             <td className="px-3 py-2">
                               {hasWarns && (
                                 <button
@@ -266,7 +303,7 @@ export default function DbtImportModal({ onClose, onImported }: Props) {
                           </tr>
                           {expanded && hasWarns && (
                             <tr className={i % 2 === 0 ? 'bg-navy-800' : 'bg-white/5'}>
-                              <td colSpan={6} className="px-4 pb-2">
+                              <td colSpan={colSpanCount} className="px-4 pb-2">
                                 {m.warnings.map((w, j) => (
                                   <p key={j} className="text-amber-300 text-xs flex items-center gap-1 py-0.5">
                                     <IconWarning size={10} /> {w}
@@ -289,8 +326,10 @@ export default function DbtImportModal({ onClose, onImported }: Props) {
               )}
 
               <p className="text-white/40 text-xs">
-                Each model becomes a pipeline with one Custom SQL step.
-                Source tables and refs are wired up automatically.
+                {importMode === 'decompose_ctes'
+                  ? 'CTEs are decomposed into individual pipeline steps. Models without CTEs fall back to a single SQL step.'
+                  : 'Each model becomes a pipeline with one Custom SQL step.'}
+                {' '}Source tables and refs are wired up automatically.
                 You can edit any pipeline after import.
               </p>
             </div>

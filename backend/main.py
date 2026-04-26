@@ -2201,6 +2201,7 @@ async def dbt_import_preview(
 class DbtImportConfirmRequest(BaseModel):
     models: List[dict]   # list of parsed model dicts from /preview
     name_prefix: Optional[str] = None  # optional prefix to prepend to pipeline names
+    import_mode: str = "single_step"   # "single_step" | "decompose_ctes"
 
 
 @app.post("/api/dbt/import/confirm", tags=["dbt"], summary="Create Transform Studio pipelines from a parsed dbt project")
@@ -2281,16 +2282,38 @@ async def dbt_import_confirm(
                     except Exception:
                         pass
 
-                create_data = PipelineCreate(
-                    name=pipeline_name,
-                    description=m.get("description"),
-                    source_table=source_table,
-                    steps=[TransformStep(
+                if data.import_mode == "decompose_ctes":
+                    from dbt_compat import decompose_sql_to_steps as _decompose
+                    resolved = m.get("resolved_sql") or custom_sql
+                    raw_steps = _decompose(resolved, source_table)
+                    # re-resolve _dbt_ref__ placeholders inside each step's SQL
+                    step_objects = []
+                    for rs in raw_steps:
+                        step_sql = rs["config"]["sql"]
+                        for ref_name, ref_table in model_to_output.items():
+                            step_sql = step_sql.replace(f"_dbt_ref__{ref_name}", ref_table)
+                        remaining_refs2 = re.findall(r"_dbt_ref__(\w+)", step_sql)
+                        for rr in remaining_refs2:
+                            step_sql = step_sql.replace(f"_dbt_ref__{rr}", f'"dbt_imported"."{rr}"')
+                        step_objects.append(TransformStep(
+                            id=rs["id"],
+                            transform_type=rs["transform_type"],
+                            config={"sql": step_sql},
+                            label=rs["label"],
+                        ))
+                else:
+                    step_objects = [TransformStep(
                         id=str(_uuid_mod.uuid4()),
                         transform_type="custom_sql",
                         config={"sql": custom_sql},
                         label="dbt model SQL",
-                    )],
+                    )]
+
+                create_data = PipelineCreate(
+                    name=pipeline_name,
+                    description=m.get("description"),
+                    source_table=source_table,
+                    steps=step_objects,
                     output_table=model_to_output[m["model_name"]],
                     output_mode=m.get("output_mode", "ctas"),
                     dependencies=dep_ids,

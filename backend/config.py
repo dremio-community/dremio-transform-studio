@@ -15,7 +15,7 @@ class Settings:
 
     # password auth
     dremio_user: str = os.getenv("DREMIO_USER", "mark")
-    dremio_pass: str = os.getenv("DREMIO_PASS", "Hoyasaxa7788&&**")
+    dremio_pass: str = os.getenv("DREMIO_PASS", "")
 
     # PAT auth (Dremio Cloud or self-hosted with PAT enabled)
     dremio_pat: str = os.getenv("DREMIO_PAT", "")

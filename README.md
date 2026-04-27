@@ -57,6 +57,8 @@ Use backups to migrate between machines or recover from a bad state.
 
 Data is stored at `~/.transform_studio/transforms.db` and persists across launches — no volume mount needed.
 
+> **Mac users — first launch security warning:** macOS will block the app with *"can't be opened because Apple cannot check it for malicious software."* To fix it, **right-click → Open** (instead of double-clicking) and click **Open** in the dialog — macOS remembers your choice for future launches. Alternatively, run `xattr -dr com.apple.quarantine /Applications/TransformStudio.app` in Terminal. See the [full install guide](INSTALL_GUIDE.md#mac-desktop) for all options.
+
 > All releases and previous versions: [github.com/dremio-community/dremio-transform-studio/releases](https://github.com/dremio-community/dremio-transform-studio/releases)
 
 ---

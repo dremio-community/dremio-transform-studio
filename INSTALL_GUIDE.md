@@ -32,24 +32,24 @@ All options connect to the same Dremio instance. Your pipelines and settings are
 4. Close the installer window
 5. Open **Launchpad** or **Applications** and click **Transform Studio**
 
-> **First launch — macOS security warning:** Because Transform Studio is not notarized through Apple's paid developer program, macOS Gatekeeper will block the app on first open with a message like *"can't be opened because Apple cannot check it for malicious software."*
+> **First launch — macOS security warning:** Because Transform Studio is not notarized through Apple's paid developer program, macOS Gatekeeper will block the app on first open. Here are three ways to get past it:
 >
-> **Option A — Right-click to open (easiest):**
-> 1. Right-click (or Control-click) **TransformStudio** in Applications
-> 2. Select **Open** from the context menu
-> 3. Click **Open** in the confirmation dialog — macOS will remember your choice
->
-> **Option B — System Settings:**
-> 1. Try to open the app normally (it will be blocked)
+> **Option A — System Settings (recommended):**
+> 1. Try to open the app — macOS will block it and show a "Not Opened" dialog. Click **Done**.
 > 2. Go to **System Settings → Privacy & Security**
-> 3. Scroll down to the security section and click **Open Anyway** next to the Transform Studio message
-> 4. Click **Open** in the confirmation dialog
+> 3. Scroll to the bottom of the page — you'll see *"TransformStudio was blocked to protect your Mac"*
+> 4. Click **Open Anyway**, then click **Open** in the confirmation dialog
 >
-> **Option C — Terminal (one command):**
+> **Option B — Terminal (one command):**
 > ```bash
 > xattr -dr com.apple.quarantine /Applications/TransformStudio.app
 > ```
 > After running this, the app opens normally without any warning.
+>
+> **Option C — Right-click to open** *(older macOS versions only)*
+> 1. Right-click (or Control-click) **TransformStudio** in Applications
+> 2. Select **Open** from the context menu
+> 3. Click **Open** in the confirmation dialog
 >
 > You only need to do this once — subsequent launches open without any prompt.
 

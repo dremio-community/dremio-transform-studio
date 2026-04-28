@@ -236,6 +236,10 @@ export interface Pipeline {
   // Folders & tags
   folder?: string
   tags?: string[]
+  // Dremio Load integration
+  load_trigger_url?: string
+  load_trigger_job_id?: string
+  cdc_trigger_url?: string
 }
 
 export interface PipelineCreate {
@@ -261,6 +265,9 @@ export interface PipelineCreate {
   microbatch_window?: string
   folder?: string
   tags?: string[]
+  load_trigger_url?: string
+  load_trigger_job_id?: string
+  cdc_trigger_url?: string
 }
 
 export interface PipelineSave {
@@ -286,6 +293,9 @@ export interface PipelineSave {
   microbatch_window?: string
   folder?: string
   tags?: string[]
+  load_trigger_url?: string
+  load_trigger_job_id?: string
+  cdc_trigger_url?: string
 }
 
 export interface AuditLogEntry {

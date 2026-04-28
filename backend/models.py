@@ -108,6 +108,11 @@ class Pipeline(BaseModel):
     # Execution hooks
     pre_hook_sql: Optional[str] = None   # SQL to run before the pipeline executes
     post_hook_sql: Optional[str] = None  # SQL to run after a successful pipeline execute
+    # Dremio Load integration — trigger a load job before executing this pipeline
+    load_trigger_url: Optional[str] = None    # e.g. http://localhost:7071
+    load_trigger_job_id: Optional[str] = None # job id in dremio-load
+    # Dremio CDC integration — verify/start CDC engine before executing this pipeline
+    cdc_trigger_url: Optional[str] = None     # e.g. http://localhost:8080
     # Exposures — downstream BI consumers
     exposures: List[Exposure] = []
     # Approval workflow
@@ -145,6 +150,9 @@ class PipelineCreate(BaseModel):
     exposures: List[Exposure] = []
     folder: Optional[str] = None
     tags: Optional[List[str]] = None
+    load_trigger_url: Optional[str] = None
+    load_trigger_job_id: Optional[str] = None
+    cdc_trigger_url: Optional[str] = None
 
 
 class PipelineSave(BaseModel):
@@ -170,6 +178,9 @@ class PipelineSave(BaseModel):
     exposures: Optional[List[Exposure]] = None
     folder: Optional[str] = None
     tags: Optional[List[str]] = None
+    load_trigger_url: Optional[str] = None
+    load_trigger_job_id: Optional[str] = None
+    cdc_trigger_url: Optional[str] = None
 
 
 class AuditLogEntry(BaseModel):

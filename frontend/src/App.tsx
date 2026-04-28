@@ -130,6 +130,9 @@ export default function App() {
   // Execution hooks
   const [localPreHook, setLocalPreHook] = useState<string>('')
   const [localPostHook, setLocalPostHook] = useState<string>('')
+  const [localLoadTriggerUrl, setLocalLoadTriggerUrl] = useState<string>('')
+  const [localLoadTriggerJobId, setLocalLoadTriggerJobId] = useState<string>('')
+  const [localCdcTriggerUrl, setLocalCdcTriggerUrl] = useState<string>('')
   const [localExposures, setLocalExposures] = useState<import('./types').Exposure[]>([])
   const [localApprovalRequired, setLocalApprovalRequired] = useState(false)
   const [localPendingApprovalId, setLocalPendingApprovalId] = useState<string | null>(null)
@@ -507,6 +510,9 @@ export default function App() {
     setLocalScd2IsCurrent(p.scd2_is_current ?? 'is_current')
     setLocalPreHook(p.pre_hook_sql ?? '')
     setLocalPostHook(p.post_hook_sql ?? '')
+    setLocalLoadTriggerUrl(p.load_trigger_url ?? '')
+    setLocalLoadTriggerJobId(p.load_trigger_job_id ?? '')
+    setLocalCdcTriggerUrl(p.cdc_trigger_url ?? '')
     setLocalExposures(p.exposures ?? [])
     setLocalApprovalRequired(p.approval_required ?? false)
     setLocalPendingApprovalId(p.pending_approval_id ?? null)
@@ -556,6 +562,9 @@ export default function App() {
     setLocalScd2IsCurrent('is_current')
     setLocalPreHook('')
     setLocalPostHook('')
+    setLocalLoadTriggerUrl('')
+    setLocalLoadTriggerJobId('')
+    setLocalCdcTriggerUrl('')
     setLocalExposures([])
     setLocalApprovalRequired(false)
     setLocalPendingApprovalId(null)
@@ -636,6 +645,9 @@ export default function App() {
         scd2_is_current: localOutputMode === 'scd2' ? localScd2IsCurrent : undefined,
         pre_hook_sql: localPreHook || undefined,
         post_hook_sql: localPostHook || undefined,
+        load_trigger_url: localLoadTriggerUrl || undefined,
+        load_trigger_job_id: localLoadTriggerJobId || undefined,
+        cdc_trigger_url: localCdcTriggerUrl || undefined,
         exposures: localExposures,
         folder: pipelineFolder || undefined,
         tags: pipelineTags.length > 0 ? pipelineTags : undefined,
@@ -659,6 +671,9 @@ export default function App() {
         scd2_is_current: localOutputMode === 'scd2' ? localScd2IsCurrent : undefined,
         pre_hook_sql: localPreHook || undefined,
         post_hook_sql: localPostHook || undefined,
+        load_trigger_url: localLoadTriggerUrl || undefined,
+        load_trigger_job_id: localLoadTriggerJobId || undefined,
+        cdc_trigger_url: localCdcTriggerUrl || undefined,
         exposures: localExposures,
         folder: pipelineFolder || undefined,
         tags: pipelineTags.length > 0 ? pipelineTags : undefined,
@@ -827,285 +842,226 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen bg-surface-100 overflow-hidden font-sans">
       {/* ── Top Bar ─────────────────────────────────────────────────────────── */}
-      <header className="flex items-center gap-3 px-4 py-0 bg-navy-950 border-b border-navy-800 shrink-0 h-11">
-        {/* Logo */}
-        <div className="flex items-center gap-2 mr-3">
-          <div className="w-6 h-6 rounded bg-dblue-500 flex items-center justify-center">
-            <Layers size={14} className="text-white" />
+      <header className="flex flex-col bg-navy-950 border-b border-navy-800 shrink-0">
+
+        {/* Row 1: Logo + pipeline nav + hub buttons */}
+        <div className="flex items-center gap-2 px-4 h-11 border-b border-navy-800">
+          {/* Logo */}
+          <div className="flex items-center gap-2 mr-2">
+            <div className="w-6 h-6 rounded bg-dblue-500 flex items-center justify-center">
+              <Layers size={14} className="text-white" />
+            </div>
+            <span className="font-semibold text-white text-sm tracking-tight">Transform Studio</span>
+            <span className="text-white/50 text-xs font-mono ml-1">for Dremio</span>
           </div>
-          <span className="font-semibold text-white text-sm tracking-tight">Transform Studio</span>
-          <span className="text-white/50 text-xs font-mono ml-1">for Dremio</span>
-        </div>
 
-        <div className="h-5 w-px bg-navy-700" />
+          <div className="h-5 w-px bg-navy-700" />
 
-        <button
-          onClick={handleNewPipeline}
-          title="New pipeline"
-          className="flex items-center gap-1 px-2.5 py-1 rounded border border-sidebar-border hover:border-primary text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors text-xs font-medium"
-        >
-          <IconAdd size={12} />
-          New Pipeline
-        </button>
-        <button
-          onClick={() => setShowTemplates(true)}
-          title="Pipeline templates"
-          className="flex items-center gap-1 px-2.5 py-1 rounded border border-sidebar-border hover:border-primary text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors text-xs font-medium"
-        >
-          <LayoutTemplate size={12} />
-          Templates
-        </button>
+          <button
+            onClick={handleNewPipeline}
+            title="New pipeline"
+            className="flex items-center gap-1 px-2.5 py-1 rounded border border-sidebar-border hover:border-primary text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors text-xs font-medium"
+          >
+            <IconAdd size={12} />
+            New Pipeline
+          </button>
+          <button
+            onClick={() => setShowTemplates(true)}
+            title="Pipeline templates"
+            className="flex items-center gap-1 px-2.5 py-1 rounded border border-sidebar-border hover:border-primary text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors text-xs font-medium"
+          >
+            <LayoutTemplate size={12} />
+            Templates
+          </button>
 
-        <div className="h-5 w-px bg-navy-700" />
+          <div className="h-5 w-px bg-navy-700" />
 
-        {/* Pipeline name */}
-        <div className="flex items-center gap-1.5 group">
-          <span className="text-white text-sm font-medium max-w-[180px] truncate">{localName}</span>
-          {activePipelineId && (
-            <button
-              onClick={() => { setRenamingId(activePipelineId); setRenameValue(localName) }}
-              title="Rename pipeline"
-              className="opacity-0 group-hover:opacity-100 p-1 rounded text-navy-500 hover:text-white/70 transition-all"
-            >
-              <IconEdit size={11} />
-            </button>
-          )}
-        </div>
-
-        {isDirty && <span className="text-xs text-amber-400 font-medium">●</span>}
-
-        <div className="flex-1" />
-
-        {statusMsg && (
-          <span className={clsx(
-            'flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full',
-            statusMsg.type === 'ok' ? 'text-emerald-400 bg-emerald-950/60' : 'text-red-400 bg-red-950/60'
-          )}>
-            {statusMsg.type === 'ok' ? <IconCheckCircle size={11} /> : <IconErrorCircle size={11} />}
-            {statusMsg.text}
-          </span>
-        )}
-
-        {isLoading && <Loader2 size={14} className="animate-spin text-primary" />}
-
-        <Tooltip text="Ingestion Hub">
-          <button
-            onClick={() => setShowIngestionHub(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dblue-500/20 hover:bg-dblue-500/40 text-primary hover:text-white border border-dblue-500/40 hover:border-dblue-500/70 transition-all font-semibold text-xs"
-          >
-            <Zap size={15} />
-            Ingest
-          </button>
-        </Tooltip>
-        <Tooltip text="AI Agent">
-          <button
-            onClick={() => setShowAgentPanel(p => !p)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all font-semibold text-xs ${showAgentPanel ? 'bg-dblue-500 text-white border-dblue-500' : 'bg-dblue-500/20 hover:bg-dblue-500/40 text-primary hover:text-white border-dblue-500/40 hover:border-dblue-500/70'}`}
-          >
-            <Bot size={15} />
-            Agent
-          </button>
-        </Tooltip>
-        <Tooltip text="Data Quality Hub">
-          <button
-            onClick={() => setShowDqHub(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dblue-500/20 hover:bg-dblue-500/40 text-primary hover:text-white border border-dblue-500/40 hover:border-dblue-500/70 transition-all font-semibold text-xs whitespace-nowrap"
-          >
-            <ShieldCheck size={15} />
-            DQ Hub
-          </button>
-        </Tooltip>
-        <Tooltip text="Health Dashboard">
-          <button
-            onClick={() => setShowDashboard(true)}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
-          >
-            <Activity size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip text="Approvals">
-          <button
-            onClick={() => setRightPanel('approvals')}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors relative"
-          >
-            <GitPullRequest size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip text="Alerts">
-          <button
-            onClick={() => setShowAlerts(true)}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
-          >
-            <Bell size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip text="Pipeline DAG">
-          <button
-            onClick={() => setShowDagView(true)}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
-          >
-            <GitBranch size={15} />
-          </button>
-        </Tooltip>
-        {localDeps.length > 0 && (
-          <Tooltip text="Run with Dependencies">
-            <button
-              onClick={() => activePipelineId && setShowDagRunModal(true)}
-              disabled={!activePipelineId}
-              className="p-1.5 rounded text-primary hover:text-white hover:bg-sidebar-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <GitMerge size={15} />
-            </button>
-          </Tooltip>
-        )}
-        <Tooltip text="Seed Table from CSV">
-          <button
-            onClick={() => setShowSeedModal(true)}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
-          >
-            <Sprout size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip text="Global Search (⌘K)">
-          <button
-            onClick={() => { setShowSearch(true); setSearchQuery(''); setSearchResults([]) }}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
-          >
-            <IconSearch size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip text="Export Documentation">
-          <button
-            onClick={exportDocs}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
-          >
-            <FileText size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip text="Export as dbt Project">
-          <button
-            onClick={exportDbt}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
-          >
-            <Package size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip text="Import from dbt">
-          <button
-            onClick={() => setShowDbtImport(true)}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
-          >
-            <Upload size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip text={activePipelineId ? 'Schedule Pipeline' : 'Save a pipeline first'}>
-          <button
-            onClick={() => activePipelineId && setShowSchedule(true)}
-            disabled={!activePipelineId}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <CalendarClock size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip text="Connection Settings">
-          <button
-            onClick={() => setShowConnectionSettings(true)}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
-          >
-            <IconSettings size={15} />
-          </button>
-        </Tooltip>
-
-        <EnvironmentSwitcher onActivated={() => qc.invalidateQueries({ queryKey: ['pipelines'] })} />
-
-        {/* User menu (auth enabled) */}
-        {authEnabled && currentUser && (
-          <div className="relative">
-            <button
-              onClick={() => setShowUserMenu((v) => !v)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors text-xs"
-              title={currentUser.username}
-            >
-              <User size={13} />
-              <span className="max-w-[80px] truncate">{currentUser.username}</span>
-            </button>
-            {showUserMenu && (
-              <div className="absolute right-0 top-full mt-1 w-44 bg-navy-900 border border-navy-700 rounded-lg shadow-xl z-50 overflow-hidden">
-                <div className="px-3 py-2 border-b border-navy-800">
-                  <p className="text-xs font-semibold text-white truncate">{currentUser.username}</p>
-                  <p className="text-xs" style={{ color: currentUser.role === 'admin' ? '#60a5fa' : currentUser.role === 'viewer' ? '#f59e0b' : '#6ee7b7' }}>
-                    {currentUser.role === 'admin' ? 'Admin' : currentUser.role === 'viewer' ? 'Viewer' : 'Editor'}
-                  </p>
-                </div>
-                {currentUser.is_admin && (
-                  <button
-                    onClick={() => { setShowManageUsers(true); setShowUserMenu(false) }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
-                  >
-                    <Users size={12} /> Manage Users
-                  </button>
-                )}
-                {currentUser.is_admin && (
-                  <button
-                    onClick={() => { setShowAuditLog(true); setShowUserMenu(false) }}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
-                  >
-                    <ScrollText size={12} /> Audit Log
-                  </button>
-                )}
-                <button
-                  onClick={() => { setShowMyCredentials(true); setShowUserMenu(false) }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors"
-                >
-                  <KeyRound size={12} /> My Dremio Credentials
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-navy-800 hover:text-red-400 transition-colors"
-                >
-                  <LogOut size={12} /> Sign Out
-                </button>
-              </div>
+          {/* Pipeline name */}
+          <div className="flex items-center gap-1.5 group">
+            <span className="text-white text-sm font-medium max-w-[200px] truncate">{localName}</span>
+            {activePipelineId && (
+              <button
+                onClick={() => { setRenamingId(activePipelineId); setRenameValue(localName) }}
+                title="Rename pipeline"
+                className="opacity-0 group-hover:opacity-100 p-1 rounded text-navy-500 hover:text-white/70 transition-all"
+              >
+                <IconEdit size={11} />
+              </button>
             )}
           </div>
-        )}
-        {isDesktop && (
-          <Tooltip text="Quit Transform Studio">
+          {isDirty && <span className="text-xs text-amber-400 font-medium">●</span>}
+
+          <div className="flex-1" />
+
+          <Tooltip text="Ingestion Hub">
             <button
-              onClick={() => setShowQuitConfirm(true)}
-              className="p-1.5 rounded text-white/60 hover:text-red-400 hover:bg-navy-700 transition-colors"
+              onClick={() => setShowIngestionHub(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dblue-500/20 hover:bg-dblue-500/40 text-primary hover:text-white border border-dblue-500/40 hover:border-dblue-500/70 transition-all font-semibold text-xs"
             >
-              <Power size={15} />
+              <Zap size={15} />
+              Ingest
             </button>
           </Tooltip>
-        )}
-        <div className="h-5 w-px bg-navy-700" />
-        <Tooltip text={activePipelineId ? 'Export pipeline as JSON' : 'Save a pipeline first'}>
-          <button
-            onClick={handleExport}
-            disabled={!activePipelineId}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <IconDatasetDownload size={15} />
-          </button>
-        </Tooltip>
-        <Tooltip text="Import pipeline from JSON">
-          <button
-            onClick={handleImportClick}
-            className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors"
-          >
-            <Upload size={15} />
-          </button>
-        </Tooltip>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          className="hidden"
-          onChange={handleImportFile}
-        />
-        <div className="h-5 w-px bg-navy-700" />
-        <TopBtn onClick={handleShowSql} icon={<Code2 size={12} />} label="View SQL" />
+          <Tooltip text="AI Agent">
+            <button
+              onClick={() => setShowAgentPanel(p => !p)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all font-semibold text-xs ${showAgentPanel ? 'bg-dblue-500 text-white border-dblue-500' : 'bg-dblue-500/20 hover:bg-dblue-500/40 text-primary hover:text-white border-dblue-500/40 hover:border-dblue-500/70'}`}
+            >
+              <Bot size={15} />
+              Agent
+            </button>
+          </Tooltip>
+          <Tooltip text="Data Quality Hub">
+            <button
+              onClick={() => setShowDqHub(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dblue-500/20 hover:bg-dblue-500/40 text-primary hover:text-white border border-dblue-500/40 hover:border-dblue-500/70 transition-all font-semibold text-xs whitespace-nowrap"
+            >
+              <ShieldCheck size={15} />
+              DQ Hub
+            </button>
+          </Tooltip>
+        </div>
+
+        {/* Row 2: Tools + status + actions */}
+        <div className="flex items-center gap-1 px-4 h-9 pl-64">
+          <Tooltip text="Health Dashboard">
+            <button onClick={() => setShowDashboard(true)} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors">
+              <Activity size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip text="Approvals">
+            <button onClick={() => setRightPanel('approvals')} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors">
+              <GitPullRequest size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip text="Alerts">
+            <button onClick={() => setShowAlerts(true)} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors">
+              <Bell size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip text="Pipeline DAG">
+            <button onClick={() => setShowDagView(true)} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors">
+              <GitBranch size={14} />
+            </button>
+          </Tooltip>
+          {localDeps.length > 0 && (
+            <Tooltip text="Run with Dependencies">
+              <button onClick={() => activePipelineId && setShowDagRunModal(true)} disabled={!activePipelineId} className="p-1.5 rounded text-primary hover:text-white hover:bg-sidebar-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                <GitMerge size={14} />
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip text="Seed Table from CSV">
+            <button onClick={() => setShowSeedModal(true)} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors">
+              <Sprout size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip text="Global Search (⌘K)">
+            <button onClick={() => { setShowSearch(true); setSearchQuery(''); setSearchResults([]) }} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors">
+              <IconSearch size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip text="Export Documentation">
+            <button onClick={exportDocs} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors">
+              <FileText size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip text="Export as dbt Project">
+            <button onClick={exportDbt} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors">
+              <Package size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip text="Import from dbt">
+            <button onClick={() => setShowDbtImport(true)} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors">
+              <Upload size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip text={activePipelineId ? 'Schedule Pipeline' : 'Save a pipeline first'}>
+            <button onClick={() => activePipelineId && setShowSchedule(true)} disabled={!activePipelineId} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              <CalendarClock size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip text="Connection Settings">
+            <button onClick={() => setShowConnectionSettings(true)} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors">
+              <IconSettings size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip text={activePipelineId ? 'Export pipeline as JSON' : 'Save a pipeline first'}>
+            <button onClick={handleExport} disabled={!activePipelineId} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              <IconDatasetDownload size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip text="Import pipeline from JSON">
+            <button onClick={handleImportClick} className="p-1.5 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors">
+              <Upload size={14} />
+            </button>
+          </Tooltip>
+          <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
+
+          <EnvironmentSwitcher onActivated={() => qc.invalidateQueries({ queryKey: ['pipelines'] })} />
+
+          {/* User menu (auth enabled) */}
+          {authEnabled && currentUser && (
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu((v) => !v)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded text-white/70 hover:text-white hover:bg-sidebar-accent transition-colors text-xs"
+                title={currentUser.username}
+              >
+                <User size={13} />
+                <span className="max-w-[80px] truncate">{currentUser.username}</span>
+              </button>
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-1 w-44 bg-navy-900 border border-navy-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                  <div className="px-3 py-2 border-b border-navy-800">
+                    <p className="text-xs font-semibold text-white truncate">{currentUser.username}</p>
+                    <p className="text-xs" style={{ color: currentUser.role === 'admin' ? '#60a5fa' : currentUser.role === 'viewer' ? '#f59e0b' : '#6ee7b7' }}>
+                      {currentUser.role === 'admin' ? 'Admin' : currentUser.role === 'viewer' ? 'Viewer' : 'Editor'}
+                    </p>
+                  </div>
+                  {currentUser.is_admin && (
+                    <button onClick={() => { setShowManageUsers(true); setShowUserMenu(false) }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors">
+                      <Users size={12} /> Manage Users
+                    </button>
+                  )}
+                  {currentUser.is_admin && (
+                    <button onClick={() => { setShowAuditLog(true); setShowUserMenu(false) }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors">
+                      <ScrollText size={12} /> Audit Log
+                    </button>
+                  )}
+                  <button onClick={() => { setShowMyCredentials(true); setShowUserMenu(false) }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-sidebar-accent hover:text-white transition-colors">
+                    <KeyRound size={12} /> My Dremio Credentials
+                  </button>
+                  <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-navy-800 hover:text-red-400 transition-colors">
+                    <LogOut size={12} /> Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {isDesktop && (
+            <Tooltip text="Quit Transform Studio">
+              <button onClick={() => setShowQuitConfirm(true)} className="p-1.5 rounded text-white/60 hover:text-red-400 hover:bg-navy-700 transition-colors">
+                <Power size={14} />
+              </button>
+            </Tooltip>
+          )}
+
+          <div className="flex-1" />
+
+          {statusMsg && (
+            <span className={clsx(
+              'flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full',
+              statusMsg.type === 'ok' ? 'text-emerald-400 bg-emerald-950/60' : 'text-red-400 bg-red-950/60'
+            )}>
+              {statusMsg.type === 'ok' ? <IconCheckCircle size={11} /> : <IconErrorCircle size={11} />}
+              {statusMsg.text}
+            </span>
+          )}
+          {isLoading && <Loader2 size={14} className="animate-spin text-primary" />}
+
+          <div className="h-5 w-px bg-navy-700" />
+          <TopBtn onClick={handleShowSql} icon={<Code2 size={12} />} label="View SQL" />
         <TopBtn
           onClick={handlePreview}
           disabled={!localSourceTable || isLoading}
@@ -1194,6 +1150,7 @@ export default function App() {
             />
           </>
         )}
+        </div>{/* end row 2 */}
       </header>
 
       {/* ── Main Content ────────────────────────────────────────────────────── */}
@@ -1464,7 +1421,7 @@ export default function App() {
           {/* Description / Notes */}
           {activePipelineId && (
             <div className="px-4 py-2 bg-white border-b border-surface-100 shrink-0">
-              <label className="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1">Notes</label>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Notes</label>
               <textarea
                 value={localDescription}
                 onChange={(e) => { setLocalDescription(e.target.value); setIsDirty(true) }}
@@ -1542,8 +1499,8 @@ export default function App() {
                 <div className="w-16 h-16 rounded-2xl bg-navy-900 flex items-center justify-center mx-auto mb-4">
                   <IconEntityNamespace size={28} className="text-navy-600" />
                 </div>
-                <p className="font-semibold text-white/30 mb-1 text-sm">No source table selected</p>
-                <p className="text-xs text-white/60">Click a table in the Catalog panel to start building a pipeline.</p>
+                <p className="font-semibold text-gray-400 mb-1 text-sm">No source table selected</p>
+                <p className="text-xs text-gray-500">Click a table in the Catalog panel to start building a pipeline.</p>
               </div>
             </div>
           ) : centerView === 'lineage' ? (
@@ -1628,7 +1585,7 @@ export default function App() {
                       ))}
                     </select>
 
-                    <span className="text-white/60 font-mono text-sm shrink-0">.</span>
+                    <span className="text-gray-500 font-mono text-sm shrink-0">.</span>
 
                     {/* Subpath: folder(s) + table name, supports dots for nesting */}
                     <input
@@ -1648,7 +1605,7 @@ export default function App() {
 
                     {/* Full path preview */}
                     {localOutputTable && (
-                      <span className="text-xs text-white/60 font-mono truncate max-w-[200px] shrink-0" title={localOutputTable}>
+                      <span className="text-xs text-gray-500 font-mono truncate max-w-[200px] shrink-0" title={localOutputTable}>
                         → {localOutputTable}
                       </span>
                     )}
@@ -1662,7 +1619,7 @@ export default function App() {
                     <select
                       value={localIncrementalStrategy}
                       onChange={e => { setLocalIncrementalStrategy(e.target.value); setIsDirty(true) }}
-                      className="text-xs border border-dblue-400 rounded-md px-2 py-1.5 bg-white text-white/30 shadow-sm"
+                      className="text-xs border border-dblue-400 rounded-md px-2 py-1.5 bg-white text-gray-700 shadow-sm"
                     >
                       <option value="append">Append (timestamp)</option>
                       <option value="merge">Merge (MERGE INTO, Iceberg only)</option>
@@ -1678,7 +1635,7 @@ export default function App() {
                       <select
                         value={localMicrobatchWindow}
                         onChange={e => { setLocalMicrobatchWindow(e.target.value); setIsDirty(true) }}
-                        className="text-xs border border-dblue-400 rounded-md px-2 py-1.5 bg-white text-white/30 shadow-sm"
+                        className="text-xs border border-dblue-400 rounded-md px-2 py-1.5 bg-white text-gray-700 shadow-sm"
                         title="Batch window size — each execution processes data in chunks of this size"
                       >
                         <option value="1hour">1-hour batches</option>
@@ -1707,19 +1664,19 @@ export default function App() {
                       onChange={e => { setLocalScd2TrackedCols(e.target.value); setIsDirty(true) }}
                     />
                     <div className="flex items-center gap-1 border border-dblue-400 rounded-md px-2 py-1.5 bg-white shadow-sm">
-                      <span className="text-xs text-white/40">eff_from</span>
+                      <span className="text-xs text-gray-500">eff_from</span>
                       <input
                         className="text-xs font-mono w-24 bg-transparent outline-none"
                         value={localScd2EffFrom}
                         onChange={e => { setLocalScd2EffFrom(e.target.value); setIsDirty(true) }}
                       />
-                      <span className="text-xs text-white/40 ml-1">eff_to</span>
+                      <span className="text-xs text-gray-500 ml-1">eff_to</span>
                       <input
                         className="text-xs font-mono w-24 bg-transparent outline-none"
                         value={localScd2EffTo}
                         onChange={e => { setLocalScd2EffTo(e.target.value); setIsDirty(true) }}
                       />
-                      <span className="text-xs text-white/40 ml-1">current</span>
+                      <span className="text-xs text-gray-500 ml-1">current</span>
                       <input
                         className="text-xs font-mono w-20 bg-transparent outline-none"
                         value={localScd2IsCurrent}
@@ -1860,7 +1817,7 @@ export default function App() {
                 onOpenEditor={selectedStep.transform_type === 'custom_sql' ? () => setCustomSqlEditorStepId(selectedStep.id) : undefined}
               />
             ) : (
-              <div className="p-6 text-center text-white/60 text-xs">
+              <div className="p-6 text-center text-gray-400 text-xs">
                 Select a step to configure it
               </div>
             )}
@@ -1881,7 +1838,7 @@ export default function App() {
                     'px-3 py-1 text-xs font-medium rounded transition-colors capitalize',
                     bottomPanel === tab
                       ? 'bg-white border border-surface-200 text-navy-900 shadow-sm'
-                      : 'text-white/40 hover:text-surface-700'
+                      : 'text-gray-500 hover:text-gray-700'
                   )}
                 >
                   {tab === 'sql' ? 'SQL' : tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -1889,7 +1846,7 @@ export default function App() {
               ))}
             </div>
             <div className="flex-1" />
-            <button onClick={() => setBottomPanel(null)} className="text-white/60 hover:text-white/30 text-xs px-2">✕</button>
+            <button onClick={() => setBottomPanel(null)} className="text-gray-500 hover:text-gray-700 text-xs px-2">✕</button>
           </div>
           <div className="flex-1 overflow-auto">
             {bottomPanel === 'preview' && previewResult && <PreviewTable result={previewResult} />}
@@ -1989,7 +1946,24 @@ export default function App() {
       {/* Alerts page — full-page overlay */}
       {showAlerts && <AlertsPage onClose={() => setShowAlerts(false)} />}
       {showDqHub && <DataQualityHub onClose={() => setShowDqHub(false)} />}
-      {showIngestionHub && <IngestionHub onClose={() => setShowIngestionHub(false)} />}
+      {showIngestionHub && (
+        <IngestionHub
+          onClose={() => setShowIngestionHub(false)}
+          loadTriggerUrl={localLoadTriggerUrl}
+          loadTriggerJobId={localLoadTriggerJobId}
+          cdcTriggerUrl={localCdcTriggerUrl}
+          pipelineName={localName}
+          onLoadTriggerChange={(url, jobId) => {
+            setLocalLoadTriggerUrl(url)
+            setLocalLoadTriggerJobId(jobId)
+            setIsDirty(true)
+          }}
+          onCdcTriggerChange={(url) => {
+            setLocalCdcTriggerUrl(url)
+            setIsDirty(true)
+          }}
+        />
+      )}
       {showAuditLog && <AuditLogPage onClose={() => setShowAuditLog(false)} />}
       {showAgentPanel && (
         <AgentPanel
@@ -2573,7 +2547,7 @@ function PanelTabBtn({ active, onClick, label, disabled, icon }: {
       disabled={disabled}
       className={clsx(
         'flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider transition-colors disabled:opacity-40 flex items-center justify-center gap-1',
-        active ? 'text-dblue-600 border-b-2 border-dblue-500 bg-dblue-50' : 'text-white/40 hover:text-surface-700'
+        active ? 'text-dblue-600 border-b-2 border-dblue-500 bg-dblue-50' : 'text-gray-500 hover:text-gray-700'
       )}
     >
       {icon}
@@ -2598,7 +2572,7 @@ function IconTabBtn({ active, onClick, tooltip, icon, disabled }: {
           'flex items-center justify-center w-8 h-8 rounded-lg transition-colors disabled:opacity-30',
           active
             ? 'bg-dblue-50 text-dblue-600'
-            : 'text-white/60 hover:bg-surface-100 hover:text-surface-700'
+            : 'text-gray-500 hover:bg-surface-100 hover:text-gray-700'
         )}
       >
         {icon}

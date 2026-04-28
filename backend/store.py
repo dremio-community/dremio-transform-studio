@@ -229,6 +229,11 @@ class PipelineStore:
                 "ALTER TABLE ingestion_pipes ADD COLUMN source_location TEXT DEFAULT ''",
                 "ALTER TABLE ingestion_pipes ADD COLUMN notification_provider TEXT DEFAULT ''",
                 "ALTER TABLE ingestion_pipes ADD COLUMN notification_queue_reference TEXT DEFAULT ''",
+                # Dremio Load integration (v1.9)
+                "ALTER TABLE pipelines ADD COLUMN load_trigger_url TEXT DEFAULT ''",
+                "ALTER TABLE pipelines ADD COLUMN load_trigger_job_id TEXT DEFAULT ''",
+                # Dremio CDC integration (v1.9)
+                "ALTER TABLE pipelines ADD COLUMN cdc_trigger_url TEXT DEFAULT ''",
             ]:
                 try:
                     await db.execute(col_sql)
@@ -626,6 +631,9 @@ class PipelineStore:
             owner_username=row["owner_username"] if "owner_username" in keys else None,
             folder=row["folder"] if "folder" in keys else "",
             tags=tags,
+            load_trigger_url=row["load_trigger_url"] if "load_trigger_url" in keys else None,
+            load_trigger_job_id=row["load_trigger_job_id"] if "load_trigger_job_id" in keys else None,
+            cdc_trigger_url=row["cdc_trigger_url"] if "cdc_trigger_url" in keys else None,
         )
 
     async def create_pipeline(self, data: PipelineCreate, user_id: str = "default") -> Pipeline:
@@ -863,6 +871,9 @@ class PipelineStore:
                 new_tags_json = json.dumps(data.tags)
             else:
                 new_tags_json = row["tags_json"] if "tags_json" in keys else "[]"
+            new_load_trigger_url = data.load_trigger_url if data.load_trigger_url is not None else (row["load_trigger_url"] if "load_trigger_url" in keys else "")
+            new_load_trigger_job_id = data.load_trigger_job_id if data.load_trigger_job_id is not None else (row["load_trigger_job_id"] if "load_trigger_job_id" in keys else "")
+            new_cdc_trigger_url = data.cdc_trigger_url if data.cdc_trigger_url is not None else (row["cdc_trigger_url"] if "cdc_trigger_url" in keys else "")
 
             await db.execute(
                 """
@@ -872,7 +883,7 @@ class PipelineStore:
                     dependencies = ?, incremental_strategy = ?, incremental_key = ?, tests_json = ?,
                     scd2_key = ?, scd2_tracked_columns = ?, scd2_effective_from = ?, scd2_effective_to = ?, scd2_is_current = ?,
                     pre_hook_sql = ?, post_hook_sql = ?, exposures_json = ?, microbatch_window = ?,
-                    folder = ?, tags_json = ?
+                    folder = ?, tags_json = ?, load_trigger_url = ?, load_trigger_job_id = ?, cdc_trigger_url = ?
                 WHERE id = ?
                 """,
                 (new_name, new_desc, new_output_table, new_output_mode,
@@ -880,7 +891,7 @@ class PipelineStore:
                  new_deps_json, new_incr_strategy, new_incr_key, new_tests_json,
                  new_scd2_key, new_scd2_tracked, new_scd2_eff_from, new_scd2_eff_to, new_scd2_is_curr,
                  new_pre_hook, new_post_hook, new_exposures_json, new_microbatch_window,
-                 new_folder, new_tags_json,
+                 new_folder, new_tags_json, new_load_trigger_url, new_load_trigger_job_id, new_cdc_trigger_url,
                  id),
             )
             await db.execute(

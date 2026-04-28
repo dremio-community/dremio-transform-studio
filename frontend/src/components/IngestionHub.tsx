@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Loader2, Upload, Play, Pause, Trash2, RefreshCw, Database, ArrowLeft, Plus, X, AlertCircle, CheckCircle2, Clock, Zap } from 'lucide-react'
+import { Loader2, Upload, Play, Pause, Trash2, RefreshCw, Database, ArrowLeft, Plus, X, AlertCircle, CheckCircle2, Clock, Zap, Link2, Radio } from 'lucide-react'
 import { IconClose, IconCaretDown, IconEntityTable, IconEntityNamespace, IconEntityFolderBlue, IconSearch } from './icons'
 import clsx from 'clsx'
 import {
@@ -12,11 +12,19 @@ import {
 } from '../api/client'
 import type { CatalogEntry } from '../types'
 
-type Tab = 'jobs' | 'pipes' | 'upload'
+type Tab = 'jobs' | 'pipes' | 'upload' | 'dremio_load' | 'dremio_cdc'
 
-interface Props { onClose: () => void }
+interface Props {
+  onClose: () => void
+  loadTriggerUrl?: string
+  loadTriggerJobId?: string
+  cdcTriggerUrl?: string
+  onLoadTriggerChange?: (url: string, jobId: string) => void
+  onCdcTriggerChange?: (url: string) => void
+  pipelineName?: string
+}
 
-export default function IngestionHub({ onClose }: Props) {
+export default function IngestionHub({ onClose, loadTriggerUrl = '', loadTriggerJobId = '', cdcTriggerUrl = '', onLoadTriggerChange, onCdcTriggerChange, pipelineName }: Props) {
   const [tab, setTab] = useState<Tab>('jobs')
 
   return (
@@ -37,6 +45,8 @@ export default function IngestionHub({ onClose }: Props) {
           { id: 'jobs', label: 'COPY INTO Jobs', icon: <Database size={13} /> },
           { id: 'pipes', label: 'Continuous Pipes', icon: <RefreshCw size={13} /> },
           { id: 'upload', label: 'File Upload', icon: <Upload size={13} /> },
+          { id: 'dremio_load', label: 'Dremio Load', icon: <Link2 size={13} /> },
+          { id: 'dremio_cdc', label: 'Dremio CDC', icon: <Radio size={13} /> },
         ] as { id: Tab; label: string; icon: React.ReactNode }[]).map(t => (
           <button
             key={t.id}
@@ -58,6 +68,21 @@ export default function IngestionHub({ onClose }: Props) {
         {tab === 'jobs' && <CopyJobsTab />}
         {tab === 'pipes' && <PipesTab />}
         {tab === 'upload' && <FileUploadTab />}
+        {tab === 'dremio_load' && (
+          <DremioLoadTab
+            url={loadTriggerUrl}
+            jobId={loadTriggerJobId}
+            onChange={onLoadTriggerChange}
+            pipelineName={pipelineName}
+          />
+        )}
+        {tab === 'dremio_cdc' && (
+          <DremioCdcTab
+            url={cdcTriggerUrl}
+            onChange={onCdcTriggerChange}
+            pipelineName={pipelineName}
+          />
+        )}
       </div>
     </div>
   )
@@ -607,6 +632,243 @@ function FileUploadTab() {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+// ── Dremio Load Tab ───────────────────────────────────────────────────────────
+
+function DremioLoadTab({ url, jobId, onChange, pipelineName }: {
+  url: string
+  jobId: string
+  onChange?: (url: string, jobId: string) => void
+  pipelineName?: string
+}) {
+  const [localUrl, setLocalUrl] = useState(url)
+  const [localJobId, setLocalJobId] = useState(jobId)
+  const [triggering, setTriggering] = useState(false)
+  const [triggerResult, setTriggerResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  const isDirty = localUrl !== url || localJobId !== jobId
+
+  function handleSave() {
+    onChange?.(localUrl, localJobId)
+    setTriggerResult(null)
+  }
+
+  async function handleTriggerNow() {
+    if (!localUrl || !localJobId) return
+    setTriggering(true)
+    setTriggerResult(null)
+    try {
+      const res = await fetch(`${localUrl.replace(/\/$/, '')}/api/jobs/${encodeURIComponent(localJobId)}/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (res.ok) {
+        setTriggerResult({ ok: true, msg: 'Job triggered successfully.' })
+      } else {
+        const body = await res.json().catch(() => ({}))
+        setTriggerResult({ ok: false, msg: body.error ?? `HTTP ${res.status}` })
+      }
+    } catch (e: unknown) {
+      setTriggerResult({ ok: false, msg: e instanceof Error ? e.message : 'Network error' })
+    } finally {
+      setTriggering(false)
+    }
+  }
+
+  return (
+    <div className="p-8 max-w-xl">
+      <div className="mb-6">
+        <h2 className="text-white font-semibold text-sm mb-1">Dremio Load Trigger</h2>
+        <p className="text-white/50 text-xs">
+          Connect this pipeline to a <strong className="text-white/70">Dremio Load</strong> job. When you execute
+          {pipelineName ? <> <span className="text-primary">{pipelineName}</span></> : ' this pipeline'}, Transform Studio
+          will trigger the load job first and wait for it to complete before running the pipeline.
+          If the load fails, execution is aborted.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div>
+          <label className="text-xs font-semibold text-white/60 uppercase tracking-wider block mb-1.5">Dremio Load URL</label>
+          <input
+            className="w-full px-3 py-2 text-xs bg-navy-900 border border-white/15 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+            placeholder="http://localhost:7071"
+            value={localUrl}
+            onChange={e => setLocalUrl(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-white/60 uppercase tracking-wider block mb-1.5">Load Job ID</label>
+          <input
+            className="w-full px-3 py-2 text-xs bg-navy-900 border border-white/15 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+            placeholder="e.g. hubspot-contacts-load"
+            value={localJobId}
+            onChange={e => setLocalJobId(e.target.value)}
+          />
+          <p className="text-[10px] text-white/30 mt-1">The Job ID from your Dremio Load instance.</p>
+        </div>
+
+        <div className="flex items-center gap-3 pt-2">
+          <button
+            onClick={handleSave}
+            disabled={!isDirty}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-40 transition-colors"
+          >
+            Save to Pipeline
+          </button>
+          <button
+            onClick={handleTriggerNow}
+            disabled={!localUrl || !localJobId || triggering}
+            className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white text-xs font-semibold rounded-lg hover:bg-white/20 disabled:opacity-40 transition-colors"
+          >
+            {triggering ? <><Loader2 size={12} className="animate-spin" /> Triggering…</> : <><Play size={12} /> Trigger Now</>}
+          </button>
+        </div>
+
+        {triggerResult && (
+          <div className={clsx(
+            'flex items-start gap-2 px-3 py-2.5 rounded-lg text-xs',
+            triggerResult.ok ? 'bg-emerald-950/60 text-emerald-300' : 'bg-red-950/60 text-red-300'
+          )}>
+            {triggerResult.ok ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <AlertCircle size={13} className="shrink-0 mt-0.5" />}
+            {triggerResult.msg}
+          </div>
+        )}
+
+        {!localUrl && !localJobId && (
+          <div className="mt-4 p-4 rounded-lg border border-white/10 bg-white/5 text-xs text-white/40">
+            <p className="font-medium text-white/60 mb-1">Not configured</p>
+            <p>Fill in the URL and Job ID above to link this pipeline to a Dremio Load job. The connection is saved per-pipeline.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Dremio CDC Tab ────────────────────────────────────────────────────────────
+
+function DremioCdcTab({ url, onChange, pipelineName }: {
+  url: string
+  onChange?: (url: string) => void
+  pipelineName?: string
+}) {
+  const [localUrl, setLocalUrl] = useState(url)
+  const [checking, setChecking] = useState(false)
+  const [starting, setStarting] = useState(false)
+  const [status, setStatus] = useState<{ running: boolean; workers?: number } | null>(null)
+  const [actionResult, setActionResult] = useState<{ ok: boolean; msg: string } | null>(null)
+
+  const isDirty = localUrl !== url
+
+  function handleSave() {
+    onChange?.(localUrl)
+    setActionResult(null)
+  }
+
+  async function checkStatus() {
+    if (!localUrl) return
+    setChecking(true)
+    setActionResult(null)
+    try {
+      const r = await fetch(`${localUrl.replace(/\/$/, '')}/api/status`)
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const data = await r.json()
+      setStatus({ running: !!data.running, workers: data.workers?.length ?? 0 })
+    } catch (e: unknown) {
+      setActionResult({ ok: false, msg: e instanceof Error ? e.message : 'Connection failed' })
+      setStatus(null)
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  async function handleStart() {
+    if (!localUrl) return
+    setStarting(true)
+    setActionResult(null)
+    try {
+      const r = await fetch(`${localUrl.replace(/\/$/, '')}/api/engine/start`, { method: 'POST' })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      setActionResult({ ok: true, msg: 'CDC engine started.' })
+      await checkStatus()
+    } catch (e: unknown) {
+      setActionResult({ ok: false, msg: e instanceof Error ? e.message : 'Failed to start engine' })
+    } finally {
+      setStarting(false)
+    }
+  }
+
+  return (
+    <div className="p-8 max-w-xl">
+      <div className="mb-6">
+        <h2 className="text-white font-semibold text-sm mb-1">Dremio CDC Pre-execution Check</h2>
+        <p className="text-white/50 text-xs">
+          Connect this pipeline to a <strong className="text-white/70">Dremio CDC</strong> instance.
+          Before{pipelineName ? <> <span className="text-primary">{pipelineName}</span></> : ' this pipeline'} executes,
+          Transform Studio will verify the CDC engine is running — and start it automatically if not.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div>
+          <label className="text-xs font-semibold text-white/60 uppercase tracking-wider block mb-1.5">Dremio CDC URL</label>
+          <input
+            className="w-full px-3 py-2 text-xs bg-navy-900 border border-white/15 rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+            placeholder="http://localhost:8080"
+            value={localUrl}
+            onChange={e => { setLocalUrl(e.target.value); setStatus(null) }}
+          />
+          <p className="text-[10px] text-white/30 mt-1">The URL of your Dremio CDC instance.</p>
+        </div>
+
+        <div className="flex items-center gap-3 pt-2">
+          <button onClick={handleSave} disabled={!isDirty}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-40 transition-colors">
+            Save to Pipeline
+          </button>
+          <button onClick={checkStatus} disabled={!localUrl || checking}
+            className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white text-xs font-semibold rounded-lg hover:bg-white/20 disabled:opacity-40 transition-colors">
+            {checking ? <><Loader2 size={12} className="animate-spin" /> Checking…</> : <><RefreshCw size={12} /> Check Status</>}
+          </button>
+          {status && !status.running && (
+            <button onClick={handleStart} disabled={starting}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600/80 text-white text-xs font-semibold rounded-lg hover:bg-emerald-600 disabled:opacity-40 transition-colors">
+              {starting ? <><Loader2 size={12} className="animate-spin" /> Starting…</> : <><Play size={12} /> Start Engine</>}
+            </button>
+          )}
+        </div>
+
+        {status && (
+          <div className={clsx('flex items-start gap-3 px-4 py-3 rounded-lg text-xs', status.running ? 'bg-emerald-950/60 text-emerald-200' : 'bg-amber-950/60 text-amber-200')}>
+            <div className={clsx('w-2 h-2 rounded-full mt-0.5 shrink-0', status.running ? 'bg-emerald-400' : 'bg-amber-400')} />
+            <div>
+              <p className="font-semibold">{status.running ? 'Engine running' : 'Engine stopped'}</p>
+              {status.running && status.workers !== undefined && (
+                <p className="text-white/50 mt-0.5">{status.workers} active worker{status.workers !== 1 ? 's' : ''}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {actionResult && (
+          <div className={clsx('flex items-start gap-2 px-3 py-2.5 rounded-lg text-xs', actionResult.ok ? 'bg-emerald-950/60 text-emerald-300' : 'bg-red-950/60 text-red-300')}>
+            {actionResult.ok ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <AlertCircle size={13} className="shrink-0 mt-0.5" />}
+            {actionResult.msg}
+          </div>
+        )}
+
+        {!localUrl && (
+          <div className="mt-4 p-4 rounded-lg border border-white/10 bg-white/5 text-xs text-white/40">
+            <p className="font-medium text-white/60 mb-1">Not configured</p>
+            <p>Enter the CDC instance URL above. When set, Transform Studio will ensure the CDC engine is running before each execution.</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

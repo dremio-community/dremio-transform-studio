@@ -1272,6 +1272,62 @@ async def preview_pipeline(
     return await _run_preview(pipeline.source_table, pipeline.steps, parameters=pipeline.parameters, param_values=pv, pat_override=user_pat)
 
 
+async def _trigger_load_job(load_url: str, job_id: str, timeout: int = 300) -> str | None:
+    """
+    Trigger a dremio-load job and wait for it to finish.
+    Returns None on success, or an error string on failure.
+    """
+    import asyncio
+    import httpx
+    base = load_url.rstrip("/")
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(f"{base}/api/jobs/{job_id}/run")
+            if resp.status_code == 409:
+                pass  # already running — treat as ok, wait for completion
+            elif not resp.ok:
+                return f"Could not trigger job: {resp.text}"
+
+        # Poll for completion
+        deadline = asyncio.get_event_loop().time() + timeout
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            while asyncio.get_event_loop().time() < deadline:
+                r = await client.get(f"{base}/api/runs?job_id={job_id}&limit=1")
+                runs = r.json() if r.ok else []
+                if runs and runs[0].get("status") in ("ok", "success"):
+                    return None
+                if runs and runs[0].get("status") == "error":
+                    return runs[0].get("error") or "Load job failed"
+                await asyncio.sleep(5)
+        return "Load job timed out"
+    except Exception as exc:
+        return str(exc)
+
+
+async def _check_cdc_engine(cdc_url: str, timeout: int = 30) -> str | None:
+    """
+    Verify the Dremio CDC engine is running. If stopped, attempt to start it.
+    Returns None on success, or an error string on failure.
+    """
+    import httpx
+    base = cdc_url.rstrip("/")
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.get(f"{base}/api/status")
+            if not r.ok:
+                return f"CDC status check failed: HTTP {r.status_code}"
+            status = r.json()
+            if status.get("running"):
+                return None
+            # Engine is stopped — try to start it
+            start_r = await client.post(f"{base}/api/engine/start")
+            if not start_r.ok:
+                return f"CDC engine not running and failed to start: {start_r.text}"
+            return None
+    except Exception as exc:
+        return str(exc)
+
+
 async def _bisect_pipeline_failure(
     source_table: str,
     steps: list,
@@ -1390,6 +1446,36 @@ async def execute_pipeline(
 
     try:
         # ── Pre-hook ────────────────────────────────────────────────────────
+        # ── Dremio Load trigger (before execute) ────────────────────────────────
+        if pipeline.load_trigger_url and pipeline.load_trigger_job_id:
+            load_err = await _trigger_load_job(
+                pipeline.load_trigger_url, pipeline.load_trigger_job_id
+            )
+            if load_err:
+                error_msg = f"Dremio Load job failed: {load_err}"
+                await store.log_run(
+                    pipeline_id=pipeline_id, pipeline_name=pipeline.name,
+                    run_type="manual", status="failed", row_count=None,
+                    error_message=error_msg,
+                    started_at=started_at, completed_at=datetime.now(timezone.utc).isoformat(),
+                )
+                return ExecuteResult(success=False, sql="", error=error_msg,
+                                     duration_ms=int(time.time() * 1000) - start_ms)
+
+        # ── Dremio CDC check (before execute) ───────────────────────────────────
+        if pipeline.cdc_trigger_url:
+            cdc_err = await _check_cdc_engine(pipeline.cdc_trigger_url)
+            if cdc_err:
+                error_msg = f"Dremio CDC check failed: {cdc_err}"
+                await store.log_run(
+                    pipeline_id=pipeline_id, pipeline_name=pipeline.name,
+                    run_type="manual", status="failed", row_count=None,
+                    error_message=error_msg,
+                    started_at=started_at, completed_at=datetime.now(timezone.utc).isoformat(),
+                )
+                return ExecuteResult(success=False, sql="", error=error_msg,
+                                     duration_ms=int(time.time() * 1000) - start_ms)
+
         if pipeline.pre_hook_sql and pipeline.pre_hook_sql.strip():
             try:
                 await dremio_client.run_query(pipeline.pre_hook_sql.strip(), pat_override=user_pat)

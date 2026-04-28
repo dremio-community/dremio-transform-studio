@@ -29,8 +29,8 @@ jobs:
 
           - os: windows-latest
             platform: windows
-            artifact_name: TransformStudio-windows.exe
-            artifact_path: dist/TransformStudio.exe
+            artifact_name: TransformStudio-windows.zip
+            artifact_path: dist/TransformStudio-windows.zip
 
           - os: ubuntu-latest
             platform: linux
@@ -67,7 +67,7 @@ jobs:
           cache: 'pip'
 
       - name: Install Python dependencies
-        run: pip install -r backend/requirements.txt pyinstaller
+        run: pip install -r backend/requirements.txt pyinstaller typer httpx rich keyring
 
       # ── PyInstaller ───────────────────────────────────────────────────────────
       - name: Build with PyInstaller
@@ -77,11 +77,20 @@ jobs:
       - name: Create DMG (Mac only)
         if: matrix.platform == 'mac'
         run: |
+          # ts binary is inside the .app at Contents/MacOS/ts — no extra steps needed
           hdiutil create \
             -volname "Transform Studio" \
             -srcfolder "dist/TransformStudio.app" \
             -ov -format UDZO \
             "dist/TransformStudio-mac.dmg"
+
+      # ── Windows: bundle ts.exe alongside TransformStudio.exe ─────────────────
+      - name: Bundle ts.exe (Windows only)
+        if: matrix.platform == 'windows'
+        run: |
+          # Both TransformStudio.exe and ts.exe are already in dist/ from PyInstaller
+          Compress-Archive -Path dist/TransformStudio.exe, dist/ts.exe -DestinationPath dist/TransformStudio-windows.zip
+        shell: pwsh
 
       # ── Linux: create tar.gz ──────────────────────────────────────────────────
       - name: Create tar.gz (Linux only)
@@ -121,22 +130,33 @@ jobs:
             | Platform | File |
             |----------|------|
             | 🍎 Mac   | `TransformStudio-mac.dmg` |
-            | 🪟 Windows | `TransformStudio-windows.exe` |
+            | 🪟 Windows | `TransformStudio-windows.zip` |
             | 🐧 Linux | `TransformStudio-linux.tar.gz` |
 
             ### Mac install
             1. Download `TransformStudio-mac.dmg`
             2. Open it → drag **TransformStudio** to Applications
             3. Click the app — browser opens automatically
+            4. The `ts` CLI is installed to your PATH automatically on first launch
 
             ### Windows install
-            1. Download `TransformStudio-windows.exe`
-            2. Double-click it — app opens in your browser
+            1. Download `TransformStudio-windows.zip` and extract it
+            2. Double-click `TransformStudio.exe` — app opens in your browser
+            3. Add the extracted folder to your PATH to use the `ts` CLI
 
             ### Linux install
             ```bash
             tar -xzf TransformStudio-linux.tar.gz
             ./TransformStudio/TransformStudio
+            # ts is symlinked to /usr/local/bin/ts automatically on first launch
+            ```
+
+            ### Claude Code / AI agent usage
+            The `ts` CLI is bundled with the app. Once it's on your PATH:
+            ```bash
+            ts context dump          # feed full environment context to an AI agent
+            ts pipeline list         # list all pipelines
+            ts agent chat "..."      # talk to the built-in AI agent
             ```
 
             > **Note:** Configure your Dremio connection via the ⚙️ Settings icon after first launch.

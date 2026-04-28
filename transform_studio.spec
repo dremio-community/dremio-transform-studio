@@ -11,6 +11,9 @@ from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
 block_cipher = None
 
+# CLI package lives in ./cli/ at repo root
+cli_src = os.path.join(os.getcwd(), 'cli')
+
 # Collect all uvicorn submodules (it uses dynamic imports heavily)
 uvicorn_hidden   = collect_submodules('uvicorn')
 fastapi_hidden   = collect_submodules('fastapi')
@@ -64,6 +67,7 @@ datas = [
     (os.path.join('backend', 'transforms'),    'transforms'),
 ]
 
+# ── Main app Analysis ─────────────────────────────────────────────────────────
 a = Analysis(
     [os.path.join('backend', 'desktop_launcher.py')],
     pathex=[os.path.join(os.getcwd(), 'backend')],
@@ -80,12 +84,33 @@ a = Analysis(
     noarchive=False,
 )
 
+# ── ts CLI Analysis ───────────────────────────────────────────────────────────
+ts_hidden = collect_submodules('typer') + collect_submodules('rich')
+
+b = Analysis(
+    [os.path.join('backend', 'ts_entry.py')],
+    pathex=[os.path.join(os.getcwd(), 'backend'), os.getcwd()],
+    binaries=[],
+    datas=[(cli_src, 'ts')],
+    hiddenimports=ts_hidden + httpx_hidden + ['ts', 'ts.cli', 'ts.client', 'ts.config', 'ts.output',
+        'ts.commands', 'ts.commands.pipeline', 'ts.commands.run', 'ts.commands.schedule',
+        'ts.commands.catalog', 'ts.commands.transform', 'ts.commands.dq',
+        'ts.commands.agent', 'ts.commands.context', 'ts.commands.admin',
+        'keyring', 'keyring.backend'],
+    hookspath=[],
+    runtime_hooks=[],
+    excludes=['tkinter', 'matplotlib', 'numpy', 'pandas'],
+    cipher=block_cipher,
+    noarchive=False,
+)
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+ts_pyz = PYZ(b.pure, b.zipped_data, cipher=block_cipher)
 
 # ── Platform-specific output ──────────────────────────────────────────────────
 
 if sys.platform == 'darwin':
-    # Mac: .app bundle
+    # Mac: .app bundle — ts binary sits alongside TransformStudio in Contents/MacOS/
     exe = EXE(
         pyz, a.scripts, [],
         exclude_binaries=True,
@@ -97,8 +122,20 @@ if sys.platform == 'darwin':
         console=False,
         icon=os.path.join('build', 'icon.icns') if os.path.exists(os.path.join('build', 'icon.icns')) else None,
     )
+    ts_exe = EXE(
+        ts_pyz, b.scripts, [],
+        exclude_binaries=True,
+        name='ts',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        console=True,
+    )
     coll = COLLECT(
-        exe, a.binaries, a.zipfiles, a.datas,
+        exe, ts_exe,
+        a.binaries, a.zipfiles, a.datas,
+        b.binaries, b.zipfiles, b.datas,
         strip=False, upx=False, upx_exclude=[],
         name='TransformStudio',
     )
@@ -118,7 +155,7 @@ if sys.platform == 'darwin':
     )
 
 elif sys.platform == 'win32':
-    # Windows: single .exe
+    # Windows: two separate .exe files in dist/
     exe = EXE(
         pyz, a.scripts, a.binaries, a.zipfiles, a.datas, [],
         name='TransformStudio',
@@ -136,9 +173,18 @@ elif sys.platform == 'win32':
         icon=os.path.join('build', 'icon.ico') if os.path.exists(os.path.join('build', 'icon.ico')) else None,
         onefile=True,
     )
+    ts_exe = EXE(
+        ts_pyz, b.scripts, b.binaries, b.zipfiles, b.datas, [],
+        name='ts',
+        debug=False,
+        strip=False,
+        upx=True,
+        console=True,
+        onefile=True,
+    )
 
 else:
-    # Linux: directory bundle (more reliable than onefile on Linux)
+    # Linux: directory bundle — ts binary sits alongside TransformStudio
     exe = EXE(
         pyz, a.scripts, [],
         exclude_binaries=True,
@@ -149,8 +195,19 @@ else:
         upx=True,
         console=False,
     )
+    ts_exe = EXE(
+        ts_pyz, b.scripts, [],
+        exclude_binaries=True,
+        name='ts',
+        debug=False,
+        strip=False,
+        upx=True,
+        console=True,
+    )
     coll = COLLECT(
-        exe, a.binaries, a.zipfiles, a.datas,
+        exe, ts_exe,
+        a.binaries, a.zipfiles, a.datas,
+        b.binaries, b.zipfiles, b.datas,
         strip=False, upx=True, upx_exclude=[],
         name='TransformStudio',
     )

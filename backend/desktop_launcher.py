@@ -50,6 +50,68 @@ def load_config(data_dir: str) -> dict:
     return {}
 
 
+def _write_desktop_state(data_dir: str, port: int, token: str) -> None:
+    """Write port + token so the `ts` CLI can auto-discover the desktop instance."""
+    import json
+    state = {"port": port, "url": f"http://localhost:{port}", "token": token}
+    path = os.path.join(data_dir, "desktop.json")
+    with open(path, "w") as f:
+        json.dump(state, f)
+    try:
+        os.chmod(path, 0o600)
+    except Exception:
+        pass
+
+
+def _install_ts_symlink() -> None:
+    """Create a `ts` symlink on PATH so Claude Code can call it directly.
+
+    Tries /usr/local/bin first (standard on Mac/Linux); falls back to
+    ~/.local/bin if that isn't writable (no sudo required).
+    """
+    if sys.platform == "win32":
+        return  # Windows PATH is managed by the installer
+
+    # Resolve the `ts` binary sitting next to this executable in the bundle
+    if hasattr(sys, "_MEIPASS"):
+        ts_bin = os.path.join(os.path.dirname(sys.executable), "ts")
+    else:
+        return  # dev mode — ts is already on PATH via pip install
+
+    if not os.path.exists(ts_bin):
+        return
+
+    for target_dir in ("/usr/local/bin", os.path.expanduser("~/.local/bin")):
+        target = os.path.join(target_dir, "ts")
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+            if os.path.islink(target) or os.path.exists(target):
+                os.remove(target)
+            os.symlink(ts_bin, target)
+            return
+        except OSError:
+            continue
+
+
+def _get_or_create_desktop_token(data_dir: str) -> str:
+    """Return a stable desktop token, creating one on first run."""
+    import json, secrets
+    token_path = os.path.join(data_dir, "desktop_token.json")
+    if os.path.exists(token_path):
+        try:
+            return json.loads(open(token_path).read())["token"]
+        except Exception:
+            pass
+    token = secrets.token_hex(32)
+    with open(token_path, "w") as f:
+        json.dump({"token": token}, f)
+    try:
+        os.chmod(token_path, 0o600)
+    except Exception:
+        pass
+    return token
+
+
 def main() -> None:
     # ── Data directory in user home ────────────────────────────────────────────
     data_dir = os.path.join(os.path.expanduser("~"), ".transform_studio")
@@ -78,6 +140,14 @@ def main() -> None:
 
     # ── Port ───────────────────────────────────────────────────────────────────
     port = find_free_port(8000)
+
+    # ── CLI auto-discovery: write port + token for `ts` ───────────────────────
+    desktop_token = _get_or_create_desktop_token(data_dir)
+    _write_desktop_state(data_dir, port, desktop_token)
+    os.environ["TS_DESKTOP_TOKEN"] = desktop_token
+
+    # ── Install `ts` symlink to PATH (first run) ───────────────────────────────
+    threading.Thread(target=_install_ts_symlink, daemon=True).start()
 
     # ── Open browser in background ─────────────────────────────────────────────
     threading.Thread(target=open_browser, args=(port,), daemon=True).start()

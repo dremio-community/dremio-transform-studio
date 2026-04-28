@@ -728,3 +728,82 @@ All features working and tested against Dremio Cloud:
 - `LPAD`, `RPAD`, `SPLIT_PART`, `MD5`, `SHA1`, `SHA256` — ✅ supported in Dremio
 - `INITCAP` — ✅ supported in Dremio (title case)
 - All window functions (`ROW_NUMBER`, `LAG`, `LEAD`, `SUM OVER`, frame specs) — ✅ supported
+
+---
+
+## Transform Studio CLI (`ts`)
+
+A CLI ships with Transform Studio for agent-driven workflows. Claude Code uses it to interact with the running TS instance via Bash tool calls — no browser needed.
+
+### Setup
+
+**Desktop app** — CLI is bundled; already on PATH after install.
+
+**Docker** — install on the host, point at the container:
+```bash
+pip install transform-studio-cli
+ts login --url http://localhost:8000
+```
+
+**Env vars (no login step needed):**
+```bash
+export TS_URL=http://localhost:8000
+export TS_TOKEN=<jwt>
+```
+
+### Key commands
+
+```bash
+# Get full environment context (use this first before taking any action)
+ts context dump
+
+# Pipelines
+ts pipeline list
+ts pipeline get <id>
+ts pipeline create --name "Clean Orders" --source "Samples.orders"
+ts pipeline run <id>
+ts pipeline history <id>
+
+# Schedules
+ts schedule list
+ts schedule create <pipeline_id> --cron "0 6 * * *"
+
+# Catalog
+ts catalog ls
+ts catalog ls "Samples.NYC Taxi Trips"
+ts catalog schema "Samples.orders"
+ts catalog profile "Samples.orders"
+
+# Data quality
+ts dq list
+ts dq scan <monitor_id>
+ts dq dashboard
+
+# AI agent (when configured in Settings > Agent)
+ts agent chat "build a pipeline that removes nulls from orders"
+
+# Admin
+ts admin health
+ts admin dashboard
+ts admin audit-log
+```
+
+### Agent workflow
+
+When the TS built-in agent is **active**:
+```bash
+ts agent chat "build me a pipeline that joins orders with customers and writes to Samples.enriched_orders"
+```
+
+When the TS built-in agent is **not active**, feed context to Claude Code:
+```bash
+ts context dump
+# Paste the JSON output into the conversation — Claude Code has full environment context and issues ts commands directly
+```
+
+### Output
+All commands return JSON by default (agent-friendly). Add `--pretty` for human-readable tables:
+```bash
+ts pipeline list --pretty
+ts dq dashboard --pretty
+```

@@ -51,7 +51,7 @@ Use backups to migrate between machines or recover from a bad state.
 | Platform | Download |
 |----------|----------|
 | **Mac** | [TransformStudio-mac.dmg](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-mac.dmg) — open and drag to Applications |
-| **Windows** | [TransformStudio-windows.exe](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-windows.exe) — double-click to run, no install needed |
+| **Windows** | [TransformStudio-windows.zip](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-windows.zip) — extract and double-click `TransformStudio.exe` |
 | **Linux (Mint / Ubuntu / Debian)** | [TransformStudio-linux.deb](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-linux.deb) — double-click to install, or `sudo dpkg -i TransformStudio-linux.deb` |
 | **Linux (any distro)** | [TransformStudio-linux.tar.gz](https://github.com/dremio-community/dremio-transform-studio/releases/latest/download/TransformStudio-linux.tar.gz) — extract and run `./TransformStudio/TransformStudio` |
 
@@ -60,6 +60,66 @@ Data is stored at `~/.transform_studio/transforms.db` and persists across launch
 > **Mac users — first launch security warning:** macOS will block the app on first open. To fix it: go to **System Settings → Privacy & Security**, scroll to the bottom, and click **Open Anyway** next to the TransformStudio message. Alternatively, run `xattr -dr com.apple.quarantine /Applications/TransformStudio.app` in Terminal. See the [full install guide](INSTALL_GUIDE.md#mac-desktop) for all options.
 
 > All releases and previous versions: [github.com/dremio-community/dremio-transform-studio/releases](https://github.com/dremio-community/dremio-transform-studio/releases)
+
+---
+
+## CLI & AI Agent Integration (`ts`)
+
+Transform Studio ships with a CLI called `ts` designed for use with AI agents like [Claude Code](https://claude.ai/code). It gives any agent full programmatic control over your pipelines without a browser.
+
+### Setup
+
+**Desktop app** — `ts` is bundled and added to your PATH automatically on first launch. No extra steps.
+
+**Docker** — install on the host machine:
+```bash
+pip install transform-studio-cli
+ts login --url http://localhost:8000
+```
+
+**Env vars (CI/scripts):**
+```bash
+export TS_URL=http://localhost:8000
+export TS_TOKEN=<your-jwt-token>
+```
+
+### Usage with Claude Code
+
+Add a `CLAUDE.md` to your project (or use `~/.claude/CLAUDE.md` globally) to tell Claude Code about `ts`. Once configured, you can say things like:
+
+> *"Build a pipeline that joins orders with customers and writes to my data lake"*
+> *"What pipelines ran in the last hour and did any fail?"*
+> *"Schedule the clean_orders pipeline to run at 6am daily"*
+
+Claude Code will call `ts` commands directly — no copy-pasting, no manual clicks.
+
+### Key commands
+
+```bash
+# Always run this first — gives an AI agent full environment context
+ts context dump
+
+# Pipelines
+ts pipeline list
+ts pipeline run <id>
+ts pipeline create --name "Clean Orders" --source "Samples.orders"
+
+# Schedules
+ts schedule create <pipeline_id> --cron "0 6 * * *"
+
+# Catalog
+ts catalog ls
+ts catalog schema "Samples.orders"
+
+# Data quality
+ts dq dashboard
+ts dq scan <monitor_id>
+
+# Talk to the built-in AI agent (requires Settings → Agent configured)
+ts agent chat "remove nulls from the orders table and write to clean_orders"
+```
+
+Output is JSON by default (agent-friendly). Add `--pretty` for human-readable tables.
 
 ---
 

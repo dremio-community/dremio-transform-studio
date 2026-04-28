@@ -4,6 +4,20 @@ version: '3.9'
 # One command to run on any server or Docker Desktop:
 #   docker compose up -d
 #   Open http://localhost:8000
+#
+# ── CLI setup (for Claude Code / agent workflows) ────────────────────────────
+# Install the ts CLI on your host machine (one-time):
+#   pip install transform-studio-cli
+#   ts login --url http://localhost:8000
+#
+# Or use env vars (no login step needed):
+#   export TS_URL=http://localhost:8000
+#   export TS_TOKEN=<your-jwt-token>
+#
+# Then Claude Code can use `ts` commands to manage Transform Studio:
+#   ts context dump          # feed full context to an AI agent
+#   ts pipeline list         # list all pipelines
+#   ts agent chat "..."      # talk to the built-in AI agent
 
 services:
   transform-studio:

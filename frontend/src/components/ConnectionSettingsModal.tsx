@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Wifi, Bell, HardDrive, Upload, Shield, Users, Lock, Unlock, KeyRound, Plug, Copy, Check, Bot } from 'lucide-react'
+import { Loader2, Wifi, Bell, HardDrive, Upload, Shield, Users, Lock, Unlock, KeyRound, Plug, Copy, Check, Bot, Vault } from 'lucide-react'
+import SecretFieldInput from './SecretFieldInput'
 import { IconAdd, IconCaretDown, IconCaretUp, IconCheckCircle, IconClose, IconDatasetDownload, IconDelete, IconErrorCircle } from './icons'
 import clsx from 'clsx'
 import {
@@ -34,7 +35,7 @@ interface Props {
   initialTab?: ModalTab
 }
 
-type ModalTab = 'connection' | 'notifications' | 'storage' | 'security' | 'sso' | 'mcp' | 'agent'
+type ModalTab = 'connection' | 'notifications' | 'storage' | 'security' | 'sso' | 'mcp' | 'agent' | 'secrets'
 
 const CLOUD_HOSTS = [
   { label: 'Dremio Cloud (US)', value: 'api.dremio.cloud' },
@@ -249,7 +250,7 @@ export default function ConnectionSettingsModal({ onClose, onSaved, initialTab }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-navy-950">
@@ -340,6 +341,17 @@ export default function ConnectionSettingsModal({ onClose, onSaved, initialTab }
             )}
           >
             <Bot size={13} /> Agent
+          </button>
+          <button
+            onClick={() => setActiveTab('secrets')}
+            className={clsx(
+              'flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap',
+              activeTab === 'secrets'
+                ? 'text-purple-600 border-purple-500'
+                : 'text-gray-400 border-transparent hover:text-gray-600'
+            )}
+          >
+            <Vault size={13} /> Secrets
           </button>
         </div>
 
@@ -465,31 +477,21 @@ export default function ConnectionSettingsModal({ onClose, onSaved, initialTab }
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Password</label>
-                <input
-                  type="password"
+                <SecretFieldInput
+                  label="Password"
                   value={form.password}
-                  onChange={(e) => set('password', e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500"
+                  onChange={(v) => set('password', v)}
                 />
               </div>
             </div>
           ) : (
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">
-                Personal Access Token (PAT)
-              </label>
-              <input
-                type="password"
+              <SecretFieldInput
+                label="Personal Access Token (PAT)"
                 value={form.pat}
-                onChange={(e) => set('pat', e.target.value)}
-                placeholder="Paste your PAT here"
-                className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-dblue-500 font-mono"
+                onChange={(v) => set('pat', v)}
+                hint="In Dremio Cloud: Account → Personal Access Tokens → New Token"
               />
-              <p className="mt-1 text-xs text-gray-400">
-                In Dremio Cloud: Account → Personal Access Tokens → New Token
-              </p>
             </div>
           )}
 
@@ -1219,6 +1221,9 @@ export default function ConnectionSettingsModal({ onClose, onSaved, initialTab }
         {/* ── Agent Tab ── */}
         {activeTab === 'agent' && <AgentTab />}
 
+        {/* ── Secrets Tab ── */}
+        {activeTab === 'secrets' && <SecretsTab />}
+
       </div>
     </div>
   )
@@ -1364,18 +1369,12 @@ function AgentTab() {
 
       {/* API Key */}
       {form.provider !== 'ollama' && (
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-            API Key {form.provider === 'custom' ? '(if required)' : ''}
-          </label>
-          <input
-            type="password"
-            value={form.api_key}
-            onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
-            placeholder={form.api_key === '' ? '(unchanged)' : ''}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-dblue-400"
-          />
-        </div>
+        <SecretFieldInput
+          label={`API Key${form.provider === 'custom' ? ' (if required)' : ''}`}
+          value={form.api_key}
+          onChange={v => setForm(f => ({ ...f, api_key: v }))}
+          placeholder={form.api_key === '' ? '(unchanged)' : undefined}
+        />
       )}
 
       {/* Base URL */}
@@ -1413,6 +1412,211 @@ function AgentTab() {
           Ollama runs locally. Make sure Ollama is running and the model is pulled: <code className="bg-blue-100 px-1 rounded">ollama pull {form.model}</code>
         </div>
       )}
+    </div>
+  )
+}
+
+function SecretsTab() {
+  const [form, setForm] = useState({
+    url: '',
+    auth_method: 'token',
+    token: '',
+    role_id: '',
+    secret_id: '',
+    namespace: '',
+    mount: 'secret',
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/settings/secrets')
+      .then(r => r.json())
+      .then(d => setForm(f => ({ ...f, ...d, token: '', secret_id: '' })))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true); setError(null); setSaved(false)
+    try {
+      await fetch('/api/settings/secrets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleTest = async () => {
+    setTesting(true); setTestResult(null)
+    try {
+      const r = await fetch('/api/settings/secrets/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      setTestResult(await r.json())
+    } catch (e: unknown) {
+      setTestResult({ ok: false, message: e instanceof Error ? e.message : 'Request failed' })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  if (loading) return <div className="p-6 flex items-center gap-2 text-sm text-gray-500"><Loader2 size={14} className="animate-spin" /> Loading…</div>
+
+  return (
+    <div className="p-6 space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold text-gray-800 mb-1">Secrets Management</h3>
+        <p className="text-xs text-gray-500">
+          Instead of storing passwords directly, use <code className="bg-gray-100 px-1 rounded">{"${ENV_VAR}"}</code> or <code className="bg-gray-100 px-1 rounded">vault:path#field</code> in any secret field. Values are resolved at startup — no interactive prompts.
+        </p>
+      </div>
+
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2 text-xs text-gray-600">
+        <p className="font-semibold text-gray-700">How to use</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="font-medium text-amber-700 mb-0.5">Env Var</p>
+            <code className="block bg-white border border-gray-200 rounded px-2 py-1 font-mono text-[11px]">{"${DREMIO_PASSWORD}"}</code>
+            <p className="mt-1 text-gray-500">Set the env var before starting, or in docker-compose <code className="bg-gray-100 px-0.5 rounded">environment:</code></p>
+          </div>
+          <div>
+            <p className="font-medium text-purple-700 mb-0.5">Vault</p>
+            <code className="block bg-white border border-gray-200 rounded px-2 py-1 font-mono text-[11px]">vault:secret/myapp#password</code>
+            <p className="mt-1 text-gray-500">Configure Vault below, then use <code className="bg-gray-100 px-0.5 rounded">vault:path#field</code> in any secret field</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">HashiCorp Vault (optional)</h4>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Vault URL</label>
+            <input
+              value={form.url}
+              onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
+              placeholder="https://vault.example.com"
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-400 font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Auth Method</label>
+            <select
+              value={form.auth_method}
+              onChange={e => setForm(f => ({ ...f, auth_method: e.target.value }))}
+              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-400 bg-white"
+            >
+              <option value="token">Token</option>
+              <option value="approle">AppRole</option>
+            </select>
+          </div>
+
+          {form.auth_method === 'token' ? (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Vault Token</label>
+              <input
+                type="password"
+                value={form.token}
+                onChange={e => setForm(f => ({ ...f, token: e.target.value }))}
+                placeholder="hvs.XXXXX or ${VAULT_TOKEN}"
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-400 font-mono"
+              />
+              <p className="mt-1 text-xs text-gray-400">Or set VAULT_TOKEN env var and leave blank</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Role ID</label>
+                <input
+                  value={form.role_id}
+                  onChange={e => setForm(f => ({ ...f, role_id: e.target.value }))}
+                  placeholder="${VAULT_ROLE_ID}"
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-400 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Secret ID</label>
+                <input
+                  type="password"
+                  value={form.secret_id}
+                  onChange={e => setForm(f => ({ ...f, secret_id: e.target.value }))}
+                  placeholder="${VAULT_SECRET_ID}"
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-400 font-mono"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">KV Mount</label>
+              <input
+                value={form.mount}
+                onChange={e => setForm(f => ({ ...f, mount: e.target.value }))}
+                placeholder="secret"
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-400 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Namespace (Enterprise)</label>
+              <input
+                value={form.namespace}
+                onChange={e => setForm(f => ({ ...f, namespace: e.target.value }))}
+                placeholder="(optional)"
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-purple-400 font-mono"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {testResult && (
+        <div className={clsx(
+          'flex items-center gap-2 p-3 rounded-lg text-sm',
+          testResult.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'
+        )}>
+          {testResult.ok ? <Check size={14} /> : <span>✗</span>}
+          {testResult.message}
+        </div>
+      )}
+
+      {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>}
+
+      <div className="flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+        >
+          {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
+          {saved ? 'Saved!' : 'Save Vault Config'}
+        </button>
+        {form.url && (
+          <button
+            onClick={handleTest}
+            disabled={testing}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-purple-300 text-purple-700 hover:bg-purple-50 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+          >
+            {testing ? <Loader2 size={14} className="animate-spin" /> : null}
+            Test Connection
+          </button>
+        )}
+      </div>
     </div>
   )
 }

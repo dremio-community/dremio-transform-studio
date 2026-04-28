@@ -1085,7 +1085,13 @@ class PipelineStore:
     async def load_connection_settings(self) -> None:
         """Load persisted connection settings from DB into the live config object."""
         from config import settings as cfg
+        import secrets as _sec
         stored = await self.get_all_settings()
+
+        # Initialize vault resolver from stored vault config before resolving secrets
+        vault_cfg = await self.get_vault_config()
+        _sec.init_resolver(vault_cfg if vault_cfg.get("url") else None)
+
         overrides = {}
         mapping = {
             "conn_host": "dremio_host",
@@ -1099,9 +1105,35 @@ class PipelineStore:
         }
         for store_key, cfg_key in mapping.items():
             if store_key in stored:
-                overrides[cfg_key] = stored[store_key]
+                overrides[cfg_key] = _sec.resolve(stored[store_key])
         if overrides:
             cfg.update(**overrides)
+
+    async def get_vault_config(self) -> dict:
+        """Return vault settings from app_settings as a dict."""
+        stored = await self.get_all_settings()
+        return {
+            "url":         stored.get("vault_url", ""),
+            "auth_method": stored.get("vault_auth_method", "token"),
+            "token":       stored.get("vault_token", ""),
+            "role_id":     stored.get("vault_role_id", ""),
+            "secret_id":   stored.get("vault_secret_id", ""),
+            "namespace":   stored.get("vault_namespace", ""),
+            "mount":       stored.get("vault_mount", "secret"),
+        }
+
+    async def save_vault_config(self, cfg: dict) -> None:
+        """Persist vault settings to app_settings."""
+        for k, v in {
+            "vault_url":         cfg.get("url", ""),
+            "vault_auth_method": cfg.get("auth_method", "token"),
+            "vault_token":       cfg.get("token", ""),
+            "vault_role_id":     cfg.get("role_id", ""),
+            "vault_secret_id":   cfg.get("secret_id", ""),
+            "vault_namespace":   cfg.get("namespace", ""),
+            "vault_mount":       cfg.get("mount", "secret"),
+        }.items():
+            await self.set_setting(k, v)
 
 
     # ── Pipeline folders ──────────────────────────────────────────────────────

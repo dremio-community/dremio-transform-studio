@@ -2572,14 +2572,15 @@ async def update_connection_settings(body: ConnectionSettings, request: Request,
     from config import settings as cfg
     from dremio_client import dremio_client as dc
 
+    import secrets as _sec
     cfg.update(
         dremio_host=body.host,
         dremio_port=body.port,
         dremio_ssl=body.ssl,
         dremio_auth_type=body.auth_type,
         dremio_user=body.user,
-        dremio_pass=body.password,
-        dremio_pat=body.pat,
+        dremio_pass=_sec.resolve(body.password) if body.password and body.password != "***" else cfg.dremio_pass,
+        dremio_pat=_sec.resolve(body.pat) if body.pat and body.pat != "***" else cfg.dremio_pat,
         dremio_project_id=body.project_id,
     )
     dc.invalidate_token()
@@ -2644,6 +2645,53 @@ async def test_notification_settings() -> dict:
         return {"ok": True, "message": "Test notification sent"}
     except Exception as e:
         return {"ok": False, "message": str(e)}
+
+
+# ── Secrets / Vault settings ──────────────────────────────────────────────────
+
+@app.get("/api/settings/secrets")
+async def get_secrets_settings() -> dict:
+    cfg = await store.get_vault_config()
+    # Redact token and secret_id
+    return {
+        **cfg,
+        "token":     ("***" if cfg.get("token") else ""),
+        "secret_id": ("***" if cfg.get("secret_id") else ""),
+    }
+
+
+@app.put("/api/settings/secrets")
+async def update_secrets_settings(body: dict) -> dict:
+    import secrets as _sec
+    existing = await store.get_vault_config()
+    merged = {**existing}
+    for k in ("url", "auth_method", "token", "role_id", "secret_id", "namespace", "mount"):
+        v = body.get(k)
+        if v is not None and v != "***":
+            merged[k] = v
+    await store.save_vault_config(merged)
+    # Re-initialize resolver with new vault config
+    _sec.init_resolver(merged if merged.get("url") else None)
+    return {"ok": True}
+
+
+@app.post("/api/settings/secrets/test")
+async def test_secrets_settings(body: dict) -> dict:
+    import secrets as _sec
+    vault_cfg = await store.get_vault_config()
+    # Merge in any unsaved values from the request
+    for k in ("url", "auth_method", "token", "role_id", "secret_id", "namespace", "mount"):
+        v = body.get(k)
+        if v and v != "***":
+            vault_cfg[k] = v
+    if not vault_cfg.get("url"):
+        return {"ok": False, "message": "No Vault URL configured"}
+    try:
+        client = _sec.VaultClient(vault_cfg)
+        _ = client  # init authenticates
+        return {"ok": True, "message": f"Connected to Vault at {vault_cfg['url']}"}
+    except Exception as exc:
+        return {"ok": False, "message": str(exc)}
 
 
 @app.get("/api/iceberg-catalogs/{conn_id}/table-schema")
@@ -3560,9 +3608,10 @@ async def agent_chat(body: AgentChatRequest, current_user: dict = Depends(get_cu
     if enabled != "true":
         raise HTTPException(status_code=403, detail="AI Agent is disabled. Enable it in Settings → Agent.")
 
+    import secrets as _sec
     provider = await store.get_setting("agent_provider") or "anthropic"
     model = await store.get_setting("agent_model") or ""
-    api_key = await store.get_setting("agent_api_key") or ""
+    api_key = _sec.resolve(await store.get_setting("agent_api_key") or "")
     base_url = await store.get_setting("agent_base_url") or ""
 
     if not model:

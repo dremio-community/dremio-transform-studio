@@ -1,7 +1,9 @@
 # Dremio Transform Studio
 
-[![Docker Hub](https://img.shields.io/docker/v/mshainman/transform-studio?label=Docker%20Hub&logo=docker)](https://hub.docker.com/r/mshainman/transform-studio)
-[![Docker Pulls](https://img.shields.io/docker/pulls/mshainman/transform-studio?logo=docker)](https://hub.docker.com/r/mshainman/transform-studio)
+### 🐳 [hub.docker.com/r/mshainman/transform-studio](https://hub.docker.com/r/mshainman/transform-studio)
+
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-mshainman%2Ftransform--studio-0db7ed?style=for-the-badge&logo=docker)](https://hub.docker.com/r/mshainman/transform-studio)
+[![Docker Pulls](https://img.shields.io/docker/pulls/mshainman/transform-studio?logo=docker&style=for-the-badge)](https://hub.docker.com/r/mshainman/transform-studio)
 
 A visual, low-code SQL pipeline builder for Dremio. Browse your catalog, build transformation pipelines with 53 pre-built transforms, preview results, and write output tables — all without writing SQL manually.
 

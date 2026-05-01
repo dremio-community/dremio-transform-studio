@@ -1017,6 +1017,28 @@ async def get_pipeline(pipeline_id: str, current_user: dict = Depends(get_curren
     return pipeline
 
 
+async def _github_sync_pipeline(pipeline: Pipeline) -> None:
+    """Background task: push pipeline to GitHub if sync is enabled."""
+    try:
+        from github_sync import push_pipeline as _gh_push
+        cfg = await store.get_github_settings()
+        if not cfg.get("github_sync_enabled") or not cfg.get("github_sync_on_save"):
+            return
+        token = cfg.get("github_token", "")
+        repo = cfg.get("github_repo", "")
+        if not token or not repo or "/" not in repo:
+            return
+        owner, repo_name = repo.split("/", 1)
+        branch = cfg.get("github_branch") or "main"
+        directory = cfg.get("github_directory") or "pipelines"
+        await _gh_push(pipeline, token, owner, repo_name, branch, directory)
+        await store.set_pipeline_github_status(
+            pipeline.id, datetime.now(timezone.utc).isoformat(), None
+        )
+    except Exception as exc:
+        await store.set_pipeline_github_status(pipeline.id, None, str(exc)[:200])
+
+
 @app.put("/api/pipelines/{pipeline_id}", response_model=Pipeline, tags=["pipelines"], summary="Save pipeline (steps, output, parameters, tests, dependencies)")
 async def save_pipeline(pipeline_id: str, data: PipelineSave, request: Request, current_user: dict = Depends(get_current_user)):
     """Full pipeline save. Only the pipeline owner, users with editor grant, or admins can save."""
@@ -1032,6 +1054,9 @@ async def save_pipeline(pipeline_id: str, data: PipelineSave, request: Request, 
             resource_type="pipeline", resource_id=pipeline_id,
             ip_address=request.client.host if request and request.client else None,
         )
+        # Fire-and-forget GitHub sync (don't block the save response)
+        import asyncio as _asyncio
+        _asyncio.create_task(_github_sync_pipeline(result))
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -2744,6 +2769,72 @@ async def get_secrets_settings() -> dict:
         "token":     ("***" if cfg.get("token") else ""),
         "secret_id": ("***" if cfg.get("secret_id") else ""),
     }
+
+
+@app.get("/api/settings/github")
+async def get_github_settings() -> dict:
+    cfg = await store.get_github_settings()
+    # Redact token
+    if cfg.get("github_token"):
+        cfg["github_token"] = "***"
+    return cfg
+
+
+@app.put("/api/settings/github")
+async def update_github_settings(body: dict) -> dict:
+    existing = await store.get_github_settings()
+    merged = {**existing}
+    for k in ("github_sync_enabled", "github_token", "github_repo",
+               "github_branch", "github_directory", "github_sync_on_save"):
+        v = body.get(k)
+        if v is not None and v != "***":
+            merged[k] = v
+    await store.save_github_settings(merged)
+    return {"ok": True}
+
+
+@app.post("/api/settings/github/test")
+async def test_github_settings(body: dict) -> dict:
+    from github_sync import test_connection as gh_test
+    token = body.get("github_token", "")
+    repo = body.get("github_repo", "")
+    # Support "***" meaning use saved token
+    if token == "***":
+        cfg = await store.get_github_settings()
+        token = cfg.get("github_token", "")
+    if not token:
+        return {"ok": False, "message": "No token configured"}
+    if not repo or "/" not in repo:
+        return {"ok": False, "message": "Repo must be in 'owner/repo' format"}
+    owner, repo_name = repo.split("/", 1)
+    return await gh_test(token, owner, repo_name)
+
+
+@app.post("/api/github/sync-all")
+async def github_sync_all(current_user: dict = Depends(get_current_user)) -> dict:
+    from github_sync import push_pipeline as gh_push
+    import asyncio as _asyncio
+    cfg = await store.get_github_settings()
+    if not cfg.get("github_sync_enabled") or not cfg.get("github_token") or not cfg.get("github_repo"):
+        return {"ok": False, "message": "GitHub sync not configured"}
+    uid = current_user["user_id"] if current_user else "default"
+    role = current_user.get("role", "admin") if current_user else "admin"
+    pipelines = await store.list_pipelines(user_id=uid, role=role)
+    token = cfg["github_token"]
+    owner, repo_name = cfg["github_repo"].split("/", 1)
+    branch = cfg.get("github_branch") or "main"
+    directory = cfg.get("github_directory") or "pipelines"
+    now = datetime.now(timezone.utc).isoformat()
+    succeeded, failed = 0, 0
+    for p in pipelines:
+        try:
+            await gh_push(p, token, owner, repo_name, branch, directory)
+            await store.set_pipeline_github_status(p.id, now, None)
+            succeeded += 1
+        except Exception as e:
+            await store.set_pipeline_github_status(p.id, None, str(e)[:200])
+            failed += 1
+    return {"ok": True, "succeeded": succeeded, "failed": failed, "total": len(pipelines)}
 
 
 @app.put("/api/settings/secrets")

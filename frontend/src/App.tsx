@@ -1272,6 +1272,18 @@ export default function App() {
                             {p.shared_access && (
                               <span className="ml-1 text-[9px] text-white/40 font-normal">(shared)</span>
                             )}
+                            {p.github_synced_at && !p.github_sync_error && (
+                              <span
+                                className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0"
+                                title={`Synced to GitHub ${new Date(p.github_synced_at).toLocaleString()}`}
+                              />
+                            )}
+                            {p.github_sync_error && (
+                              <span
+                                className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"
+                                title={`GitHub sync failed: ${p.github_sync_error}`}
+                              />
+                            )}
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); duplicateMut.mutate(p.id) }}
@@ -1384,26 +1396,29 @@ export default function App() {
 
         {/* Center — Pipeline Builder */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Source banner */}
-          {localSourceTable && (
+          {/* Source banner — always visible when a pipeline is open */}
+          {activePipelineId && (
             <div className="flex items-center gap-2 px-4 py-2 bg-navy-900 border-b border-navy-800 text-sm shrink-0">
-              <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">Source</span>
-              <code className="text-xs font-mono text-white bg-white/10 px-2 py-0.5 rounded">{localSourceTable}</code>
-              <button
-                onClick={() => setShowProfile((v) => !v)}
-                title="Profile table"
-                className={clsx(
-                  'flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors',
-                  showProfile
-                    ? 'bg-dblue-500 text-white'
-                    : 'text-white/70 hover:text-white hover:bg-sidebar-accent'
-                )}
-              >
-                <BarChart2 size={11} /> Profile
-              </button>
-              <span className="ml-auto text-xs text-white/60">{sourceSchema.length} columns</span>
-              {/* View toggle */}
-              <div className="flex items-center gap-0.5 ml-3 bg-surface-100 rounded-full p-0.5">
+              {localSourceTable && (
+                <>
+                  <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">Source</span>
+                  <code className="text-xs font-mono text-white bg-white/10 px-2 py-0.5 rounded">{localSourceTable}</code>
+                  <button
+                    onClick={() => setShowProfile((v) => !v)}
+                    title="Profile table"
+                    className={clsx(
+                      'flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors',
+                      showProfile
+                        ? 'bg-dblue-500 text-white'
+                        : 'text-white/70 hover:text-white hover:bg-sidebar-accent'
+                    )}
+                  >
+                    <BarChart2 size={11} /> Profile
+                  </button>
+                  <span className="text-xs text-white/60">{sourceSchema.length} columns</span>
+                </>
+              )}
+              <div className="ml-auto flex items-center gap-0.5 bg-white/10 rounded-full p-0.5">
                 <ViewToggleBtn
                   active={centerView === 'pipeline'}
                   onClick={() => setCenterView('pipeline')}
@@ -2597,7 +2612,7 @@ function ViewToggleBtn({ active, onClick, label }: {
         'px-2.5 py-0.5 text-xs font-medium rounded-full transition-colors',
         active
           ? 'bg-white text-navy-900 shadow-sm'
-          : 'text-white/40 hover:text-surface-700'
+          : 'text-white/70 hover:text-white'
       )}
     >
       {label}

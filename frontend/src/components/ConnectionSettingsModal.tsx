@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Wifi, Bell, HardDrive, Upload, Shield, Users, Lock, Unlock, KeyRound, Plug, Copy, Check, Bot, Vault } from 'lucide-react'
+import { Loader2, Wifi, Bell, HardDrive, Upload, Shield, Users, Lock, Unlock, KeyRound, Plug, Copy, Check, Bot, Vault, GitBranch, RefreshCw } from 'lucide-react'
 import SecretFieldInput from './SecretFieldInput'
 import { IconAdd, IconCaretDown, IconCaretUp, IconCheckCircle, IconClose, IconDatasetDownload, IconDelete, IconErrorCircle } from './icons'
 import clsx from 'clsx'
@@ -35,7 +35,7 @@ interface Props {
   initialTab?: ModalTab
 }
 
-type ModalTab = 'connection' | 'notifications' | 'storage' | 'security' | 'sso' | 'mcp' | 'agent' | 'secrets'
+type ModalTab = 'connection' | 'notifications' | 'storage' | 'security' | 'sso' | 'mcp' | 'agent' | 'secrets' | 'github'
 
 const CLOUD_HOSTS = [
   { label: 'Dremio Cloud (US)', value: 'api.dremio.cloud' },
@@ -352,6 +352,17 @@ export default function ConnectionSettingsModal({ onClose, onSaved, initialTab }
             )}
           >
             <Vault size={13} /> Secrets
+          </button>
+          <button
+            onClick={() => setActiveTab('github')}
+            className={clsx(
+              'flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap',
+              activeTab === 'github'
+                ? 'text-dblue-600 border-dblue-500'
+                : 'text-gray-400 border-transparent hover:text-gray-600'
+            )}
+          >
+            <GitBranch size={13} /> GitHub
           </button>
         </div>
 
@@ -1224,6 +1235,9 @@ export default function ConnectionSettingsModal({ onClose, onSaved, initialTab }
         {/* ── Secrets Tab ── */}
         {activeTab === 'secrets' && <SecretsTab />}
 
+        {/* ── GitHub Sync Tab ── */}
+        {activeTab === 'github' && <GitHubSyncTab />}
+
       </div>
     </div>
   )
@@ -1672,6 +1686,228 @@ function McpTab() {
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
         <p className="text-xs font-semibold text-amber-800 mb-1">Desktop app note</p>
         <p className="text-xs text-amber-700">The desktop app picks a free port on startup (8000, 8001, …). The URL above reflects the <strong>current</strong> port — if you restart the app and the port changes, come back here to get the updated config.</p>
+      </div>
+    </div>
+  )
+}
+
+// ── GitHub Sync Tab ────────────────────────────────────────────────────────────
+
+function GitHubSyncTab() {
+  const [enabled, setEnabled] = useState(false)
+  const [syncOnSave, setSyncOnSave] = useState(true)
+  const [token, setToken] = useState('')
+  const [repo, setRepo] = useState('')
+  const [branch, setBranch] = useState('main')
+  const [directory, setDirectory] = useState('pipelines')
+  const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/settings/github')
+      .then(r => r.json())
+      .then(d => {
+        setEnabled(!!d.github_sync_enabled)
+        setSyncOnSave(d.github_sync_on_save !== false)
+        setToken(d.github_token ? '***' : '')
+        setRepo(d.github_repo || '')
+        setBranch(d.github_branch || 'main')
+        setDirectory(d.github_directory || 'pipelines')
+      })
+      .catch(() => {})
+  }, [])
+
+  const flash = (ok: boolean, text: string) => {
+    setMsg({ ok, text })
+    setTimeout(() => setMsg(null), 4000)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const body: Record<string, unknown> = {
+        github_sync_enabled: enabled,
+        github_sync_on_save: syncOnSave,
+        github_repo: repo,
+        github_branch: branch,
+        github_directory: directory,
+      }
+      if (token !== '***') body.github_token = token
+      const r = await fetch('/api/settings/github', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (r.ok) flash(true, 'Settings saved')
+      else flash(false, 'Save failed')
+    } catch { flash(false, 'Save failed') }
+    finally { setSaving(false) }
+  }
+
+  const handleTest = async () => {
+    setTesting(true)
+    try {
+      const body: Record<string, unknown> = { github_repo: repo, github_token: token }
+      const r = await fetch('/api/settings/github/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const d = await r.json()
+      flash(d.ok, d.message)
+    } catch { flash(false, 'Connection test failed') }
+    finally { setTesting(false) }
+  }
+
+  const handleSyncAll = async () => {
+    setSyncing(true)
+    try {
+      const r = await fetch('/api/github/sync-all', { method: 'POST' })
+      const d = await r.json()
+      if (d.ok) flash(true, `Synced ${d.succeeded}/${d.total} pipelines${d.failed ? ` (${d.failed} failed)` : ''}`)
+      else flash(false, d.message || 'Sync failed')
+    } catch { flash(false, 'Sync failed') }
+    finally { setSyncing(false) }
+  }
+
+  const fieldClass = 'w-full bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-dblue-400 focus:border-dblue-400'
+  const labelClass = 'block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1'
+
+  return (
+    <div className="p-5 space-y-5">
+      {/* Enable toggle */}
+      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">Enable GitHub Sync</p>
+          <p className="text-xs text-gray-500 mt-0.5">Push pipeline definitions to a GitHub repo as JSON files</p>
+        </div>
+        <button
+          onClick={() => setEnabled(v => !v)}
+          className={clsx(
+            'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+            enabled ? 'bg-dblue-500' : 'bg-gray-200'
+          )}
+        >
+          <span className={clsx(
+            'inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow',
+            enabled ? 'translate-x-6' : 'translate-x-1'
+          )} />
+        </button>
+      </div>
+
+      {enabled && (
+        <>
+          {/* Token */}
+          <div>
+            <label className={labelClass}>Personal Access Token</label>
+            <input
+              type="password"
+              className={fieldClass}
+              value={token}
+              onChange={e => setToken(e.target.value)}
+              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+              autoComplete="off"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Needs <strong>Contents: Read &amp; Write</strong> scope.{' '}
+              <a href="https://github.com/settings/tokens/new" target="_blank" rel="noreferrer" className="text-dblue-500 underline">Create token</a>
+            </p>
+          </div>
+
+          {/* Repo */}
+          <div>
+            <label className={labelClass}>Repository</label>
+            <input
+              className={fieldClass}
+              value={repo}
+              onChange={e => setRepo(e.target.value)}
+              placeholder="owner/repo-name"
+            />
+          </div>
+
+          {/* Branch + Directory */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Branch</label>
+              <input className={fieldClass} value={branch} onChange={e => setBranch(e.target.value)} placeholder="main" />
+            </div>
+            <div>
+              <label className={labelClass}>Directory</label>
+              <input className={fieldClass} value={directory} onChange={e => setDirectory(e.target.value)} placeholder="pipelines" />
+            </div>
+          </div>
+
+          {/* Sync on save toggle */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div>
+              <p className="text-sm font-medium text-gray-800">Sync on every save</p>
+              <p className="text-xs text-gray-500 mt-0.5">Auto-commit to GitHub each time you save a pipeline</p>
+            </div>
+            <button
+              onClick={() => setSyncOnSave(v => !v)}
+              className={clsx(
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                syncOnSave ? 'bg-dblue-500' : 'bg-gray-200'
+              )}
+            >
+              <span className={clsx(
+                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow',
+                syncOnSave ? 'translate-x-6' : 'translate-x-1'
+              )} />
+            </button>
+          </div>
+
+          {/* Info box */}
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700 space-y-1">
+            <p className="font-semibold text-blue-800">File structure</p>
+            <p>Each pipeline is saved as <code className="bg-blue-100 px-1 rounded">{directory || 'pipelines'}/&#123;pipeline-name&#125;.json</code></p>
+            <p>Committed with message: <code className="bg-blue-100 px-1 rounded">chore: sync pipeline '&#123;name&#125;'</code></p>
+          </div>
+        </>
+      )}
+
+      {/* Status message */}
+      {msg && (
+        <div className={clsx(
+          'rounded-md px-3 py-2 text-sm',
+          msg.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+        )}>
+          {msg.text}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-2 pt-1 flex-wrap">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 bg-dblue-500 hover:bg-dblue-600 text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-50"
+        >
+          {saving && <Loader2 size={13} className="animate-spin" />}
+          Save Settings
+        </button>
+        {enabled && (
+          <>
+            <button
+              onClick={handleTest}
+              disabled={testing || !repo}
+              className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              {testing ? <Loader2 size={13} className="animate-spin" /> : <GitBranch size={13} />}
+              Test Connection
+            </button>
+            <button
+              onClick={handleSyncAll}
+              disabled={syncing}
+              className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              {syncing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+              Sync All Now
+            </button>
+          </>
+        )}
       </div>
     </div>
   )

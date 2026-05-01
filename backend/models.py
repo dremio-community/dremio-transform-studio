@@ -125,6 +125,9 @@ class Pipeline(BaseModel):
     # Organisation
     folder: Optional[str] = None
     tags: Optional[List[str]] = None
+    # GitHub sync status (populated by store)
+    github_synced_at: Optional[str] = None
+    github_sync_error: Optional[str] = None
 
 
 class PipelineCreate(BaseModel):

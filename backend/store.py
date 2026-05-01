@@ -234,6 +234,9 @@ class PipelineStore:
                 "ALTER TABLE pipelines ADD COLUMN load_trigger_job_id TEXT DEFAULT ''",
                 # Dremio CDC integration (v1.9)
                 "ALTER TABLE pipelines ADD COLUMN cdc_trigger_url TEXT DEFAULT ''",
+                # GitHub sync (v1.16)
+                "ALTER TABLE pipelines ADD COLUMN github_synced_at TEXT",
+                "ALTER TABLE pipelines ADD COLUMN github_sync_error TEXT",
             ]:
                 try:
                     await db.execute(col_sql)
@@ -533,7 +536,7 @@ class PipelineStore:
         """Return cached profile result if it exists and is less than 1 hour old."""
         import json as _json
         from datetime import datetime, timezone, timedelta
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 "SELECT result_json, cached_at FROM profile_cache WHERE table_name = ?",
@@ -555,7 +558,7 @@ class PipelineStore:
         import json as _json
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc).isoformat()
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self._db_path) as db:
             await db.execute(
                 "INSERT OR REPLACE INTO profile_cache (table_name, result_json, cached_at) VALUES (?, ?, ?)",
                 (table_name, _json.dumps(result), now)
@@ -564,7 +567,7 @@ class PipelineStore:
 
     async def clear_profile_cache(self, table_name: str) -> None:
         """Remove a cached profile so the next request re-runs the query."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with aiosqlite.connect(self._db_path) as db:
             await db.execute("DELETE FROM profile_cache WHERE table_name = ?", (table_name,))
             await db.commit()
 
@@ -634,6 +637,8 @@ class PipelineStore:
             load_trigger_url=row["load_trigger_url"] if "load_trigger_url" in keys else None,
             load_trigger_job_id=row["load_trigger_job_id"] if "load_trigger_job_id" in keys else None,
             cdc_trigger_url=row["cdc_trigger_url"] if "cdc_trigger_url" in keys else None,
+            github_synced_at=row["github_synced_at"] if "github_synced_at" in keys else None,
+            github_sync_error=row["github_sync_error"] if "github_sync_error" in keys else None,
         )
 
     async def create_pipeline(self, data: PipelineCreate, user_id: str = "default") -> Pipeline:
@@ -1550,6 +1555,46 @@ class PipelineStore:
                     val = ""
                 await self.set_setting(key, str(val))
 
+
+    # ── GitHub sync settings ──────────────────────────────────────────────────
+
+    _GITHUB_KEYS = [
+        "github_sync_enabled", "github_token", "github_repo",
+        "github_branch", "github_directory", "github_sync_on_save",
+    ]
+
+    async def get_github_settings(self) -> dict:
+        all_settings = await self.get_all_settings()
+        result = {}
+        for key in self._GITHUB_KEYS:
+            val = all_settings.get(key, "")
+            if key in ("github_sync_enabled", "github_sync_on_save"):
+                result[key] = val.lower() == "true" if val else False
+            else:
+                result[key] = val
+        result.setdefault("github_branch", "main")
+        result.setdefault("github_directory", "pipelines")
+        return result
+
+    async def save_github_settings(self, settings: dict) -> None:
+        for key in self._GITHUB_KEYS:
+            if key in settings:
+                val = settings[key]
+                if isinstance(val, bool):
+                    val = "true" if val else "false"
+                elif val is None:
+                    val = ""
+                await self.set_setting(key, str(val))
+
+    async def set_pipeline_github_status(
+        self, pipeline_id: str, synced_at: Optional[str], error: Optional[str]
+    ) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "UPDATE pipelines SET github_synced_at = ?, github_sync_error = ? WHERE id = ?",
+                (synced_at, error, pipeline_id),
+            )
+            await db.commit()
 
     # ── Pipeline run history ──────────────────────────────────────────────────
 
